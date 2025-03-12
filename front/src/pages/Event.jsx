@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import SearchBar from '@/components/SearchBar';
 import EventCard from '@/components/EventCard';
 import AnimatedSection from '@/components/AnimatedSection';
-import { eventsData } from '@/utils/data';
+import { eventsData, categories } from '@/utils/data';
 import { Button } from "@/components/ui/button";
 import { Filter, Calendar, MapPin } from 'lucide-react';
 
@@ -12,6 +12,8 @@ const Events = () => {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
   
   const categories = ['all', 'music', 'business', 'food', 'art', 'tech', 'sports'];
   
@@ -25,10 +27,10 @@ const Events = () => {
     return () => clearTimeout(timer);
   }, []);
   
-  const filteredEvents = activeFilter === 'all' 
-    ? events 
-    : events.filter(event => event.category === activeFilter);
-  
+  const filteredEvents = eventsData.filter(event => 
+    selectedCategory === 'All' || event.category === selectedCategory
+  );
+
   return (
     <div className=" pt-20 min-h-screen bg-background flex flex-col">
     
