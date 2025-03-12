@@ -40,7 +40,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <Calendar className="h-6 w-6 text-primary" />
-            <span className="text-xl font-display font-semibold">EventHub</span>
+            <span className="text-xl font-display font-semibold">FikaEvents</span>
           </Link>
 
           {/* Desktop Navigation */}

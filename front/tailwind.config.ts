@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -52,6 +51,16 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        navy: {
+          light: "#003566",
+          DEFAULT: "#001D3D",
+          dark: "#000814",
+        },
+        sunshine: {
+          light: "#FFD60A",
+          DEFAULT: "#FFC300",
+          dark: "#E6B000",
         },
         // Kenya-inspired colors
         kenya: {
