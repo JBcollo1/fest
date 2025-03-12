@@ -1,0 +1,124 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 36 33% 97%;
+    --foreground: 24 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 24 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 10% 10%;
+
+    --primary: 24 54% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 45 30% 64%;
+    --secondary-foreground: 24 20% 20%;
+
+    --muted: 24 10% 96%;
+    --muted-foreground: 24 10% 40%;
+
+    --accent: 24 20% 92%;
+    --accent-foreground: 24 20% 20%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 24 15% 90%;
+    --input: 24 15% 90%;
+    --ring: 24 50% 60%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 24 20% 8%;
+    --foreground: 24 10% 98%;
+
+    --card: 24 20% 12%;
+    --card-foreground: 24 10% 98%;
+
+    --popover: 24 20% 12%;
+    --popover-foreground: 24 10% 98%;
+
+    --primary: 24 54% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 45 30% 25%;
+    --secondary-foreground: 45 20% 92%;
+
+    --muted: 24 20% 20%;
+    --muted-foreground: 24 10% 70%;
+
+    --accent: 24 20% 20%;
+    --accent-foreground: 24 10% 92%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 24 20% 25%;
+    --input: 24 20% 25%;
+    --ring: 24 50% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/85 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-glass;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:translate-y-[-4px] hover:shadow-xl;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground transition-all hover:bg-primary/90 active:bg-primary/80 px-4 py-2 rounded-md font-medium;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground transition-all hover:bg-secondary/90 active:bg-secondary/80 px-4 py-2 rounded-md font-medium;
+  }
+
+  .btn-outline {
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-md font-medium;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-md font-medium;
+  }
+
+  .section-padding {
+    @apply py-10 md:py-16 px-4 md:px-8;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-secondary-foreground bg-clip-text text-transparent;
+  }
+}
