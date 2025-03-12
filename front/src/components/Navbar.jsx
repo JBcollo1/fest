@@ -1,13 +1,13 @@
 
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, Menu, X, User, Calendar } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const location = useLocation();
+  const location = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -54,9 +54,8 @@ const Navbar = () => {
             <Link to="/about" className="font-medium hover:text-primary transition-colors">
               About
             </Link>
-            <Link to="/contact" className="font-medium hover:text-primary transition-colors">
-              Contact
-            </Link>
+         
+            
           </nav>
 
           {/* Desktop Action Buttons */}
@@ -64,8 +63,13 @@ const Navbar = () => {
             <Button variant="outline" size="sm" className="rounded-full">
               <Search className="h-4 w-4 mr-1" /> Search
             </Button>
-            <Button className="rounded-full">
-              <User className="h-4 w-4 mr-1" /> Sign In
+            <Button asChild size="sm" variant="outline" className="rounded-full">
+              <Link to="/signin">
+                <User className="h-4 w-4 mr-1" /> Sign In
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="rounded-full">
+              <Link to="/signup">Sign Up</Link>
             </Button>
           </div>
 
@@ -106,8 +110,13 @@ const Navbar = () => {
               <Button variant="outline" className="justify-center">
                 <Search className="h-4 w-4 mr-2" /> Search Events
               </Button>
-              <Button className="justify-center">
-                <User className="h-4 w-4 mr-2" /> Sign In
+              <Button asChild className="justify-center">
+                <Link to="/signin">
+                  <User className="h-4 w-4 mr-2" /> Sign In
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-center">
+                <Link to="/signup">Sign Up</Link>
               </Button>
             </div>
           </div>
