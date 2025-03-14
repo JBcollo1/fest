@@ -43,9 +43,9 @@ const Footer = () =>{
     <div>
       <h3 className="font-semibold mb-4">Contact Us</h3>
       <address className="not-italic text-muted-foreground">
-        <p>Westlands Business Park</p>
+        <p>Westlands </p>
         <p>Nairobi, Kenya</p>
-        <p className="mt-2">info@eventhub.co.ke</p>
+        <p className="mt-2">info@fikaevent.co.ke</p>
         <p>+254 700 123 456</p>
       </address>
     </div>
