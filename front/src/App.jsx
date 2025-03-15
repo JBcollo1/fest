@@ -13,6 +13,7 @@ import About from "./pages/About";
 import Events from "./pages/Event";
 import Navbar from "./components/Navbar";
 import Footer from "./components/footer";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,8 @@ const App = () => (
           <Route path="/signup" element={<SignUp />} />
           <Route path="/about" element={<About />} />
           <Route path="/events" element={<Events />} />
+          <Route path="/d" element={<Dashboard />} />
+
 
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
