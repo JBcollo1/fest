@@ -62,6 +62,9 @@ export default {
           DEFAULT: "#FFC300",
           dark: "#E6B000",
         },
+        new:{
+          default:"#000814",
+        },
         // Kenya-inspired colors
         kenya: {
           red: "#BE0027",
@@ -90,8 +93,8 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["SF Pro Display", "Inter", "system-ui", "sans-serif"],
+        sans: ["itc-caslon-pro"],
+        display: ["minion-3"],
       },
       keyframes: {
         "accordion-down": {
