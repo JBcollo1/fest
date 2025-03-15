@@ -54,3 +54,8 @@ flask run
 | GET         | /api        | Main blueprint routes  |
 | GET         | /api/auth   | Auth blueprint routes  |
 | GET         | /api/admin  | admin blueprint routes |
+
+
+### Db schema
+
+[database schema](db_schema_march25.pdf)
