@@ -40,8 +40,9 @@ class User(db.Model):
   def check_password(self, password):
     return check_password_hash(self.password_hash, password)
 
-  def to_dict(self):
-    return {
+  # test feature. fetch + relationship data
+  def to_dict(self, include_roles=False):
+    user_dict = {
       'id': self.id,
       'username': self.username,
       'email': self.email,
@@ -51,12 +52,19 @@ class User(db.Model):
       'created_at': self.created_at.isoformat() if self.created_at else None,
       'updated_at': self.updated_at.isoformat() if self.updated_at else None
     }
+    if include_roles: 
+      user_dict['roles']= [role.name for role in self.roles]
+    return user_dict
 
   def has_role(self, role_name):
     for role in self.roles:
       if role.name == role_name:
         return True
     return False    
+
+  def add_role(self, role):
+    if not self.has_role(role.name):
+      self.roles.append(role)
 
 
 class Role(db.Model):
@@ -81,6 +89,7 @@ class UserRole(db.Model):
   
   user_id = db.Column(db.String(36), db.ForeignKey('users.id'), primary_key=True)
   role_id = db.Column(db.String(36), db.ForeignKey('roles.id'), primary_key=True)
+  created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Organizer(db.Model):
   __tablename__ = 'organizers'
@@ -94,20 +103,27 @@ class Organizer(db.Model):
   created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
   updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
   
-  user = db.relationship('User', backref=db.backref('organizer', uselist=False))
   events = db.relationship('Event', backref='organizer', lazy='dynamic')
   
-  def to_dict(self):
-    return {
+  def to_dict(self, include_events=False, include_user=False):
+    organizer_dict = {
       'id': self.id,
       'user_id': self.user_id,
       'company_name': self.company_name,
       'company_image': self.company_image,
-      'contact_email': self.contact_email,
-      'contact_phone': self.contact_phone,
+      'contact_email': self.contact_email or self.user.email,
+      'contact_phone': self.contact_phone or self.user.phone,
       'created_at': self.created_at.isoformat() if self.created_at else None,
       'updated_at': self.updated_at.isoformat() if self.updated_at else None
     }
+    
+    if include_user:
+      organizer_dict['user'] = self.user.to_dict()
+        
+    if include_events:
+      organizer_dict['events'] = [event.to_dict() for event in self.events]
+
+    return organizer_dict
 
 class Attendee(db.Model):
   __tablename__ = 'attendees'
@@ -118,7 +134,6 @@ class Attendee(db.Model):
   created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
   updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
   
-  user = db.relationship('User', backref=db.backref('attendee', uselist=False))
   tickets = db.relationship('Ticket', backref='attendee', lazy=True)
   
   def to_dict(self):
@@ -181,7 +196,6 @@ class Event(db.Model):
     return event_dict
 
 
-# testing till here, below is my boilerplate models, not completely tested
 class Category(db.Model):
   __tablename__ = 'categories'
 
@@ -199,6 +213,7 @@ class EventCategory(db.Model):
 
   event_id = db.Column(db.String(36), db.ForeignKey('events.id'), primary_key=True)
   category_id = db.Column(db.String(36), db.ForeignKey('categories.id'), primary_key=True)
+  created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Ticket(db.Model):
   __tablename__ = 'tickets'

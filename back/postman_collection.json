@@ -1,0 +1,112 @@
+{
+    "info": {
+      "_postman_id": "12345678-1234-5678-1234-567812345678",
+      "name": "API Testing Collection",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "User Registration",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "url": {
+            "raw": "http://127.0.0.1:5000/api/users",
+            "host": ["127.0.0.1"],
+            "port": "5000",
+            "path": ["api", "users"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\"username\": \"testuser\", \"email\": \"test@example.com\", \"password\": \"password123\", \"first_name\": \"Test\", \"last_name\": \"User\"}"
+          }
+        }
+      },
+      {
+        "name": "User Login",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "url": {
+            "raw": "http://127.0.0.1:5000/api/login",
+            "host": ["127.0.0.1"],
+            "port": "5000",
+            "path": ["api", "login"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\"username\": \"testuser\", \"password\": \"password123\"}"
+          }
+        }
+      },
+      {
+        "name": "Get All Events",
+        "request": {
+          "method": "GET",
+          "url": {
+            "raw": "http://127.0.0.1:5000/api/events",
+            "host": ["127.0.0.1"],
+            "port": "5000",
+            "path": ["api", "events"]
+          }
+        }
+      },
+      {
+        "name": "Create Event",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Content-Type", "value": "application/json" },
+            { "key": "Authorization", "value": "Bearer YOUR_ACCESS_TOKEN" }
+          ],
+          "url": {
+            "raw": "http://127.0.0.1:5000/api/events",
+            "host": ["127.0.0.1"],
+            "port": "5000",
+            "path": ["api", "events"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\"title\": \"Sample Event\", \"description\": \"An amazing event\", \"start_datetime\": \"2025-06-01T10:00:00Z\", \"end_datetime\": \"2025-06-02T18:00:00Z\", \"location\": \"New York\", \"price\": 100, \"total_tickets\": 500}"
+          }
+        }
+      },
+      {
+        "name": "Get All Categories",
+        "request": {
+          "method": "GET",
+          "url": {
+            "raw": "http://127.0.0.1:5000/api/categories",
+            "host": ["127.0.0.1"],
+            "port": "5000",
+            "path": ["api", "categories"]
+          }
+        }
+      },
+      {
+        "name": "Create Category",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Content-Type", "value": "application/json" },
+            { "key": "Authorization", "value": "Bearer YOUR_ACCESS_TOKEN" }
+          ],
+          "url": {
+            "raw": "http://127.0.0.1:5000/api/categories",
+            "host": ["127.0.0.1"],
+            "port": "5000",
+            "path": ["api", "categories"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\"name\": \"Technology\"}"
+          }
+        }
+      }
+    ]
+  }
+  
