@@ -14,7 +14,7 @@ def success_response(data=None, message="Success", status_code=200):
     else:
         print("no response data")
 
-    return jsonify(response), status_code
+    return response, status_code
 
 def error_response(message="Error", status_code=400, errors=None):
     response = {
@@ -25,7 +25,7 @@ def error_response(message="Error", status_code=400, errors=None):
     if errors is not None:
         response["errors"] = errors
         
-    return jsonify(response), status_code
+    return response, status_code
 
 
 def paginate_response(query, page=1, per_page=10):

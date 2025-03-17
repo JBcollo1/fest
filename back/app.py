@@ -22,7 +22,7 @@ api = Api(app)
 
 from models import User, Role, UserRole, Organizer, Attendee, Event, Category, EventCategory, Ticket, DiscountCode, EventDiscountCode, Payment
 
-from users import UserResource, UserListResource, UserLoginResource, UserRolesResource
+from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource
 from events import EventResource, EventListResource, EventCategoriesResource, FeaturedEventsResource
 from tickets import TicketResource, TicketListResource, UserTicketsResource
 from payments import PaymentResource, PaymentListResource
@@ -33,6 +33,9 @@ api.add_resource(UserListResource, '/api/users')
 api.add_resource(UserResource, '/api/users/<string:user_id>')
 api.add_resource(UserLoginResource, '/api/login')
 api.add_resource(UserRolesResource, '/api/users/<string:user_id>/roles')
+api.add_resource(RoleListResource, '/api/role')
+
+
 
 api.add_resource(EventListResource, '/api/events')
 api.add_resource(EventResource, '/api/events/<string:event_id>')
