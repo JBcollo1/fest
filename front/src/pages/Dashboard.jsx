@@ -3,7 +3,7 @@ import Sidebar from "../components/dashboard/Sidebar";
 import UserProfile from "../components/dashboard/UserProfile";
 import PurchasedTickets from "../components/dashboard/PurchasedTickets";
 // import { OrganizedEvents } from "@/components/dashboard/OrganizedEvents";
-// import { QRScanner } from "@/components/dashboard/QRScanner";
+import { QRScanner } from "@/components/dashboard/QRScanner";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -19,8 +19,8 @@ const Dashboard = () => {
         return <PurchasedTickets />;
     //   case "organized":
     //     return <OrganizedEvents />;
-    //   case "scanner":
-    //     return <QRScanner />;
+      case "scanner":
+        return <QRScanner />;
       default:
         return <UserProfile />;
     }

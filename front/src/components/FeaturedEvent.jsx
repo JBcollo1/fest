@@ -45,8 +45,10 @@ const FeaturedEvent = ({ event }) => {
   return (
     <div className="relative w-full rounded-xl overflow-hidden">
       <div 
-        className="absolute inset-0 bg-cover bg-center"
+        className="absolute inset-0 bg-cover bg-center rounded-lg"
         style={{ 
+          width: '1080px',
+          height:'566px',
           backgroundImage: `url(${event.image})`,
           filter: 'brightness(0.5)'
         }}
