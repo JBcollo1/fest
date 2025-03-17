@@ -1,8 +1,15 @@
 import os
 basedir = os.path.abspath(os.path.dirname(__file__))
+from datetime import timedelta
 
 class Config:
-  SECRET_KEY = os.environ.get('SECRET_KEY')
-
   SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'sqlite:///' + os.path.join(basedir, 'app.db')
+  SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+  # JWT config
+  JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
+  JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
+  JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30) 
+
+  ITEMS_PER_PAGE = 8
