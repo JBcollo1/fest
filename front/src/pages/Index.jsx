@@ -9,6 +9,9 @@ import AnimatedSection from '@/components/AnimatedSection';
 import { eventsData, categories } from '@/utils/data';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import SafariSection from './Safari';
+import { useRef } from 'react';
+import { useEffect } from 'react';
 
 const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -18,6 +21,28 @@ const Index = () => {
   const filteredEvents = eventsData.filter(event => 
     selectedCategory === 'All' || event.category === selectedCategory
   );
+
+  useEffect(() => {
+    const handleScrollToSection = () => {
+      if (window.location.hash === '#safari') {
+        const safariSection = document.getElementById('safari');
+        if (safariSection) {
+          safariSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    };
+
+    // Call the function on mount
+    handleScrollToSection();
+
+    // Add an event listener for hash changes
+    window.addEventListener('hashchange', handleScrollToSection);
+
+    // Cleanup the event listener on unmount
+    return () => {
+      window.removeEventListener('hashchange', handleScrollToSection);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -82,39 +107,8 @@ const Index = () => {
       </section>
       
       {/* Categories Section */}
-      <section className="section-padding bg-muted">
-        <div className="container mx-auto px-4">
-          <AnimatedSection>
-            <div className="text-center mb-12">
-              <h2 className="text-2xl md:text-3xl font-display font-bold mb-4">Explore Event Categories</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Discover events that match your interests across Kenya's vibrant cultural scene
-              </p>
-            </div>
-          </AnimatedSection>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
-            {categories.filter(category => category !== 'All').slice(0, 5).map((category, index) => (
-              <AnimatedSection key={category} delay={100 + index * 50}>
-                <Link to={`/events?category=${category}`} className="block">
-                  <div className="glass rounded-xl p-6 text-center h-full card-hover">
-                    <div className="mb-4 flex justify-center">
-                      {category === 'Music' && <MusicIcon />}
-                      {category === 'Technology' && <TechIcon />}
-                      {category === 'Food & Drink' && <FoodIcon />}
-                      {category === 'Adventure' && <AdventureIcon />}
-                      {category === 'Cultural' && <CulturalIcon />}
-                    </div>
-                    <h3 className="font-semibold">{category}</h3>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {getEventCount(category)} events
-                    </p>
-                  </div>
-                </Link>
-              </AnimatedSection>
-            ))}
-          </div>
-        </div>
+      <section className="section-padding bg-secondary" id='safari'>
+        <SafariSection/>
       </section>
       
       {/* Popular Locations Section */}

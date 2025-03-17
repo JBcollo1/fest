@@ -21,7 +21,7 @@ const EventCard = ({ event, featured = false }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative w-full overflow-hidden">
+      <div className="relative w-[1080px] h-[1080px] overflow-hidden">
         <div 
           className={`w-full transition-transform duration-700 ${
             isHovered ? 'scale-105' : 'scale-100'
@@ -29,6 +29,7 @@ const EventCard = ({ event, featured = false }) => {
           style={{ 
             backgroundImage: `url(${event.image})`,
             backgroundSize: 'cover',
+            
             backgroundPosition: 'center',
             height: featured ? '350px' : '220px'
           }}

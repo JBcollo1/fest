@@ -224,7 +224,8 @@ class Ticket(db.Model):
   purchase_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
   price = db.Column(db.Numeric(10, 2), nullable=False)
   currency = db.Column(db.String(10), nullable=False, default='KES')
-  qr_code = db.Column(db.Text, nullable=True)
+  satus = db.Column(db.String(20), default='valid')
+  qr_code = db.Column(db.String(40), unique=True, default=lambda: str(uuid.uuid4()))
   
   payment = db.relationship('Payment', backref='ticket', uselist=False)
   
