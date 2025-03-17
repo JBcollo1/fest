@@ -1,12 +1,12 @@
-from flask import request, jsonify
+from flask import request, jsonify, make_response
 from flask_restful import Resource
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, verify_jwt_in_request
 from app import db
 from models import User, Role, UserRole
 from utils.response import success_response, error_response
 from utils.auth import admin_required, generate_tokens
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class UserListResource(Resource):
     @jwt_required()
@@ -154,37 +154,44 @@ class UserResource(Resource):
             return error_response(f"Error deleting user: {str(e)}")
 
 class UserLoginResource(Resource):
-    """
-    Resource for user authentication
-    """
     def post(self):
-        """User login"""
-        data = request.get_json()
-        
-        if not data:
-            return error_response("No input data provided")
+        try:
+            data = request.get_json()
+            email = data.get('email')
+            password = data.get('password')
             
-        # Check for required fields
-        if 'username' not in data or 'password' not in data:
-            return error_response("Missing username or password")
+            user = User.query.filter_by(email=email).first()
+            if user and user.check_password(password):
+                # Create the JWT token
+                access_token = create_access_token(identity=user.id)
+                
+                # Create response
+                response = make_response(
+                    success_response(
+                        data={
+                            'user': user.to_dict(),
+                            'access_token': access_token
+                        },
+                        message="Login successful"
+                    )
+                )
+                
+                # Set the JWT as an HTTP-only cookie
+                response.set_cookie(
+                    'access_token_cookie',
+                    access_token,
+                    httponly=True,
+                    secure=False,  # Set to True in production with HTTPS
+                    samesite='Lax',
+                    path='/'  # Add this to ensure the cookie is sent with all requests
+                )
+                
+                return response
             
-        # Try to find the user
-        user = User.query.filter_by(username=data['username']).first()
-        
-        if not user or not check_password_hash(user.password_hash, data['password']):
-            return error_response("Invalid username or password", 401)
+            return error_response("Invalid email or password", 401)
             
-        # Generate tokens
-        tokens = generate_tokens(user.id)
-        
-        return success_response(
-            data={
-                'user': user.to_dict(),
-                'tokens': tokens
-            },
-            message="Login successful"
-        )
-
+        except Exception as e:
+            return error_response(str(e))
 
 class UserRolesResource(Resource):
     """
@@ -269,7 +276,11 @@ class UserRolesResource(Resource):
             db.session.rollback()
             return error_response(f"Error removing role: {str(e)}")
         
-
+class LogoutResource(Resource):
+    def post(self):
+        response = make_response(success_response(message="Logout successful"))
+        response.delete_cookie('access_token_cookie')
+        return response
         
 class RoleListResource(Resource):
    
@@ -297,3 +308,22 @@ class RoleListResource(Resource):
         except Exception as e:
             db.session.rollback()
             return error_response(f"Error creating role: {str(e)}")
+
+class CurrentUserResource(Resource):
+
+    @jwt_required(locations=['headers', 'cookies'])
+    def get(self):
+        try:
+            current_user_id = get_jwt_identity()
+            
+            user = User.query.get(current_user_id)
+            if not user:
+                return error_response("User not found", 404)
+            
+            return success_response(
+                data=user.to_dict(),
+                message="Current user retrieved successfully"
+            )
+        except Exception as e:
+            print("Error in CurrentUserResource:", str(e))
+            return error_response(str(e), 401)

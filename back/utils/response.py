@@ -37,8 +37,17 @@ def paginate_response(query, page=1, per_page=10):
     # math.ceil - round up
     total_pages = math.ceil(total / per_page)
     
+    # Convert items to dictionaries first to ensure JSON serializable
+    items = []
+    for item in paginated_query.items:
+        if hasattr(item, 'to_dict'):
+            items.append(item.to_dict())
+        else:
+            # If to_dict() is not available, you might need to handle serialization differently
+            raise ValueError(f"Object of type {type(item)} must implement to_dict() method")
+    
     result = {
-        "items": [item.to_dict() for item in paginated_query.items],
+        "items": items,
         "pagination": {
             "total_items": total,
             "total_pages": total_pages,

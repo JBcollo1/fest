@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "../components/dashboard/Sidebar";
 import UserProfile from "../components/dashboard/UserProfile";
 import PurchasedTickets from "../components/dashboard/PurchasedTickets";
-// import { OrganizedEvents } from "@/components/dashboard/OrganizedEvents";
+import OrganizerManagement from "../components/dashboard/OrganizerManagement";
 import { QRScanner } from "@/components/dashboard/QRScanner";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,14 @@ import { Button } from "@/components/ui/button";
 const Dashboard = () => {
   const [activeSection, setActiveSection] = useState("profile");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user && user.roles) {
+      setIsAdmin(user.roles.includes("admin"));
+    }
+  }, [user]);
 
   const renderContent = () => {
     switch (activeSection) {
@@ -17,8 +26,8 @@ const Dashboard = () => {
         return <UserProfile />;
       case "tickets":
         return <PurchasedTickets />;
-    //   case "organized":
-    //     return <OrganizedEvents />;
+      case "organizers":
+        return isAdmin ? <OrganizerManagement /> : <UserProfile />;
       case "scanner":
         return <QRScanner />;
       default:

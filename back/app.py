@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from config import Config
+from datetime import timedelta
 
 
 app = Flask(__name__)
@@ -15,19 +16,36 @@ migrate = Migrate(app, db)
 
 jwt = JWTManager(app)
 
-CORS(app)
+@jwt.token_in_blocklist_loader
+def check_if_token_in_blocklist(jwt_header, jwt_payload):
+    return False
+
+app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']  # Allow both headers and cookies
+app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
+app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # For development, enable in production
+app.config['JWT_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+
+CORS(app,
+     supports_credentials=True,
+     origins=["http://localhost:8080", "http://localhost:5173"],  # Add your frontend URL
+     allow_headers=["Content-Type", "Authorization"],
+     expose_headers=["Set-Cookie"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 api = Api(app)
 
 
 
 from models import User, Role, UserRole, Organizer, Attendee, Event, Category, EventCategory, Ticket, DiscountCode, EventDiscountCode, Payment
 
-from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource
+from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource, CurrentUserResource, LogoutResource
 from events import EventResource, EventListResource, EventCategoriesResource, FeaturedEventsResource
 from tickets import TicketResource, TicketListResource, UserTicketsResource
 from payments import PaymentResource, PaymentListResource
 from categories import CategoryResource, CategoryListResource
 from discount_codes import DiscountCodeResource, DiscountCodeListResource, ValidateDiscountCodeResource
+from organizer import OrganizerListResource, OrganizerResource, UserOrganizerResource
 
 api.add_resource(UserListResource, '/api/users')
 api.add_resource(UserResource, '/api/users/<string:user_id>')
@@ -56,6 +74,14 @@ api.add_resource(DiscountCodeListResource, '/api/discount-codes')
 api.add_resource(DiscountCodeResource, '/api/discount-codes/<string:discount_code_id>')
 
 api.add_resource(ValidateDiscountCodeResource, '/api/discount-codes/validate/<string:code>')
+
+api.add_resource(OrganizerListResource, '/api/organizers')
+api.add_resource(OrganizerResource, '/api/organizers/<string:organizer_id>')
+api.add_resource(UserOrganizerResource, '/api/users/<string:user_id>/organizer')
+
+api.add_resource(CurrentUserResource, '/api/users/me')
+# api.add_resource(LoginResource, '/api/login')
+api.add_resource(LogoutResource, '/api/logout')
 
 if __name__ == '__main__':
     app.run(debug=Config.DEBUG)

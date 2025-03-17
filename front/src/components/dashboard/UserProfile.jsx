@@ -1,17 +1,48 @@
-
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserCircle, Mail, Edit } from "lucide-react";
 
-
 const UserProfile = () => {
-    // This would typically come from your auth context/state
-    const user = {
-      name: "John Doe",
-      email: "john@example.com",
-      image: null, // Placeholder for when no image is available
-    };
-  
+    const [user, setUser] = useState({
+        name: "",
+        email: "",
+        image: null,
+    });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchUserProfile = async () => {
+            try {
+                const response = await fetch('/api/users/me', {
+                    credentials: 'include', // Include cookies for authentication
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user profile');
+                }
+
+                const data = await response.json();
+                setUser(data);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUserProfile();
+    }, []);
+
+    if (loading) {
+        return <div className="text-center">Loading...</div>;
+    }
+
+    if (error) {
+        return <div className="text-red-500">Error: {error}</div>;
+    }
+
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
@@ -53,8 +84,6 @@ const UserProfile = () => {
         </Card>
       </div>
     );
-  };
+};
 
-  
-
-export default UserProfile
+export default UserProfile;
