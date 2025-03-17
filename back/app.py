@@ -20,7 +20,7 @@ jwt = JWTManager(app)
 def check_if_token_in_blocklist(jwt_header, jwt_payload):
     return False
 
-app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']  # Allow both headers and cookies
+app.config['JWT_TOKEN_LOCATION'] = ['cookies']  # Allow both headers and cookies
 app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
@@ -29,7 +29,7 @@ app.config['JWT_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 
 CORS(app,
      supports_credentials=True,
-     origins=["http://localhost:8080", "http://localhost:5173"],  # Add your frontend URL
+     origins=["http://localhost:8080"],  # Add your frontend URL
      allow_headers=["Content-Type", "Authorization"],
      expose_headers=["Set-Cookie"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])

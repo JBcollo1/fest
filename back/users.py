@@ -182,8 +182,8 @@ class UserLoginResource(Resource):
                     access_token,
                     httponly=True,
                     secure=False,  # Set to True in production with HTTPS
-                    samesite='Lax',
-                    path='/'  # Add this to ensure the cookie is sent with all requests
+                    samesite='Lax'
+                    
                 )
                 
                 return response
@@ -311,7 +311,7 @@ class RoleListResource(Resource):
 
 class CurrentUserResource(Resource):
 
-    @jwt_required(locations=['headers', 'cookies'])
+    @jwt_required()
     def get(self):
         try:
             current_user_id = get_jwt_identity()

@@ -15,22 +15,20 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/users/me`,
         { 
-          withCredentials: true,  
-          headers: {
-            "Content-Type": "application/json"
-          }
+          withCredentials: true, // Required for cookies to be sent
+          headers: { "Accept": "application/json" }
         }
       );
+      console.log("Response Data:", response.data);
       setUser(response.data.data);
     } catch (error) {
       console.error("Error fetching user data:", error);
-      if (error.response?.status === 401) {
-        logout();
-      }
+      console.error("Response:", error.response?.data); // Log raw response
     } finally {
       setLoading(false);
     }
   };
+  
   const login = async (email, password) => {
     try {
       const response = await axios.post(

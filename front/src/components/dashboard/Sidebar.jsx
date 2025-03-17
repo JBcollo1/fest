@@ -61,11 +61,11 @@ const Sidebar = ({
   return (
     <div
       className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-4 bg-card border-r border-border transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}
     >
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col width">
         <div className="flex items-center justify-between p-4">
           <h2 className="text-lg font-semibold">Dashboard</h2>
           <Button
