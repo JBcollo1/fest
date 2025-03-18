@@ -13,11 +13,7 @@ import About from "./pages/About";
 import Events from "./pages/Event";
 import Navbar from "./components/Navbar";
 import Footer from "./components/footer";
-import DashboardLayout from "./components/dashboard/DashboardLayout";
-import UserProfile from "./components/dashboard/UserProfile";
-import UserEvents from "./components/dashboard/UserEvents";
-import UserTickets from "./components/dashboard/UserTickets";
-import UserOrders from "./components/dashboard/UserOrders";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient();
 

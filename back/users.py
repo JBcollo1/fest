@@ -182,10 +182,16 @@ class UserLoginResource(Resource):
                     access_token,
                     httponly=True,
                     secure=False,  # Set to True in production with HTTPS
-                    samesite='Lax'
+                    samesite='Lax',
+                    path='/',
+                    domain=None 
                     
                 )
-                
+                print("Login attempt for:", email)
+                print("Response status:", response.status_code)
+                print("Access token generated:", access_token)
+                print("Setting cookie with value:", access_token)
+                print("Cookies received:", request.cookies.get('access_token_cookie'))
                 return response
             
             return error_response("Invalid email or password", 401)

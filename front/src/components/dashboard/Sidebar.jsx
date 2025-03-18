@@ -10,7 +10,8 @@ import {
   LogOut,
   X,
   QrCode,
-  ShieldCheck
+  ShieldCheck,
+  Menu
 } from "lucide-react";
 
 const Sidebar = ({
@@ -28,6 +29,7 @@ const Sidebar = ({
       setIsAdmin(user.roles.includes("admin"));
       setIsOrganizer(user.roles.includes("organizer"));
     }
+    
   }, [user]);
 
   const handleLogout = () => {
@@ -59,69 +61,80 @@ const Sidebar = ({
   );
 
   return (
-    <div
-      className={cn(
-        "fixed inset-y-0 left-0 z-50 w-4 bg-card border-r border-border transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
-        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-      )}
-    >
-      <div className="flex h-full flex-col width">
-        <div className="flex items-center justify-between p-4">
-          <h2 className="text-lg font-semibold">Dashboard</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={closeMobileMenu}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-        <ScrollArea className="flex-1 px-3">
-          <div className="space-y-2 py-2">
-            <NavItem
-              icon={<User className="h-5 w-5" />}
-              label="Profile"
-              value="profile"
-            />
-            <NavItem
-              icon={<Ticket className="h-5 w-5" />}
-              label="My Tickets"
-              value="tickets"
-            />
-            {isOrganizer && (
-              <NavItem
-                icon={<Calendar className="h-5 w-5" />}
-                label="My Events"
-                value="organized"
-              />
-            )}
-            {isAdmin && (
-              <NavItem
-                icon={<ShieldCheck className="h-5 w-5" />}
-                label="Manage Organizers"
-                value="organizers"
-              />
-            )}
-            <NavItem
-              icon={<QrCode className="h-5 w-5" />}
-              label="QR Scanner"
-              value="scanner"
-            />
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed top-4 left-4 z-50 md:hidden"
+        onClick={() => setIsMobileMenuOpen(true)}
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
+      
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex w-full h-full flex-col">
+          <div className="flex w-full items-center justify-between p-4">
+            <h2 className="text-lg font-semibold">Dashboard</h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={closeMobileMenu}
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
-        </ScrollArea>
-        <div className="p-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-5 w-5 mr-2" />
-            Logout
-          </Button>
+          <ScrollArea className="flex-1 px-3">
+            <div className="space-y-2 py-2">
+              <NavItem
+                icon={<User className="h-5 w-5" />}
+                label="Profile"
+                value="profile"
+              />
+              <NavItem
+                icon={<Ticket className="h-5 w-5" />}
+                label="My Tickets"
+                value="tickets"
+              />
+              {isOrganizer && (
+                <NavItem
+                  icon={<Calendar className="h-5 w-5" />}
+                  label="My Events"
+                  value="organized"
+                />
+              )}
+              {isAdmin && (
+                <NavItem
+                  icon={<ShieldCheck className="h-5 w-5" />}
+                  label="Manage Organizers"
+                  value="organizers"
+                />
+              )}
+              <NavItem
+                icon={<QrCode className="h-5 w-5" />}
+                label="QR Scanner"
+                value="scanner"
+              />
+            </div>
+          </ScrollArea>
+          <div className="p-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

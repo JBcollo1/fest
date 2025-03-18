@@ -9,38 +9,60 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Remove token state since we're using HTTP-only cookies
+  // Fetch user data when the component mounts
+  useEffect(() => {
+    // Only try to fetch user data if we're not already loading
+    if (loading) {
+      fetchUserData();
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
   const fetchUserData = async () => {
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/users/me`,
-        { 
-          withCredentials: true, // Required for cookies to be sent
+        {
+          withCredentials: true, 
           headers: { "Accept": "application/json" }
         }
       );
-      console.log("Response Data:", response.data);
-      setUser(response.data.data);
+      
+      // Check if we got a successful response with data
+      if (response.data && response.data.data) {
+        console.log("User data retrieved" );
+        setUser(response.data.data);
+      } else {
+        console.warn("No user data found in response:", response.data);
+        setUser(null);
+      }
     } catch (error) {
       console.error("Error fetching user data:", error);
-      console.error("Response:", error.response?.data); // Log raw response
+      
+      // Check if we got a 401 Unauthorized, which means we're not logged in
+      if (error.response && error.response.status === 401) {
+        console.log("User is not authenticated");
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
   };
-  
+
   const login = async (email, password) => {
     try {
+      setLoading(true);
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/login`,
         { email, password },
         { withCredentials: true }
       );
       
-      setUser(response.data.data.user);
+      // After login, fetch the user data
+      await fetchUserData();
       return { success: true };
     } catch (error) {
       console.error("Login error:", error);
+      setLoading(false);
       return {
         success: false,
         message: error.response?.data?.message || "Login failed",
@@ -50,6 +72,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      setLoading(true);
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/logout`,
         {},
@@ -59,6 +82,9 @@ export const AuthProvider = ({ children }) => {
       console.error("Logout error:", error);
     } finally {
       setUser(null);
+      setLoading(false);
+      // Optionally redirect to login page after logout
+      navigate('/login');
     }
   };
 
@@ -69,6 +95,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         logout,
+        fetchUserData, // Export this so it can be called after operations
         isAuthenticated: !!user,
       }}
     >
@@ -77,4 +104,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext); 
+export const useAuth = () => useContext(AuthContext);

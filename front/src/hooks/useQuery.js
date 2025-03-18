@@ -18,6 +18,7 @@ const api = axios.create({
       queryFn: async () => {
         const response = await api.get(endpoint, {
           params: options.params,
+          withCredentials: true,  // ✅ Ensure cookies are always included
         });
         return response.data;
       },
@@ -28,7 +29,7 @@ const api = axios.create({
   export const useMutate = (endpoint, method = 'post', options = {}) => {
     return useMutation({
       mutationFn: async (data) => {
-        const response = await api[method](endpoint, data);
+        const response = await api[method](endpoint, data, { withCredentials: true }); // ✅ Ensure cookies are sent
         return response.data;
       },
       ...options,

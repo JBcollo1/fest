@@ -25,14 +25,16 @@ app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
 app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # For development, enable in production
-app.config['JWT_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
-
-CORS(app,
-     supports_credentials=True,
-     origins=["http://localhost:8080"],  # Add your frontend URL
-     allow_headers=["Content-Type", "Authorization"],
-     expose_headers=["Set-Cookie"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+app.config['JWT_COOKIE_SECURE'] =   False  # Set to True in production with HTTPS
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)  # Set an appropriate time
+CORS(
+    app,
+    supports_credentials=True,
+    origins=["http://127.0.0.1:5173"],  
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Set-Cookie"],
+    methods=["GET", "POST", "PUT", "DELETE"]
+)
 api = Api(app)
 
 

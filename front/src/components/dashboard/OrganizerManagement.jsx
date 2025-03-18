@@ -36,11 +36,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, CheckCircle, XCircle } from "lucide-react";
 
 const OrganizerManagement = () => {
   const { toast } = useToast();
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [organizers, setOrganizers] = useState([]);
   const [users, setUsers] = useState([]);
@@ -54,12 +54,25 @@ const OrganizerManagement = () => {
   const [companyImage, setCompanyImage] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+
+  // Check if user is admin
+  if (!user?.roles?.includes("admin")) {
+    return (
+      <div className="text-center p-6">
+        <h2 className="text-xl font-bold text-red-500">Access Denied</h2>
+        <p className="text-gray-600 mt-2">
+          You do not have permission to access this page.
+        </p>
+      </div>
+    );
+  }
 
   const fetchOrganizers = async () => {
     try {
       setLoading(true);
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/organizers`, {
-        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true
       });
       setOrganizers(response.data.data);
     } catch (error) {
@@ -76,8 +89,9 @@ const OrganizerManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users/me`, {
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
       // Filter out users who are already organizers
       const organizerUserIds = organizers.map(org => org.user_id);
@@ -96,59 +110,34 @@ const OrganizerManagement = () => {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchOrganizers();
-    }
-  }, [token]);
+    fetchOrganizers();
+  }, []);
 
   useEffect(() => {
-    if (token && !isAddDialogOpen) {
+    if ( !isAddDialogOpen) {
       fetchUsers();
     }
-  }, [token, organizers, isAddDialogOpen]);
+  }, [ organizers, isAddDialogOpen]);
 
-  const handleAddOrganizer = async () => {
-    if (!selectedUserId || !companyName) {
-      toast({
-        title: "Error",
-        description: "User and company name are required",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleAddOrganizer = async (e) => {
+    e.preventDefault();
+    if (!emailInput.trim()) return;
 
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/organizers`,
-        {
-          user_id: selectedUserId,
-          company_name: companyName,
-          company_image: companyImage,
-          contact_email: contactEmail,
-          contact_phone: contactPhone,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/users/organizers`,
+        { email: emailInput },
+        { withCredentials: true }
       );
 
       toast({
         title: "Success",
-        description: "Organizer added successfully",
+        description: "Organizer role granted successfully",
       });
 
-      // Reset form and close dialog
-      setSelectedUserId("");
-      setCompanyName("");
-      setCompanyImage("");
-      setContactEmail("");
-      setContactPhone("");
-      setIsAddDialogOpen(false);
-
-      // Refresh organizers list
       fetchOrganizers();
+      setEmailInput("");
     } catch (error) {
-      console.error("Error adding organizer:", error);
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to add organizer",
@@ -177,7 +166,7 @@ const OrganizerManagement = () => {
           contact_phone: contactPhone,
         },
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json' },
         }
       );
 
@@ -244,6 +233,40 @@ const OrganizerManagement = () => {
     setContactPhone(organizer.contact_phone || "");
     setIsEditDialogOpen(true);
   };
+
+  const handleRemoveOrganizer = async (userId) => {
+    if (!confirm("Are you sure you want to remove this organizer role?")) {
+      return;
+    }
+
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/users/organizers/${userId}`,
+        { withCredentials: true }
+      );
+
+      toast({
+        title: "Success",
+        description: "Organizer role removed successfully",
+      });
+
+      fetchOrganizers();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to remove organizer",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -330,8 +353,8 @@ const OrganizerManagement = () => {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={handleAddOrganizer}>
-                Add Organizer
+              <Button type="submit" onClick={handleEditOrganizer}>
+                Update Organizer
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -410,6 +433,17 @@ const OrganizerManagement = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <form onSubmit={handleAddOrganizer} className="flex gap-4 mb-6">
+            <Input
+              type="email"
+              placeholder="Enter email address"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              className="flex-1"
+            />
+            <Button type="submit">Add Organizer</Button>
+          </form>
+
           {loading ? (
             <div className="flex justify-center items-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -466,9 +500,9 @@ const OrganizerManagement = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteOrganizer(organizer.id)}
+                        onClick={() => handleRemoveOrganizer(organizer.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <XCircle className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
