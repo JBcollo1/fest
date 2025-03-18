@@ -1,8 +1,8 @@
-"""fest tables
+"""fest tables changes
 
-Revision ID: b28e87289c0c
+Revision ID: bcef1bef5f6b
 Revises: 
-Create Date: 2025-03-13 11:23:45.469939
+Create Date: 2025-03-18 15:25:08.663899
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'b28e87289c0c'
+revision = 'bcef1bef5f6b'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -84,6 +84,7 @@ def upgrade():
     op.create_table('user_roles',
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('role_id', sa.String(length=36), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('user_id', 'role_id')
@@ -110,6 +111,7 @@ def upgrade():
     op.create_table('event_categories',
     sa.Column('event_id', sa.String(length=36), nullable=False),
     sa.Column('category_id', sa.String(length=36), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ),
     sa.ForeignKeyConstraint(['event_id'], ['events.id'], ),
     sa.PrimaryKeyConstraint('event_id', 'category_id')
@@ -128,10 +130,12 @@ def upgrade():
     sa.Column('purchase_date', sa.DateTime(), nullable=False),
     sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('currency', sa.String(length=10), nullable=False),
-    sa.Column('qr_code', sa.Text(), nullable=True),
+    sa.Column('satus', sa.String(length=20), nullable=True),
+    sa.Column('qr_code', sa.String(length=40), nullable=True),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendees.id'], ),
     sa.ForeignKeyConstraint(['event_id'], ['events.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('qr_code')
     )
     op.create_table('payments',
     sa.Column('id', sa.String(length=36), nullable=False),
