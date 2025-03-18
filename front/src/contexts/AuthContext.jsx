@@ -8,9 +8,9 @@ export const AuthContext = createContext({
   isAuthenticated: false,
   login: async () => {},
   logout: async () => {},
-  fetchCurrentUser: async () => {},
-  fetchAllUsers: async () => [],
-  fetchAllOrganizers: async () => [],
+  fetchUserData: async () => {},
+  fetchAllUsers: () => Promise.resolve([]),
+  fetchAllOrganizers: () => Promise.resolve([]),
 });
 
 export const AuthProvider = ({ children }) => {
@@ -99,24 +99,26 @@ export const AuthProvider = ({ children }) => {
 
   const fetchAllUsers = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`, {
-        withCredentials: true,
-      });
-      return response.data.data;
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/users`,
+        { withCredentials: true }
+      );
+      return response.data;
     } catch (error) {
-      console.error("Error fetching users:", error);
+      console.error('Error fetching users:', error);
       throw error;
     }
   };
 
   const fetchAllOrganizers = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/organizers`, {
-        withCredentials: true,
-      });
-      return response.data.data;
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/organizers`,
+        { withCredentials: true }
+      );
+      return response.data;
     } catch (error) {
-      console.error("Error fetching organizers:", error);
+      console.error('Error fetching organizers:', error);
       throw error;
     }
   };

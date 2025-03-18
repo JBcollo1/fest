@@ -1,18 +1,29 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserCircle, Mail, Edit, Loader } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
 const UserProfile = () => {
-  const { user, loading, isAuthenticated, fetchCurrentUser } = useAuth();
+  const { user, fetchUserData } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Fetch user data when component mounts
   useEffect(() => {
-    if (!isAuthenticated && !loading) {
-      fetchCurrentUser();
-    }
-  }, [isAuthenticated, loading, fetchCurrentUser]);
+    const loadUser = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        await fetchUserData();
+      } catch (err) {
+        setError(err.message || 'Failed to load user profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUser();
+  }, []);
 
   if (loading) {
     return (
@@ -25,10 +36,19 @@ const UserProfile = () => {
     );
   }
 
-  if (!isAuthenticated || !user) {
+  if (error) {
     return (
       <div className="text-center p-6 bg-red-50 border border-red-100 rounded-md">
-        <div className="text-red-500 font-medium mb-2">Not authenticated</div>
+        <div className="text-red-500 font-medium mb-2">Error</div>
+        <p className="text-gray-600">{error}</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="text-center p-6 bg-red-50 border border-red-100 rounded-md">
+        <div className="text-red-500 font-medium mb-2">No user data available</div>
         <p className="text-gray-600">Please log in to view your profile</p>
       </div>
     );

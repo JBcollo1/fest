@@ -55,29 +55,44 @@ const OrganizerManagement = () => {
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
 
-  // Check if user is admin
-  if (!user?.roles?.includes("admin")) {
-    return (
-      <div className="text-center p-6">
-        <h2 className="text-xl font-bold text-red-500">Access Denied</h2>
-        <p className="text-gray-600 mt-2">
-          You do not have permission to access this page.
-        </p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    console.log('Current users:', users);
+    console.log('Current organizers:', organizers);
+  }, [users, organizers]);
 
   const loadOrganizers = async () => {
     try {
       setLoading(true);
-      const data = await fetchAllOrganizers();
-      setOrganizers(data);
+      const response = await fetchAllOrganizers();
+      console.log('Raw organizers data:', response);
+
+      // Access the 'data' property of the response
+      const data = response.data;
+
+      if (!Array.isArray(data)) {
+        throw new Error("Organizers data is not an array");
+      }
+
+      const organizersWithUsers = data.map(org => {
+        if (!org.user || typeof org.user !== 'object') {
+          console.warn(`Organizer with ID ${org.id} has invalid or missing user data`);
+        }
+        return {
+          ...org,
+          user: typeof org.user === 'object' ? org.user : { message: "User data missing or invalid" }
+        };
+      });
+
+      console.log('Processed organizers:', organizersWithUsers);
+      setOrganizers(organizersWithUsers);
     } catch (error) {
+      console.error('Error loading organizers:', error);
       toast({
         title: "Error",
-        description: "Failed to load organizers",
+        description: error.message || "Failed to load organizers",
         variant: "destructive",
       });
+      setOrganizers([]);
     } finally {
       setLoading(false);
     }
@@ -85,19 +100,29 @@ const OrganizerManagement = () => {
 
   const loadUsers = async () => {
     try {
-      const data = await fetchAllUsers();
-      // Filter out users who are already organizers
-      const organizerUserIds = organizers.map(org => org.user_id);
-      const availableUsers = data.filter(
-        user => !organizerUserIds.includes(user.id)
-      );
+      const response = await fetchAllUsers();
+      console.log('Raw users data:', response);
+
+      // Access the 'data' property of the response
+      const data = response.data;
+
+      // Ensure data is an array before filtering
+      const availableUsers = Array.isArray(data) ? data.filter(user => {
+        const isAlreadyOrganizer = organizers.some(org => org.user_id === user.id);
+        console.log(`User ${user.id}: isAlreadyOrganizer = ${isAlreadyOrganizer}`);
+        return !isAlreadyOrganizer;
+      }) : [];
+
+      console.log('Filtered available users:', availableUsers);
       setUsers(availableUsers);
     } catch (error) {
+      console.error('Error loading users:', error);
       toast({
         title: "Error",
         description: "Failed to load users",
         variant: "destructive",
       });
+      setUsers([]);
     }
   };
 
@@ -106,22 +131,14 @@ const OrganizerManagement = () => {
   }, []);
 
   useEffect(() => {
-    if (!isAddDialogOpen) {
+    if (isAddDialogOpen) {
       loadUsers();
     }
-  }, [organizers, isAddDialogOpen]);
+  }, [isAddDialogOpen, organizers]);
 
   const handleAddOrganizer = async (e) => {
     e.preventDefault();
     
-    console.log('Form values:', {
-      selectedUserId,
-      companyName,
-      companyImage,
-      contactEmail,
-      contactPhone
-    });
-
     if (!selectedUserId || !companyName) {
       toast({
         title: "Error",
@@ -141,6 +158,15 @@ const OrganizerManagement = () => {
           company_image: companyImage,
           contact_email: contactEmail,
           contact_phone: contactPhone,
+        },
+        { withCredentials: true }
+      );
+
+      // Assign organizer role to the user
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/users/${selectedUserId}/roles`,
+        {
+          role: "organizer"
         },
         { withCredentials: true }
       );
@@ -258,20 +284,30 @@ const OrganizerManagement = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleRemoveOrganizer = async (userId) => {
+  const handleRemoveOrganizer = async (organizerId) => {
     if (!confirm("Are you sure you want to remove this organizer role?")) {
       return;
     }
 
     try {
+      // First remove the organizer record
       await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/users/organizers/${userId}`,
+        `${import.meta.env.VITE_API_URL}/api/organizers/${organizerId}`,
         { withCredentials: true }
       );
 
+      // Then remove the organizer role from the user
+      const organizer = organizers.find(org => org.id === organizerId);
+      if (organizer?.user_id) {
+        await axios.delete(
+          `${import.meta.env.VITE_API_URL}/api/users/${organizer.user_id}/roles/organizer`,
+          { withCredentials: true }
+        );
+      }
+
       toast({
         title: "Success",
-        description: "Organizer role removed successfully",
+        description: "Organizer removed successfully",
       });
 
       loadOrganizers();
@@ -284,10 +320,13 @@ const OrganizerManagement = () => {
     }
   };
 
-  if (loading) {
+  if (!user?.roles?.includes("admin")) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="text-center p-6">
+        <h2 className="text-xl font-bold text-red-500">Access Denied</h2>
+        <p className="text-gray-600 mt-2">
+          You do not have permission to access this page.
+        </p>
       </div>
     );
   }
@@ -318,21 +357,35 @@ const OrganizerManagement = () => {
                   <Label htmlFor="user" className="text-right">
                     User
                   </Label>
-                  <Select
-                    value={selectedUserId}
-                    onValueChange={setSelectedUserId}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select a user" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.first_name} {user.last_name} ({user.email})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="col-span-3">
+                    <Select
+                      value={selectedUserId}
+                      onValueChange={setSelectedUserId}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a user" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.length > 0 ? (
+                          users.map((user) => (
+                            <SelectItem 
+                              key={user.id} 
+                              value={String(user.id)}
+                            >
+                              {`${user.first_name || ''} ${user.last_name || ''} (${user.email})`}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem 
+                            value="no-users" 
+                            disabled
+                          >
+                            No available users found
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="company-name" className="text-right">
@@ -475,7 +528,7 @@ const OrganizerManagement = () => {
             <div className="flex justify-center items-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : organizers.length === 0 ? (
+          ) : !Array.isArray(organizers) || organizers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No organizers found. Add one to get started.
             </div>
@@ -493,10 +546,16 @@ const OrganizerManagement = () => {
                 {organizers.map((organizer) => (
                   <TableRow key={organizer.id}>
                     <TableCell className="font-medium">
-                      {organizer.user?.first_name} {organizer.user?.last_name}
-                      <div className="text-sm text-muted-foreground">
-                        {organizer.user?.email}
-                      </div>
+                      {organizer.user ? (
+                        <>
+                          {`${organizer.user.first_name || ''} ${organizer.user.last_name || ''}`}
+                          <div className="text-sm text-muted-foreground">
+                            {organizer.user.email}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">User not found</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -511,7 +570,7 @@ const OrganizerManagement = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div>{organizer.contact_email || organizer.user?.email}</div>
+                      <div>{organizer.contact_email || organizer.user?.email || 'No email'}</div>
                       <div className="text-sm text-muted-foreground">
                         {organizer.contact_phone || organizer.user?.phone || "No phone"}
                       </div>
@@ -529,7 +588,7 @@ const OrganizerManagement = () => {
                         size="icon"
                         onClick={() => handleRemoveOrganizer(organizer.id)}
                       >
-                        <XCircle className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
