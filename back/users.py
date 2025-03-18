@@ -1,15 +1,16 @@
-from flask import request, jsonify
+from flask import request, jsonify, make_response
 from flask_restful import Resource
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, verify_jwt_in_request
 from app import db
 from models import User, Role, UserRole
 from utils.response import success_response, error_response
 from utils.auth import admin_required, generate_tokens
+from datetime import datetime, timedelta
 
 class UserListResource(Resource):
     @jwt_required()
-    @admin_required
+    # @admin_required
     def get(self):
         # admin only can get all users
         users = User.query.all()
@@ -34,10 +35,12 @@ class UserListResource(Resource):
             email=data['email'],
             first_name=data['first_name'],
             last_name=data['last_name'],
-            phone=data.get('phone')
+            phone=data.get('phone'),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
         
-        new_user.password_hash = generate_password_hash(data['password'])
+        new_user.set_password(data['password'])
         
         user_role = Role.query.filter_by(name='user').first()
         if not user_role:
@@ -50,12 +53,12 @@ class UserListResource(Resource):
             db.session.add(new_user)
             db.session.commit()
             
-            tokens = generate_tokens(new_user.id)
+          
             
             return success_response(
                 data={
-                    'user': new_user.to_dict(),
-                    'tokens': tokens
+                    'user': new_user.to_dict()
+                    
                 },
                 message="User registered successfully",
                 status_code=201
@@ -151,37 +154,50 @@ class UserResource(Resource):
             return error_response(f"Error deleting user: {str(e)}")
 
 class UserLoginResource(Resource):
-    """
-    Resource for user authentication
-    """
     def post(self):
-        """User login"""
-        data = request.get_json()
-        
-        if not data:
-            return error_response("No input data provided")
+        try:
+            data = request.get_json()
+            email = data.get('email')
+            password = data.get('password')
             
-        # Check for required fields
-        if 'username' not in data or 'password' not in data:
-            return error_response("Missing username or password")
+            user = User.query.filter_by(email=email).first()
+            if user and user.check_password(password):
+                # Create the JWT token
+                access_token = create_access_token(identity=user.id)
+                
+                # Create response
+                response = make_response(
+                    success_response(
+                        data={
+                            'user': user.to_dict(),
+                            'access_token': access_token
+                        },
+                        message="Login successful"
+                    )
+                )
+                
+                # Set the JWT as an HTTP-only cookie
+                response.set_cookie(
+                    'access_token_cookie',
+                    access_token,
+                    httponly=True,
+                    secure=False,  # Set to True in production with HTTPS
+                    samesite='Lax',
+                    path='/',
+                    domain=None 
+                    
+                )
+                print("Login attempt for:", email)
+                print("Response status:", response.status_code)
+                print("Access token generated:", access_token)
+                print("Setting cookie with value:", access_token)
+                print("Cookies received:", request.cookies.get('access_token_cookie'))
+                return response
             
-        # Try to find the user
-        user = User.query.filter_by(username=data['username']).first()
-        
-        if not user or not check_password_hash(user.password_hash, data['password']):
-            return error_response("Invalid username or password", 401)
+            return error_response("Invalid email or password", 401)
             
-        # Generate tokens
-        tokens = generate_tokens(user.id)
-        
-        return success_response(
-            data={
-                'user': user.to_dict(),
-                'tokens': tokens
-            },
-            message="Login successful"
-        )
-
+        except Exception as e:
+            return error_response(str(e))
 
 class UserRolesResource(Resource):
     """
@@ -198,8 +214,8 @@ class UserRolesResource(Resource):
             
         return success_response(data=[role.to_dict() for role in user.roles])
     
-    @jwt_required()
-    @admin_required
+    # @jwt_required()
+    # @admin_required
     def post(self, user_id):
         """Add a role to a user (admin only)"""
         user = User.query.get(user_id)
@@ -265,3 +281,55 @@ class UserRolesResource(Resource):
         except Exception as e:
             db.session.rollback()
             return error_response(f"Error removing role: {str(e)}")
+        
+class LogoutResource(Resource):
+    def post(self):
+        response = make_response(success_response(message="Logout successful"))
+        response.delete_cookie('access_token_cookie')
+        return response
+        
+class RoleListResource(Resource):
+   
+    def post(self):
+        """Create a new role (admin only)"""
+        data = request.get_json()
+        
+        if 'name' not in data:
+            return error_response("Missing required field: name")
+        
+        # Check if role already exists
+        if Role.query.filter_by(name=data['name']).first():
+            return error_response("Role already exists")
+        
+        new_role = Role(name=data['name'], description=data.get('description'))
+        
+        try:
+            db.session.add(new_role)
+            db.session.commit()
+            return success_response(
+                data=new_role.to_dict(),
+                message="Role created successfully",
+                status_code=201
+            )
+        except Exception as e:
+            db.session.rollback()
+            return error_response(f"Error creating role: {str(e)}")
+
+class CurrentUserResource(Resource):
+
+    @jwt_required()
+    def get(self):
+        try:
+            current_user_id = get_jwt_identity()
+            
+            user = User.query.get(current_user_id)
+            if not user:
+                return error_response("User not found", 404)
+            
+            return success_response(
+                data=user.to_dict(),
+                message="Current user retrieved successfully"
+            )
+        except Exception as e:
+            print("Error in CurrentUserResource:", str(e))
+            return error_response(str(e), 401)

@@ -1,60 +1,103 @@
-
+import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UserCircle, Mail, Edit } from "lucide-react";
-
+import { UserCircle, Mail, Edit, Loader } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
 
 const UserProfile = () => {
-    // This would typically come from your auth context/state
-    const user = {
-      name: "John Doe",
-      email: "john@example.com",
-      image: null, // Placeholder for when no image is available
+  const { user, fetchUserData } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        await fetchUserData();
+      } catch (err) {
+        setError(err.message || 'Failed to load user profile');
+      } finally {
+        setLoading(false);
+      }
     };
-  
+
+    loadUser();
+  }, []);
+
+  if (loading) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
-  
-        <Card className="p-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-            <div className="relative">
-              {user.image ? (
-                <img
-                  src={user.image}
-                  alt={user.name}
-                  className="w-24 h-24 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center">
-                  <UserCircle className="w-16 h-16 text-muted-foreground" />
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Loading your profile information...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-6 bg-red-50 border border-red-100 rounded-md">
+        <div className="text-red-500 font-medium mb-2">Error</div>
+        <p className="text-gray-600">{error}</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="text-center p-6 bg-red-50 border border-red-100 rounded-md">
+        <div className="text-red-500 font-medium mb-2">No user data available</div>
+        <p className="text-gray-600">Please log in to view your profile</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
+      
+      <Card className="p-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center">
+              <UserCircle className="w-16 h-16 text-muted-foreground" />
+            </div>
+          </div>
+          
+          <div className="flex-1 space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <UserCircle className="w-5 h-5 text-muted-foreground" />
+                <span className="text-lg font-medium">{user.username}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-muted-foreground" />
+                <span className="text-muted-foreground">{user.email}</span>
+              </div>
+              {user.first_name && user.last_name && (
+                <div className="text-sm text-muted-foreground">
+                  {user.first_name} {user.last_name}
                 </div>
               )}
             </div>
-  
-            <div className="flex-1 space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <UserCircle className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-lg font-medium">{user.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-muted-foreground">{user.email}</span>
-                </div>
-              </div>
-  
-              <Button className="flex items-center gap-2">
-                <Edit className="w-4 h-4" />
-                Edit Profile
-              </Button>
-            </div>
+            
+            <Button className="flex items-center gap-2">
+              <Edit className="w-4 h-4" />
+              Edit Profile
+            </Button>
           </div>
-        </Card>
+        </div>
+      </Card>
+      
+      <div className="text-sm text-muted-foreground">
+        <div className="bg-gray-50 p-4 rounded-md overflow-auto">
+          <pre>{JSON.stringify(user, null, 2)}</pre>
+        </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
-  
-
-export default UserProfile
+export default UserProfile;

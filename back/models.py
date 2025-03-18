@@ -41,7 +41,7 @@ class User(db.Model):
     return check_password_hash(self.password_hash, password)
 
   # test feature. fetch + relationship data
-  def to_dict(self, include_roles=False):
+  def to_dict(self, include_roles=True):
     user_dict = {
       'id': self.id,
       'username': self.username,
@@ -57,10 +57,7 @@ class User(db.Model):
     return user_dict
 
   def has_role(self, role_name):
-    for role in self.roles:
-      if role.name == role_name:
-        return True
-    return False    
+    return any(role.name == role_name for role in self.roles)
 
   def add_role(self, role):
     if not self.has_role(role.name):

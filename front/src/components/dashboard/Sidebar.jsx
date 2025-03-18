@@ -1,97 +1,165 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
   User,
   Ticket,
-  CalendarDays,
-  ScanLine,
+  Calendar,
+  LogOut,
   X,
-  Menu
+  QrCode,
+  ShieldCheck,
+  Menu,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
-const Sidebar = ({ activeSection, setActiveSection, isMobileMenuOpen, setIsMobileMenuOpen }) => {
-  const menuItems = [
-    { id: "profile", label: "Profile", icon: User },
-    { id: "tickets", label: "My Tickets", icon: Ticket },
-    { id: "organized", label: "Organized Events", icon: CalendarDays },
-    { id: "scanner", label: "QR Scanner", icon: ScanLine },
-  ];
+const Sidebar = ({
+  activeSection,
+  setActiveSection,
+  isMobileMenuOpen,
+  setIsMobileMenuOpen,
+}) => {
+  const { logout, user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOrganizer, setIsOrganizer] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (user && user.roles) {
+      setIsAdmin(user.roles.includes("admin"));
+      setIsOrganizer(user.roles.includes("organizer"));
+    }
+  }, [user]);
+
+  const handleLogout = () => {
+    logout();
+    window.location.href = "/";
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
+  const NavItem = ({ icon, label, value }) => (
+    <Button
+      variant={activeSection === value ? "default" : "ghost"}
+      className={cn(
+        "w-full justify-start",
+        activeSection === value
+          ? "bg-primary text-primary-foreground"
+          : "hover:bg-muted"
+      )}
+      onClick={() => {
+        setActiveSection(value);
+        closeMobileMenu();
+      }}
+    >
+      {icon}
+      {!isCollapsed && <span className="ml-2">{label}</span>}
+    </Button>
+  );
 
   return (
     <>
-      {/* Mobile menu toggle button - shown only on small screens */}
-      <Button 
-        variant="outline" 
-        size="icon" 
-        className="fixed bottom-4 right-4 h-12 w-12 rounded-full shadow-lg z-40 md:hidden bg-primary text-primary-foreground hover:bg-primary/90"
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed top-4 left-4 z-50 md:hidden"
         onClick={() => setIsMobileMenuOpen(true)}
       >
         <Menu className="h-5 w-5" />
       </Button>
-    
-      {/* Sidebar overlay for mobile */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-    
-      <aside
+      
+      <div
         className={cn(
-          "fixed md:relative w-72 h-screen bg-card border-r border-border transition-all duration-300 ease-in-out z-50 shadow-md",
+          "fixed inset-y-0 left-0 z-50 bg-card border-r border-border transition-all duration-300 ease-in-out md:relative",
+          isCollapsed ? "w-10" : "w-64",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border">
-            <h2 className="text-2xl font-bold text-primary tracking-tight">Dashboard</h2>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="md:hidden hover:bg-muted rounded-full"
-              onClick={() => setIsMobileMenuOpen(false)}
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between p-4">
+            {!isCollapsed && <h2 className="text-lg font-semibold">Dashboard</h2>}
+            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={closeMobileMenu}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden md:flex"
+                onClick={toggleSidebar}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="h-5 w-5" />
+                ) : (
+                  <ChevronLeft className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
+          </div>
+          
+          <ScrollArea className="flex-1 px-3">
+            <div className="space-y-2 py-2">
+              <NavItem
+                icon={<User className="h-5 w-5" />}
+                label="Profile"
+                value="profile"
+              />
+              <NavItem
+                icon={<Ticket className="h-5 w-5" />}
+                label="My Tickets"
+                value="tickets"
+              />
+              {isOrganizer && (
+                <NavItem
+                  icon={<Calendar className="h-5 w-5" />}
+                  label="My Events"
+                  value="organized"
+                />
+              )}
+              {isAdmin && (
+                <NavItem
+                  icon={<ShieldCheck className="h-5 w-5" />}
+                  label="Manage Organizers"
+                  value="organizers"
+                />
+              )}
+              <NavItem
+                icon={<QrCode className="h-5 w-5" />}
+                label="QR Scanner"
+                value="scanner"
+              />
+            </div>
+          </ScrollArea>
+          
+          <div className="p-4">
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full justify-start",
+                isCollapsed && "px-2"
+              )}
+              onClick={handleLogout}
             >
-              <X className="h-5 w-5" />
+              <LogOut className="h-5 w-5" />
+              {!isCollapsed && <span className="ml-2">Logout</span>}
             </Button>
           </div>
-          
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
-            <div className="space-y-1">
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveSection(item.id);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
-                    activeSection === item.id 
-                      ? "bg-primary text-primary-foreground font-medium shadow-sm" 
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className={cn(
-                    "h-5 w-5",
-                    activeSection === item.id ? "" : "opacity-70"
-                  )} />
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </nav>
-          
-          {/* Footer */}
-          <div className="p-4 border-t border-border mt-auto">
-            <div className="text-xs text-muted-foreground text-center">
-              EventSync Dashboard v1.0
-            </div>
-          </div>
         </div>
-      </aside>
+      </div>
     </>
   );
 };
