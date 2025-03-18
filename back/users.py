@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 class UserListResource(Resource):
     @jwt_required()
-    @admin_required
+    # @admin_required
     def get(self):
         # admin only can get all users
         users = User.query.all()

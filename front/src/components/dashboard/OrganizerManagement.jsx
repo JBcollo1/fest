@@ -40,7 +40,7 @@ import { Loader2, Plus, Pencil, Trash2, CheckCircle, XCircle } from "lucide-reac
 
 const OrganizerManagement = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, fetchAllUsers, fetchAllOrganizers } = useAuth();
   const [loading, setLoading] = useState(true);
   const [organizers, setOrganizers] = useState([]);
   const [users, setUsers] = useState([]);
@@ -54,7 +54,6 @@ const OrganizerManagement = () => {
   const [companyImage, setCompanyImage] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  const [emailInput, setEmailInput] = useState("");
 
   // Check if user is admin
   if (!user?.roles?.includes("admin")) {
@@ -68,15 +67,12 @@ const OrganizerManagement = () => {
     );
   }
 
-  const fetchOrganizers = async () => {
+  const loadOrganizers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/organizers`, {
-        withCredentials: true
-      });
-      setOrganizers(response.data.data);
+      const data = await fetchAllOrganizers();
+      setOrganizers(data);
     } catch (error) {
-      console.error("Error fetching organizers:", error);
       toast({
         title: "Error",
         description: "Failed to load organizers",
@@ -87,20 +83,16 @@ const OrganizerManagement = () => {
     }
   };
 
-  const fetchUsers = async () => {
+  const loadUsers = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users/me`, {
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
+      const data = await fetchAllUsers();
       // Filter out users who are already organizers
       const organizerUserIds = organizers.map(org => org.user_id);
-      const availableUsers = response.data.data.filter(
+      const availableUsers = data.filter(
         user => !organizerUserIds.includes(user.id)
       );
       setUsers(availableUsers);
     } catch (error) {
-      console.error("Error fetching users:", error);
       toast({
         title: "Error",
         description: "Failed to load users",
@@ -110,34 +102,66 @@ const OrganizerManagement = () => {
   };
 
   useEffect(() => {
-    fetchOrganizers();
+    loadOrganizers();
   }, []);
 
   useEffect(() => {
-    if ( !isAddDialogOpen) {
-      fetchUsers();
+    if (!isAddDialogOpen) {
+      loadUsers();
     }
-  }, [ organizers, isAddDialogOpen]);
+  }, [organizers, isAddDialogOpen]);
 
   const handleAddOrganizer = async (e) => {
     e.preventDefault();
-    if (!emailInput.trim()) return;
+    
+    console.log('Form values:', {
+      selectedUserId,
+      companyName,
+      companyImage,
+      contactEmail,
+      contactPhone
+    });
+
+    if (!selectedUserId || !companyName) {
+      toast({
+        title: "Error",
+        description: "User and company name are required",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
+      // First create the organizer record
       await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/users/organizers`,
-        { email: emailInput },
+        `${import.meta.env.VITE_API_URL}/api/organizers`,
+        {
+          user_id: selectedUserId,
+          company_name: companyName,
+          company_image: companyImage,
+          contact_email: contactEmail,
+          contact_phone: contactPhone,
+        },
         { withCredentials: true }
       );
 
       toast({
         title: "Success",
-        description: "Organizer role granted successfully",
+        description: "Organizer added successfully",
       });
 
-      fetchOrganizers();
-      setEmailInput("");
+      // Reset form and close dialog
+      setSelectedUserId("");
+      setCompanyName("");
+      setCompanyImage("");
+      setContactEmail("");
+      setContactPhone("");
+      setIsAddDialogOpen(false);
+
+      // Refresh the organizers list
+      loadOrganizers();
     } catch (error) {
+      console.error('Error adding organizer:', error);
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to add organizer",
@@ -184,7 +208,7 @@ const OrganizerManagement = () => {
       setIsEditDialogOpen(false);
 
       // Refresh organizers list
-      fetchOrganizers();
+      loadOrganizers();
     } catch (error) {
       console.error("Error updating organizer:", error);
       toast({
@@ -214,7 +238,7 @@ const OrganizerManagement = () => {
       });
 
       // Refresh organizers list
-      fetchOrganizers();
+      loadOrganizers();
     } catch (error) {
       console.error("Error removing organizer:", error);
       toast({
@@ -250,7 +274,7 @@ const OrganizerManagement = () => {
         description: "Organizer role removed successfully",
       });
 
-      fetchOrganizers();
+      loadOrganizers();
     } catch (error) {
       toast({
         title: "Error",
@@ -274,7 +298,7 @@ const OrganizerManagement = () => {
         <h2 className="text-3xl font-bold tracking-tight">Organizer Management</h2>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => fetchUsers()}>
+            <Button onClick={() => loadUsers()}>
               <Plus className="mr-2 h-4 w-4" /> Add Organizer
             </Button>
           </DialogTrigger>
@@ -285,78 +309,82 @@ const OrganizerManagement = () => {
                 Promote a user to organizer by adding their company details.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="user" className="text-right">
-                  User
-                </Label>
-                <Select
-                  value={selectedUserId}
-                  onValueChange={setSelectedUserId}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.first_name} {user.last_name} ({user.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleAddOrganizer(e);
+            }}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="user" className="text-right">
+                    User
+                  </Label>
+                  <Select
+                    value={selectedUserId}
+                    onValueChange={setSelectedUserId}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select a user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.first_name} {user.last_name} ({user.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="company-name" className="text-right">
+                    Company Name
+                  </Label>
+                  <Input
+                    id="company-name"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="company-image" className="text-right">
+                    Company Image URL
+                  </Label>
+                  <Input
+                    id="company-image"
+                    value={companyImage}
+                    onChange={(e) => setCompanyImage(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="contact-email" className="text-right">
+                    Contact Email
+                  </Label>
+                  <Input
+                    id="contact-email"
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="contact-phone" className="text-right">
+                    Contact Phone
+                  </Label>
+                  <Input
+                    id="contact-phone"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="company-name" className="text-right">
-                  Company Name
-                </Label>
-                <Input
-                  id="company-name"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="company-image" className="text-right">
-                  Company Image URL
-                </Label>
-                <Input
-                  id="company-image"
-                  value={companyImage}
-                  onChange={(e) => setCompanyImage(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="contact-email" className="text-right">
-                  Contact Email
-                </Label>
-                <Input
-                  id="contact-email"
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="contact-phone" className="text-right">
-                  Contact Phone
-                </Label>
-                <Input
-                  id="contact-phone"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" onClick={handleEditOrganizer}>
-                Update Organizer
-              </Button>
-            </DialogFooter>
+              <DialogFooter>
+                <Button type="submit">Add Organizer</Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
 
@@ -433,16 +461,15 @@ const OrganizerManagement = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAddOrganizer} className="flex gap-4 mb-6">
-            <Input
-              type="email"
-              placeholder="Enter email address"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              className="flex-1"
-            />
-            <Button type="submit">Add Organizer</Button>
-          </form>
+          <div className="flex justify-end mb-6">
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => loadUsers()}>
+                  <Plus className="mr-2 h-4 w-4" /> Add Organizer
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          </div>
 
           {loading ? (
             <div className="flex justify-center items-center py-8">

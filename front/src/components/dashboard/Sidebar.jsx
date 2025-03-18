@@ -11,7 +11,9 @@ import {
   X,
   QrCode,
   ShieldCheck,
-  Menu
+  Menu,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 const Sidebar = ({
@@ -23,13 +25,13 @@ const Sidebar = ({
   const { logout, user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOrganizer, setIsOrganizer] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     if (user && user.roles) {
       setIsAdmin(user.roles.includes("admin"));
       setIsOrganizer(user.roles.includes("organizer"));
     }
-    
   }, [user]);
 
   const handleLogout = () => {
@@ -39,6 +41,10 @@ const Sidebar = ({
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
+  };
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
   };
 
   const NavItem = ({ icon, label, value }) => (
@@ -56,7 +62,7 @@ const Sidebar = ({
       }}
     >
       {icon}
-      <span className="ml-2">{label}</span>
+      {!isCollapsed && <span className="ml-2">{label}</span>}
     </Button>
   );
 
@@ -73,22 +79,38 @@ const Sidebar = ({
       
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 bg-card border-r border-border transition-all duration-300 ease-in-out md:relative",
+          isCollapsed ? "w-10" : "w-64",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <div className="flex w-full h-full flex-col">
-          <div className="flex w-full items-center justify-between p-4">
-            <h2 className="text-lg font-semibold">Dashboard</h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={closeMobileMenu}
-            >
-              <X className="h-5 w-5" />
-            </Button>
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between p-4">
+            {!isCollapsed && <h2 className="text-lg font-semibold">Dashboard</h2>}
+            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={closeMobileMenu}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden md:flex"
+                onClick={toggleSidebar}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="h-5 w-5" />
+                ) : (
+                  <ChevronLeft className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
           </div>
+          
           <ScrollArea className="flex-1 px-3">
             <div className="space-y-2 py-2">
               <NavItem
@@ -122,14 +144,18 @@ const Sidebar = ({
               />
             </div>
           </ScrollArea>
+          
           <div className="p-4">
             <Button
               variant="outline"
-              className="w-full justify-start"
+              className={cn(
+                "w-full justify-start",
+                isCollapsed && "px-2"
+              )}
               onClick={handleLogout}
             >
-              <LogOut className="h-5 w-5 mr-2" />
-              Logout
+              <LogOut className="h-5 w-5" />
+              {!isCollapsed && <span className="ml-2">Logout</span>}
             </Button>
           </div>
         </div>

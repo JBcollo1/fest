@@ -2,7 +2,16 @@ import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const AuthContext = createContext();
+export const AuthContext = createContext({
+  user: null,
+  loading: true,
+  isAuthenticated: false,
+  login: async () => {},
+  logout: async () => {},
+  fetchCurrentUser: async () => {},
+  fetchAllUsers: async () => [],
+  fetchAllOrganizers: async () => [],
+});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -88,17 +97,43 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const fetchAllUsers = async () => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`, {
+        withCredentials: true,
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      throw error;
+    }
+  };
+
+  const fetchAllOrganizers = async () => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/organizers`, {
+        withCredentials: true,
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error("Error fetching organizers:", error);
+      throw error;
+    }
+  };
+
+  const value = {
+    user,
+    loading,
+    isAuthenticated: !!user,
+    login,
+    logout,
+    fetchUserData,
+    fetchAllUsers,
+    fetchAllOrganizers
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        logout,
-        fetchUserData, // Export this so it can be called after operations
-        isAuthenticated: !!user,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
