@@ -13,6 +13,7 @@ export const AuthContext = createContext({
   fetchAllOrganizers: () => Promise.resolve([]),
   fetchOrganizerEvents: () => Promise.resolve([]),
   fetchEventById: () => Promise.resolve(null),
+  fetchOrganizerById: () => fetchOrganizerById(),
   createEvent: () => Promise.resolve({}),
   updateEvent: () => Promise.resolve({}),
   deleteEvent: () => Promise.resolve({}),
@@ -83,7 +84,18 @@ export const AuthProvider = ({ children }) => {
       };
     }
   };
-
+  const fetchOrganizerById = async (organizerId) => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/organizers/${organizerId}`,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching organizer:', error);
+      throw error;
+    }
+  };
   const logout = async () => {
     try {
       setLoading(true);
@@ -177,6 +189,8 @@ export const AuthProvider = ({ children }) => {
   // Create a new event
   const createEvent = async (eventData) => {
     try {
+      // If admin is creating an event on behalf of an organizer, use the selected organizer ID
+      // Otherwise, for organizers, the backend will use their own organizer ID
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/events`,
         eventData,
@@ -187,7 +201,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Error creating event:', error);
       throw error;
     }
-  };
+  }
 
   // Update an existing event
   const updateEvent = async (eventId, eventData) => {
@@ -248,6 +262,7 @@ export const AuthProvider = ({ children }) => {
     fetchAllUsers,
     fetchAllOrganizers,
     fetchOrganizerEvents,
+    fetchOrganizerById,
     fetchEventById,
     createEvent,
     updateEvent,
