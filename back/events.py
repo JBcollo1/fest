@@ -4,7 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from models import Event, User, Category, EventCategory, Organizer
 from utils.response import success_response, error_response, paginate_response
-from utils.auth import organizer_required
+from utils.auth import organizer_required, Admin_required
 from datetime import datetime
 
 class EventListResource(Resource):
@@ -48,7 +48,7 @@ class EventListResource(Resource):
         return paginate_response(query)
     
     @jwt_required()
-    @organizer_required
+    @Admin_required
     def post(self):
         """Create a new event (organizer only)"""
         current_user_id = get_jwt_identity()
@@ -128,11 +128,11 @@ class EventResource(Resource):
         if not event:
             return error_response("Event not found", 404)
             
-        # Check if user is the event organizer or an admin
+        # Check if user is the event organizer or an Admin
         user = User.query.get(current_user_id)
         organizer = Organizer.query.filter_by(user_id=current_user_id).first()
         
-        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('admin'):
+        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         data = request.get_json()
@@ -171,7 +171,7 @@ class EventResource(Resource):
         if 'image' in data:
             event.image = data['image']
             
-        if 'featured' in data and user.has_role('admin'):  # Only admins can set featured
+        if 'featured' in data and user.has_role('Admin'):  # Only Admins can set featured
             event.featured = data['featured']
             
         if 'total_tickets' in data:
@@ -208,11 +208,11 @@ class EventResource(Resource):
         if not event:
             return error_response("Event not found", 404)
             
-        # Check if user is the event organizer or an admin
+        # Check if user is the event organizer or an Admin
         user = User.query.get(current_user_id)
         organizer = Organizer.query.filter_by(user_id=current_user_id).first()
         
-        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('admin'):
+        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         try:
@@ -243,11 +243,11 @@ class EventCategoriesResource(Resource):
         if not event:
             return error_response("Event not found", 404)
             
-        # Check if user is the event organizer or an admin
+        # Check if user is the event organizer or an Admin
         user = User.query.get(current_user_id)
         organizer = Organizer.query.filter_by(user_id=current_user_id).first()
         
-        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('admin'):
+        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         data = request.get_json()

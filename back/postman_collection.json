@@ -12,6 +12,17 @@
       "last_name": "Doe",
       "phone": "123-456-7890"
   },
+    "role": {
+        
+        "name": "organiser",
+        "description": "Organizes events"
+    
+      
+    },
+    "role2":{
+          "name": "Admin",
+        "description": "Manages all events"
+    },
   "new2": {
       "username": "jane_smith",
       "email": "jane.smith@example.com",

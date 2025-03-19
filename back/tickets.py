@@ -13,7 +13,7 @@ class TicketListResource(Resource):
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if not user.has_role('admin'):
+        if not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         query = Ticket.query
@@ -100,7 +100,7 @@ class TicketResource(Resource):
             return error_response("Ticket not found", 404)
             
         attendee = Attendee.query.filter_by(user_id=current_user_id).first()
-        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('admin'):
+        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         return success_response(data=ticket.to_dict(include_event=True))
@@ -115,7 +115,7 @@ class TicketResource(Resource):
             return error_response("Ticket not found", 404)
             
         attendee = Attendee.query.filter_by(user_id=current_user_id).first()
-        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('admin'):
+        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         payment = Payment.query.filter_by(ticket_id=ticket.id).first()
@@ -146,7 +146,7 @@ class UserTicketsResource(Resource):
         user = User.query.get(current_user_id)
         
         # Check if user is authorized to view these tickets
-        if current_user_id != user_id and not user.has_role('admin'):
+        if current_user_id != user_id and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         # Get attendee record
