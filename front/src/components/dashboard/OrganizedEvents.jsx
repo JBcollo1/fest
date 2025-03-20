@@ -108,13 +108,24 @@ const OrganizedEvents = () => {
           response.data.items.map(async (event) => {
             // Fetch user details for the organizer
             if (event.organizer_id) {
-              const userResponse = await fetchOrganizerById(event.organizer_id);
-              event.organizer_name = userResponse?.data?.name || "Unknown Organizer"; // Set organizer name
+              try {
+                const userResponse = await fetchOrganizerById(event.organizer_id);
+                // Check if userResponse is valid and has data
+                if (userResponse?.data) {
+                  event.organizer_name = userResponse.data.name || "Unknown Organizer"; // Set organizer name
+                } else {
+                  event.organizer_name = "Unknown Organizer"; // Fallback if no data
+                }
+              } catch (error) {
+                console.error(`Error fetching organizer details for ID ${event.organizer_id}:`, error);
+                event.organizer_name = "Unknown Organizer"; // Fallback on error
+              }
             }
             return event;
           })
         );
         setEvents(eventsWithOrganizerNames);
+        console.log(events)
       } else {
         console.error("Unexpected response format:", response);
         setError("Failed to load events: Invalid data format");
@@ -124,6 +135,7 @@ const OrganizedEvents = () => {
       console.error("Error loading events:", error);
       setError(`Failed to load events: ${error.message || "Unknown error"}`);
       setEvents([]);
+
     } finally {
       setLoading(false);
     }
@@ -136,6 +148,7 @@ const OrganizedEvents = () => {
   
       if (response?.data && Array.isArray(response.data)) {
         setOrganizers(response.data);
+        
       } else {
         console.error("Unexpected organizers response format:", response);
         setOrganizers([]);
@@ -147,6 +160,9 @@ const OrganizedEvents = () => {
       setLoadingOrganizers(false);
     }
   };
+  useEffect(() => {
+    console.log("orgs",organizers);
+  }, [organizers]);
   
   // New function to fetch organizer details by ID
   const loadOrganizerDetails = async (id) => {
@@ -525,7 +541,10 @@ const OrganizedEvents = () => {
                     <div className="flex items-center text-muted-foreground">
                       <User className="h-4 w-4 mr-2 text-primary/70" />
                       <span>
-                        Organizer: {event.organizer_name || `ID: ${event.organizer_id}`}
+                      Organizer: { 
+                                  organizers.find(org => org.id === event.organizer_id)?.user.first_name || `ID: ${event.organizer_id}`
+                                }
+
                       </span>
                     </div>
                   )}
