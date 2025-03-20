@@ -1,272 +1,413 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScanLine, User, Calendar, Check, X as XIcon, Camera } from "lucide-react";
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BadgeCheck, X, RefreshCw, QrCode, Camera, CheckCircle2 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
-// Import QR code scanning library
-import jsQR from "jsqr";
-
-export const QRScanner = () => {
+const QRScanner = () => {
+  const { toast } = useToast();
   const [scanning, setScanning] = useState(false);
-  const [scannedTicket, setScannedTicket] = useState(null);
-  const [cameraError, setCameraError] = useState(null);
-  
+  const [scannedCode, setScannedCode] = useState(null);
+  const [verification, setVerification] = useState({ status: null, message: '', ticketData: null });
+  const [history, setHistory] = useState([]);
+  const [cameraPermission, setCameraPermission] = useState(null);
+  const [activeTab, setActiveTab] = useState('scanner');
+  const [loading, setLoading] = useState(false);
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  
-  // Function to start the camera
+  const scannerIntervalRef = useRef(null);
+
+  // Start camera when scanning is enabled
+  useEffect(() => {
+    if (scanning) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+
+    return () => {
+      stopCamera();
+    };
+  }, [scanning]);
+
   const startCamera = async () => {
-    setCameraError(null);
-    setScanning(true);
-    
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
-      });
+      const constraints = {
+        video: { facingMode: 'environment' }
+      };
       
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
       }
       
-      // Start scanning loop
-      requestAnimationFrame(scanQRCode);
+      setCameraPermission(true);
+      
+      // Load jsQR dynamically
+      await loadJsQR();
+      
+      // Start scanning interval
+      scannerIntervalRef.current = setInterval(scanQRCode, 500);
     } catch (error) {
-      console.error("Error accessing camera:", error);
-      setCameraError("Could not access camera. Please check permissions.");
+      console.error('Error accessing camera:', error);
+      setCameraPermission(false);
+      setScanning(false);
+      toast({
+        title: "Camera Access Denied",
+        description: "Please allow camera access to scan QR codes.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadJsQR = async () => {
+    if (!window.jsQR) {
+      try {
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js";
+        script.async = true;
+        
+        const loadPromise = new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+        });
+        
+        document.body.appendChild(script);
+        await loadPromise;
+      } catch (error) {
+        console.error('Error loading jsQR library:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load QR scanning library.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const scanQRCode = () => {
+    if (!videoRef.current || !window.jsQR) return;
+    
+    const video = videoRef.current;
+    
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    
+    const canvas = document.createElement('canvas');
+    const canvasContext = canvas.getContext('2d');
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    
+    canvas.width = width;
+    canvas.height = height;
+    canvasContext.drawImage(video, 0, 0, width, height);
+    
+    const imageData = canvasContext.getImageData(0, 0, width, height);
+    const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: "dontInvert",
+    });
+    
+    if (code && code.data) {
+      clearInterval(scannerIntervalRef.current);
+      setScannedCode(code.data);
+      verifyTicket(code.data);
       setScanning(false);
     }
   };
-  
-  // Function to stop the camera
+
   const stopCamera = () => {
     if (streamRef.current) {
-      const tracks = streamRef.current.getTracks();
-      tracks.forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
       streamRef.current = null;
     }
     
-    setScanning(false);
+    if (scannerIntervalRef.current) {
+      clearInterval(scannerIntervalRef.current);
+      scannerIntervalRef.current = null;
+    }
   };
-  
-  // Function to scan QR code from video feed
-  const scanQRCode = () => {
-    if (!scanning || !videoRef.current || !canvasRef.current) return;
+
+  const verifyTicket = async (ticketId) => {
+    setLoading(true);
+    setVerification({ status: null, message: '', ticketData: null });
     
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-    
-    // Check if video is ready
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      // Set canvas dimensions to match video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Draw current video frame to canvas
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // Get image data for QR code detection
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      
-      // Attempt to find QR code in the image
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "dontInvert"
-      });
-      
-      // If QR code is found
-      if (code) {
-        try {
-          // Parse the QR code data (assuming it's a JSON string)
-          const ticketData = JSON.parse(code.data);
-          
-          // Stop camera and processing
-          stopCamera();
-          
-          // Set the scanned ticket data
-          setScannedTicket({
-            id: ticketData.id || "Unknown ID",
-            eventName: ticketData.eventName || "Unknown Event",
-            attendeeName: ticketData.attendeeName || "Unknown Attendee",
-            attendeeEmail: ticketData.attendeeEmail || "",
-            ticketType: ticketData.ticketType || "Standard",
-            status: ticketData.status || "valid"
-          });
-          
-          return;
-        } catch (error) {
-          console.error("Invalid QR code format:", error);
-          // Continue scanning if the QR code format was invalid
+    try {
+      // This would be your actual API endpoint
+      const response = await fetch(`/api/tickets/${ticketId}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
-      }
-    }
-    
-    // If no QR code found or invalid format, continue scanning
-    requestAnimationFrame(scanQRCode);
-  };
-  
-  // Mock function for demo purposes
-  const handleScanMock = () => {
-    setScanning(true);
-    
-    // Simulate a delay for scanning
-    setTimeout(() => {
-      setScanning(false);
+      });
       
-      // Mock data - in a real app, this would come from the QR code
-      setScannedTicket({
-        id: "TKT-" + Math.floor(Math.random() * 10000),
-        eventName: "Summer Music Festival",
-        attendeeName: "Jane Smith",
-        attendeeEmail: "jane@example.com",
-        ticketType: "VIP Pass",
-        status: "valid"
+      const data = await response.json();
+      
+      if (response.ok) {
+        setVerification({
+          status: 'success',
+          message: data.message || 'Ticket verified successfully!',
+          ticketData: data.data
+        });
+        
+        // Add to history
+        setHistory(prev => [{
+          id: ticketId,
+          timestamp: new Date().toISOString(),
+          status: 'success',
+          details: data.data
+        }, ...prev.slice(0, 19)]);
+        
+        toast({
+          title: "Success",
+          description: "Ticket verified successfully!",
+          variant: "default"
+        });
+      } else {
+        setVerification({
+          status: 'error',
+          message: data.message || 'Invalid ticket',
+          ticketData: null
+        });
+        
+        // Add to history
+        setHistory(prev => [{
+          id: ticketId,
+          timestamp: new Date().toISOString(),
+          status: 'error',
+          details: { error: data.message }
+        }, ...prev.slice(0, 19)]);
+        
+        toast({
+          title: "Error",
+          description: data.message || 'Failed to verify ticket',
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error verifying ticket:', error);
+      
+      setVerification({
+        status: 'error',
+        message: 'Network error. Please try again.',
+        ticketData: null
       });
-    }, 2000);
-  };
-
-  const handleCheckIn = () => {
-    if (scannedTicket) {
-      setScannedTicket({
-        ...scannedTicket,
-        status: "used"
+      
+      toast({
+        title: "Error",
+        description: "Network error. Please try again.",
+        variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleReset = () => {
-    setScannedTicket(null);
+  const resetScanner = () => {
+    setScannedCode(null);
+    setVerification({ status: null, message: '', ticketData: null });
+    setScanning(true);
   };
-  
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        const tracks = streamRef.current.getTracks();
-        tracks.forEach(track => track.stop());
-      }
+
+  const manualEntry = () => {
+    const ticketId = prompt('Enter ticket ID:');
+    if (ticketId) {
+      setScannedCode(ticketId);
+      verifyTicket(ticketId);
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    const options = { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     };
-  }, []);
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">QR Ticket Scanner</h1>
-      
-      <Card className="p-6">
-        <div className="flex flex-col items-center gap-6">
-          <div className="w-full max-w-md aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/50 overflow-hidden relative">
-            {scanning ? (
-              <>
-                <video 
-                  ref={videoRef} 
-                  className="absolute inset-0 w-full h-full object-cover"
-                  playsInline
-                />
-                <canvas 
-                  ref={canvasRef} 
-                  className="hidden"
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center space-y-4 bg-black/30 p-4 rounded">
-                    <ScanLine className="w-16 h-16 text-primary mx-auto animate-pulse" />
-                    <p className="text-white">Scanning QR Code...</p>
-                  </div>
-                </div>
-              </>
-            ) : scannedTicket ? (
-              <div className="text-center space-y-2">
-                <Badge variant={scannedTicket.status === "valid" ? "default" : scannedTicket.status === "used" ? "secondary" : "destructive"} className="mx-auto text-base py-1 px-3">
-                  {scannedTicket.status === "valid" ? "Valid Ticket" : 
-                   scannedTicket.status === "used" ? "Already Checked In" : "Invalid Ticket"}
-                </Badge>
-                <p className="text-xl font-bold mt-2">{scannedTicket.id}</p>
-              </div>
-            ) : (
-              <div className="text-center space-y-4">
-                <ScanLine className="w-16 h-16 text-muted-foreground mx-auto" />
-                <p className="text-muted-foreground">No ticket scanned</p>
-                {cameraError && <p className="text-red-500 text-sm">{cameraError}</p>}
-              </div>
-            )}
-          </div>
-          
-          {!scannedTicket ? (
-            <div className="w-full max-w-md space-y-2">
-              <Button 
-                onClick={startCamera} 
-                disabled={scanning}
-                className="w-full"
-                variant="default"
-              >
-                <Camera className="w-4 h-4 mr-2" />
-                Scan with Camera
-              </Button>
-              <Button 
-                onClick={handleScanMock} 
-                disabled={scanning}
-                className="w-full"
-                variant="outline"
-              >
-                Demo Mode (Mock Scan)
-              </Button>
-            </div>
-          ) : (
-            <div className="w-full max-w-md space-y-6">
-              <div className="space-y-4 bg-muted p-4 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Event</span>
-                  <span>{scannedTicket.eventName}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Attendee</span>
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                    <span>{scannedTicket.attendeeName}</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Email</span>
-                  <span className="text-sm truncate max-w-[200px]">{scannedTicket.attendeeEmail}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Ticket Type</span>
-                  <span>{scannedTicket.ticketType}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Status</span>
-                  <Badge variant={scannedTicket.status === "valid" ? "default" : scannedTicket.status === "used" ? "secondary" : "destructive"}>
-                    {scannedTicket.status.charAt(0).toUpperCase() + scannedTicket.status.slice(1)}
-                  </Badge>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                {scannedTicket.status === "valid" && (
-                  <Button 
-                    onClick={handleCheckIn}
-                    className="flex-1"
-                    variant="default"
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    Check In
+    <div className="max-w-md mx-auto">
+      <Tabs defaultValue="scanner" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="scanner">Scanner</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="scanner" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Ticket Scanner</CardTitle>
+              <CardDescription>
+                Scan QR codes to verify tickets
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!scanning && !scannedCode ? (
+                <div className="flex flex-col items-center justify-center p-8 space-y-4 border-2 border-dashed rounded-lg">
+                  <QrCode className="w-16 h-16 text-muted-foreground" />
+                  <p className="text-center text-muted-foreground">
+                    Ready to scan tickets
+                  </p>
+                  <Button onClick={() => setScanning(true)}>
+                    <Camera className="w-4 h-4 mr-2" />
+                    Start Scanning
                   </Button>
-                )}
-                <Button 
-                  onClick={handleReset}
-                  className="flex-1"
-                  variant={scannedTicket.status === "valid" ? "outline" : "default"}
-                >
-                  <XIcon className="w-4 h-4 mr-2" />
-                  {scannedTicket.status === "valid" ? "Cancel" : "Scan New Ticket"}
+                </div>
+              ) : scanning ? (
+                <div className="relative">
+                  <div className="aspect-square overflow-hidden rounded-lg border">
+                    <video 
+                      ref={videoRef} 
+                      className="w-full h-full object-cover"
+                      autoPlay 
+                      playsInline
+                    />
+                  </div>
+                  <div className="absolute inset-0 border-4 border-primary/50 rounded-lg pointer-events-none" />
+                  
+                  <Button 
+                    variant="outline" 
+                    className="absolute bottom-4 right-4"
+                    onClick={() => setScanning(false)}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
+              ) : scannedCode ? (
+                <div className="space-y-4">
+                  {verification.status === 'success' ? (
+                    <Alert variant="default" className="bg-green-50 border-green-200">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <AlertTitle className="text-green-800">Valid Ticket</AlertTitle>
+                      <AlertDescription className="text-green-700">
+                        {verification.message}
+                      </AlertDescription>
+                    </Alert>
+                  ) : verification.status === 'error' ? (
+                    <Alert variant="destructive">
+                      <X className="h-4 w-4" />
+                      <AlertTitle>Invalid Ticket</AlertTitle>
+                      <AlertDescription>
+                        {verification.message}
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="flex justify-center p-4">
+                      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  )}
+                  
+                  {verification.ticketData && (
+                    <Card className="border-green-200">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base text-green-700">
+                          Ticket Information
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <p className="font-medium">Event:</p>
+                          <p>{verification.ticketData.event?.title || 'N/A'}</p>
+                          
+                          <p className="font-medium">Date:</p>
+                          <p>{verification.ticketData.event ? formatDateTime(verification.ticketData.event.start_time) : 'N/A'}</p>
+                          
+                          <p className="font-medium">Ticket ID:</p>
+                          <p className="font-mono">{verification.ticketData.id}</p>
+                          
+                          <p className="font-medium">Attendee:</p>
+                          <p>{verification.ticketData.attendee_name || 'N/A'}</p>
+                          
+                          <p className="font-medium">Ticket Type:</p>
+                          <p>{verification.ticketData.ticket_type || 'Standard'}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ) : null}
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" onClick={manualEntry}>
+                Manual Entry
+              </Button>
+              
+              {scannedCode && (
+                <Button onClick={resetScanner}>
+                  <Camera className="w-4 h-4 mr-2" />
+                  Scan Another
                 </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
+              )}
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Scan History</CardTitle>
+              <CardDescription>
+                Recent ticket scans
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {history.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  No scan history yet
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {history.map((item, index) => (
+                    <div key={index} className="p-4 flex items-start space-x-3">
+                      {item.status === 'success' ? (
+                        <BadgeCheck className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <X className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <p className="font-mono text-sm truncate">
+                            {item.id}
+                          </p>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(item.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <p className="text-sm mt-1">
+                          {item.status === 'success' 
+                            ? item.details?.event?.title || 'Ticket verified' 
+                            : item.details?.error || 'Verification failed'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="justify-end">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setHistory([])}
+                disabled={history.length === 0}
+              >
+                Clear History
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
+
+export default QRScanner;

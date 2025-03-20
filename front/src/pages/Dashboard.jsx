@@ -4,7 +4,7 @@ import Sidebar from "../components/dashboard/Sidebar";
 import UserProfile from "../components/dashboard/UserProfile";
 import PurchasedTickets from "../components/dashboard/PurchasedTickets";
 import OrganizerManagement from "../components/dashboard/OrganizerManagement";
-import { QRScanner } from "@/components/dashboard/QRScanner";
+import QRScanner from "../components/dashboard/QRScanner";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OrganizedEvents from "../components/dashboard/OrganizedEvents";
