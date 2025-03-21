@@ -41,10 +41,10 @@ def check_if_token_in_blocklist(jwt_header, jwt_payload):
 
 CORS(
     app,
-    supports_credentials=True,
-    origins=["http://127.0.0.1:5173"],  
+    supports_credentials=True,  # Critical for cookies
+    origins=["https://fest-hrrc.onrender.com", "http://127.0.0.1:5173"],  # Your frontend origins
     allow_headers=["Content-Type", "Authorization"],
-    expose_headers=["Set-Cookie"],
+    expose_headers=["Set-Cookie"],  # Expose the Set-Cookie header
     methods=["GET", "POST", "PUT", "DELETE"]
 )
 api = Api(app)

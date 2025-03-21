@@ -197,9 +197,9 @@ class UserLoginResource(Resource):
                     access_token,
                     httponly=True,
                     secure=True,  # Correct for HTTPS
-                    samesite=None,  # Use 'None' (string) instead of None (Python value)
+                    samesite='None',  # Use 'None' (string) instead of None (Python value)
                     path='/',
-                    domain='fest-hrrc.onrender.com'  # Remove the https:// part
+                    # domain='fest-hrrc.onrender.com'  
                   )
                 print("Login attempt for:", email)
                 print("Response status:", response.status_code)
