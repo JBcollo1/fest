@@ -36,6 +36,13 @@ class UserListResource(Resource):
             first_name=data['first_name'],
             last_name=data['last_name'],
             phone=data.get('phone'),
+            national_id=data.get(' national_id'),  # Example new field
+            photo_img =data.get('photo_img '),  # Example new field
+            next_of_kin_name=data.get('next_of_kin_name'),  # Example new field
+            
+            next_of_kin_contact=data.get('next_of_kin_contact'),  # Example new field
+           
+            
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
@@ -124,6 +131,14 @@ class UserResource(Resource):
             
         if 'password' in data:
             user.password_hash = generate_password_hash(data['password'])
+        
+        # Update new fields
+        if 'photo_img' in data:
+            user.new_field_1 = data['photo_img']
+        if 'next_of_kin_contact' in data:
+            user.new_field_2 = data['next_of_kin_contact']
+        if 'next_of_kin_name' in data:
+            user.new_field_2 = data['next_of_kin_name']
         
         try:
             db.session.commit()

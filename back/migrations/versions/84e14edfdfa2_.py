@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: cff839c10369
+Revision ID: 84e14edfdfa2
 Revises: 
-Create Date: 2025-03-19 12:17:17.194480
+Create Date: 2025-03-21 18:37:01.771158
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'cff839c10369'
+revision = '84e14edfdfa2'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -52,6 +52,10 @@ def upgrade():
     sa.Column('first_name', sa.String(length=100), nullable=False),
     sa.Column('last_name', sa.String(length=100), nullable=False),
     sa.Column('phone', sa.String(length=20), nullable=True),
+    sa.Column('national_id', sa.String(length=50), nullable=True),
+    sa.Column('photo_img', sa.Text(), nullable=True),
+    sa.Column('next_of_kin_name', sa.String(length=100), nullable=True),
+    sa.Column('next_of_kin_contact', sa.String(length=50), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
@@ -75,6 +79,10 @@ def upgrade():
     sa.Column('company_image', sa.Text(), nullable=True),
     sa.Column('contact_email', sa.String(length=100), nullable=True),
     sa.Column('contact_phone', sa.String(length=20), nullable=True),
+    sa.Column('kra_pin', sa.String(length=50), nullable=True),
+    sa.Column('bank_details', sa.Text(), nullable=True),
+    sa.Column('physical_address', sa.Text(), nullable=True),
+    sa.Column('contact_person', sa.String(length=100), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),

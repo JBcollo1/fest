@@ -6,7 +6,7 @@ from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from config import Config
 from datetime import timedelta
-
+import os
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -19,6 +19,9 @@ jwt = JWTManager(app)
 @jwt.token_in_blocklist_loader
 def check_if_token_in_blocklist(jwt_header, jwt_payload):
     return False
+
+
+DATABASE_URL = os.getenv("EXTERNAL_DATABASE_URL") or os.getenv("INTERNAL_DATABASE_URL")
 
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']  # Allow both headers and cookies
 app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
