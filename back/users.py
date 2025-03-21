@@ -199,7 +199,7 @@ class UserLoginResource(Resource):
                     secure= True,  # Set to True in production with HTTPS
                     samesite=None,
                     path='/',
-                    domain=None 
+                    domain='https://fest-hrrc.onrender.com'
                     
                 )
                 print("Login attempt for:", email)
