@@ -8,31 +8,37 @@ from config import Config
 from datetime import timedelta
 import os
 
-app = Flask(__name__)
-app.config.from_object(Config)
 
+app = Flask(__name__)
+
+# Database Configuration
+DATABASE_URL = os.getenv("EXTERNAL_DATABASE_URL") or os.getenv("INTERNAL_DATABASE_URL") or \
+               'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'app.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize Database
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-jwt = JWTManager(app)
-
-@jwt.token_in_blocklist_loader
-def check_if_token_in_blocklist(jwt_header, jwt_payload):
-    return False
-
-
-DATABASE_URL = os.getenv("EXTERNAL_DATABASE_URL") or os.getenv("INTERNAL_DATABASE_URL")
-
-
-app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "fallback-secret")  
-app.config['JWT_COOKIE_SECURE'] = os.getenv("JWT_COOKIE_SECURE", "False") == "True"
+# JWT Configuration
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'fallback-secret-key')  # Use env variable or fallback
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']  # Allow both headers and cookies
 app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
 app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # For development, enable in production
-app.config['JWT_COOKIE_SECURE'] =   False  # Set to True in production with HTTPS
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)  # Set an appropriate time
+app.config['JWT_COOKIE_SECURE'] = os.getenv("JWT_COOKIE_SECURE", "False") == "True"
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+
+# Initialize JWT
+jwt = JWTManager(app)
+
+# Blocklist token check
+@jwt.token_in_blocklist_loader
+def check_if_token_in_blocklist(jwt_header, jwt_payload):
+    return False
+
 CORS(
     app,
     supports_credentials=True,
