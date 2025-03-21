@@ -52,40 +52,6 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        navy: {
-          light: "#003566",
-          DEFAULT: "#001D3D",
-          dark: "#000814",
-        },
-        sunshine: {
-          light: "#FFD60A",
-          DEFAULT: "#FFC300",
-          dark: "#E6B000",
-        },
-        new:{
-          default:"#000814",
-        },
-        // Kenya-inspired colors
-        kenya: {
-          red: "#BE0027",
-          green: "#006B3D",
-          black: "#000000",
-          earth: {
-            light: "#E5D9C9",
-            DEFAULT: "#C8B6A6",
-            dark: "#A89985",
-          },
-          sunset: {
-            light: "#FFBE98",
-            DEFAULT: "#FF9D5C",
-            dark: "#E67E22", 
-          },
-          savanna: {
-            light: "#D4CA9A",
-            DEFAULT: "#C2B280",
-            dark: "#A89A6A",
-          },
-        },
       },
       borderRadius: {
         lg: "var(--radius)",
