@@ -14,6 +14,10 @@ class User(db.Model):
   first_name = db.Column(db.String(100), nullable=False)
   last_name = db.Column(db.String(100), nullable=False)
   phone = db.Column(db.String(20), nullable=True)
+  national_id = db.Column(db.String(50), nullable=True)
+  photo_img = db.Column(db.Text, nullable=True)
+  next_of_kin_name = db.Column(db.String(100), nullable=True)
+  next_of_kin_contact = db.Column(db.String(50), nullable=True)
   created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
   updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
   
@@ -49,6 +53,10 @@ class User(db.Model):
       'first_name': self.first_name,
       'last_name': self.last_name,
       'phone': self.phone,
+      'national_id': self.national_id,
+      'photo_img': self.passport_photo_img,
+      'next_of_kin_name': self.next_of_kin_name,
+      'next_of_kin_contact': self.next_of_kin_contact,
       'created_at': self.created_at.isoformat() if self.created_at else None,
       'updated_at': self.updated_at.isoformat() if self.updated_at else None
     }
@@ -97,6 +105,10 @@ class Organizer(db.Model):
   company_image = db.Column(db.Text, nullable=True)
   contact_email = db.Column(db.String(100), nullable=True)
   contact_phone = db.Column(db.String(20), nullable=True)
+  kra_pin = db.Column(db.String(50), nullable=True)
+  bank_details = db.Column(db.Text, nullable=True)
+  physical_address = db.Column(db.Text, nullable=True)
+  contact_person = db.Column(db.String(100), nullable=True)
   created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
   updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
   
@@ -110,6 +122,10 @@ class Organizer(db.Model):
       'company_image': self.company_image,
       'contact_email': self.contact_email or self.user.email,
       'contact_phone': self.contact_phone or self.user.phone,
+      'kra_pin': self.kra_pin,
+      'bank_details': self.bank_details,
+      'physical_address': self.physical_address,
+      'contact_person': self.contact_person,
       'created_at': self.created_at.isoformat() if self.created_at else None,
       'updated_at': self.updated_at.isoformat() if self.updated_at else None
     }
