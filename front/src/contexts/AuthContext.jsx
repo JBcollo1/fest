@@ -17,6 +17,9 @@ export const AuthContext = createContext({
   createEvent: () => Promise.resolve({}),
   updateEvent: () => Promise.resolve({}),
   deleteEvent: () => Promise.resolve({}),
+  fetchEventTicketSales: () => Promise.resolve([]),
+  fetchEventPayments: () => Promise.resolve([]),
+  fetchEventCategories: () => Promise.resolve([]),
 });
 
 export const AuthProvider = ({ children }) => {
@@ -252,6 +255,45 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const fetchEventTicketSales = async (eventId, timeRange) => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/events/${eventId}/ticket-sales?range=${timeRange}`,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching ticket sales:', error);
+      throw error;
+    }
+  };
+
+  const fetchEventPayments = async (eventId, timeRange) => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/events/${eventId}/payments?range=${timeRange}`,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      throw error;
+    }
+  };
+
+  const fetchEventCategories = async (eventId) => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/events/${eventId}/categories`,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      throw error;
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -267,6 +309,9 @@ export const AuthProvider = ({ children }) => {
     createEvent,
     updateEvent,
     deleteEvent,
+    fetchEventTicketSales,
+    fetchEventPayments,
+    fetchEventCategories,
   };
 
   return (
