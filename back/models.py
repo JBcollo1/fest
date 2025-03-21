@@ -54,7 +54,7 @@ class User(db.Model):
       'last_name': self.last_name,
       'phone': self.phone,
       'national_id': self.national_id,
-      'photo_img': self.passport_photo_img,
+      'photo_img': self.photo_img,
       'next_of_kin_name': self.next_of_kin_name,
       'next_of_kin_contact': self.next_of_kin_contact,
       'created_at': self.created_at.isoformat() if self.created_at else None,
