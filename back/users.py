@@ -196,12 +196,11 @@ class UserLoginResource(Resource):
                     'access_token_cookie',
                     access_token,
                     httponly=True,
-                    secure= True,  # Set to True in production with HTTPS
-                    samesite=None,
+                    secure=True,  # Correct for HTTPS
+                    samesite=None,  # Use 'None' (string) instead of None (Python value)
                     path='/',
-                    domain='https://fest-hrrc.onrender.com'
-                    
-                )
+                    domain='fest-hrrc.onrender.com'  # Remove the https:// part
+                  )
                 print("Login attempt for:", email)
                 print("Response status:", response.status_code)
                 print("Access token generated:", access_token)
