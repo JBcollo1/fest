@@ -23,6 +23,9 @@ def check_if_token_in_blocklist(jwt_header, jwt_payload):
 
 DATABASE_URL = os.getenv("EXTERNAL_DATABASE_URL") or os.getenv("INTERNAL_DATABASE_URL")
 
+
+app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "fallback-secret")  
+app.config['JWT_COOKIE_SECURE'] = os.getenv("JWT_COOKIE_SECURE", "False") == "True"
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']  # Allow both headers and cookies
 app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
 app.config['JWT_HEADER_NAME'] = 'Authorization'
