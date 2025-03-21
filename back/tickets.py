@@ -13,7 +13,7 @@ class TicketListResource(Resource):
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if not user.has_role('admin'):
+        if not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         query = Ticket.query
@@ -100,7 +100,7 @@ class TicketResource(Resource):
             return error_response("Ticket not found", 404)
             
         attendee = Attendee.query.filter_by(user_id=current_user_id).first()
-        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('admin'):
+        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         return success_response(data=ticket.to_dict(include_event=True))
@@ -115,7 +115,7 @@ class TicketResource(Resource):
             return error_response("Ticket not found", 404)
             
         attendee = Attendee.query.filter_by(user_id=current_user_id).first()
-        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('admin'):
+        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         payment = Payment.query.filter_by(ticket_id=ticket.id).first()
@@ -134,7 +134,120 @@ class TicketResource(Resource):
             db.session.rollback()
             return error_response(f"Error cancelling ticket: {str(e)}")
 
+from flask import request
+from flask_restful import Resource
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app import db
+from models import Ticket, Event, User, Attendee
+from utils.response import success_response, error_response
+from datetime import datetime
 
+class TicketVerificationResource(Resource):
+    @jwt_required()
+    def post(self, ticket_id):
+        """
+        Verify a ticket for event check-in
+        """
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        # Verify the user has permission to check in tickets (admin or event organizer)
+        if not user.has_role('Admin') and not user.has_role('Organizer'):
+            return error_response("Unauthorized. Only admins and organizers can verify tickets.", 403)
+        
+        # Find the ticket
+        ticket = Ticket.query.get(ticket_id)
+        if not ticket:
+            return error_response("Ticket not found", 404)
+        
+        # Get the associated event
+        event = Event.query.get(ticket.event_id)
+        if not event:
+            return error_response("Event associated with this ticket does not exist", 404)
+        
+        # If user is an organizer, verify they are the organizer of this event
+        if not user.has_role('Admin'):
+            organizer = user.organizer
+            if not organizer or organizer.id != event.organizer_id:
+                return error_response("Unauthorized. You can only verify tickets for events you organize.", 403)
+        
+        # Check if the ticket has already been used
+        if ticket.status == 'used':
+            return error_response("Ticket has already been used", 400)
+        
+        # Check if the ticket is valid (additional validation could be added here)
+        if ticket.status != 'valid':
+            return error_response(f"Invalid ticket status: {ticket.status}", 400)
+        
+        # Update the ticket to mark it as used
+        try:
+            ticket.status = 'used'
+            ticket.checked_in_at = datetime.utcnow()
+            ticket.checked_in_by = current_user_id
+            
+            db.session.commit()
+            
+            # Get attendee information
+            attendee = Attendee.query.get(ticket.attendee_id)
+            attendee_user = User.query.get(attendee.user_id) if attendee else None
+            
+            # Prepare response data
+            ticket_data = ticket.to_dict(include_event=True)
+            
+            # Add attendee name if available
+            if attendee_user:
+                ticket_data['attendee_name'] = f"{attendee_user.first_name} {attendee_user.last_name}"
+            
+            return success_response(
+                data=ticket_data,
+                message="Ticket verified successfully",
+                status_code=200
+            )
+        except Exception as e:
+            db.session.rollback()
+            return error_response(f"Error verifying ticket: {str(e)}", 500)
+    
+    @jwt_required()
+    def get(self, ticket_id):
+        """
+        Get ticket verification status
+        """
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        # Find the ticket
+        ticket = Ticket.query.get(ticket_id)
+        if not ticket:
+            return error_response("Ticket not found", 404)
+        
+        # Get the associated event
+        event = Event.query.get(ticket.event_id)
+        if not event:
+            return error_response("Event associated with this ticket does not exist", 404)
+        
+        # Check if user has permission to view ticket
+        is_admin = user.has_role('Admin')
+        is_organizer = user.has_role('Organizer') and user.organizer and user.organizer.id == event.organizer_id
+        is_ticket_owner = user.attendee and user.attendee.id == ticket.attendee_id
+        
+        if not (is_admin or is_organizer or is_ticket_owner):
+            return error_response("Unauthorized", 403)
+        
+        # Get attendee information
+        attendee = Attendee.query.get(ticket.attendee_id)
+        attendee_user = User.query.get(attendee.user_id) if attendee else None
+        
+        # Prepare response data
+        ticket_data = ticket.to_dict(include_event=True)
+        
+        # Add attendee name if available
+        if attendee_user:
+            ticket_data['attendee_name'] = f"{attendee_user.first_name} {attendee_user.last_name}"
+        
+        return success_response(
+            data=ticket_data,
+            status_code=200
+        )
 class UserTicketsResource(Resource):
     """
     Resource for user's tickets
@@ -146,7 +259,7 @@ class UserTicketsResource(Resource):
         user = User.query.get(current_user_id)
         
         # Check if user is authorized to view these tickets
-        if current_user_id != user_id and not user.has_role('admin'):
+        if current_user_id != user_id and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         # Get attendee record

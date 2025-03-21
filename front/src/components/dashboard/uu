@@ -1,0 +1,160 @@
+const { user, fetchOrganizerEvents, fetchAllOrganizers, fetchOrganizerById, createEvent, updateEvent, deleteEvent } = useAuth();
+const { toast } = useToast();
+const [events, setEvents] = useState([]);
+const [organizers, setOrganizers] = useState([]);
+const [loading, setLoading] = useState(true);
+const [loadingOrganizers, setLoadingOrganizers] = useState(false);
+const [selectedOrganizerDetails, setSelectedOrganizerDetails] = useState(null);
+const [error, setError] = useState(null);
+const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+const [selectedEvent, setSelectedEvent] = useState(null);
+
+// Check if user is admin or organizer
+const isAdmin = user?.roles?.includes("Admin");
+const isOrganizer = user?.roles?.includes("organizer");
+const hasAccess = isAdmin || isOrganizer;
+
+// Form states
+const [title, setTitle] = useState("");
+const [description, setDescription] = useState("");
+const [startDateTime, setStartDateTime] = useState("");
+const [endDateTime, setEndDateTime] = useState("");
+const [location, setLocation] = useState("");
+const [price, setPrice] = useState("");
+const [totalTickets, setTotalTickets] = useState("");
+const [image, setImage] = useState("");
+const [organizerId, setOrganizerId] = useState("");
+const [formError, setFormError] = useState("");
+const [isSubmitting, setIsSubmitting] = useState(false);
+
+// Load events on component mount
+useEffect(() => {
+  if (hasAccess) {
+    loadEvents();
+    
+    // If admin, fetch organizers
+    if (isAdmin) {
+      loadOrganizers();
+    }
+  }
+}, [hasAccess, isAdmin]);
+
+const loadEvents = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    const response = await fetchOrganizerEvents();
+
+    if (response?.data?.items && Array.isArray(response.data.items)) {
+      setEvents(response.data.items);
+    } else {
+      console.error("Unexpected response format:", response);
+      setError("Failed to load events: Invalid data format");
+      setEvents([]);
+    }
+  } catch (error) {
+    console.error("Error loading events:", error);
+    setError(`Failed to load events: ${error.message || "Unknown error"}`);
+    setEvents([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const loadOrganizers = async () => {
+  try {
+    setLoadingOrganizers(true);
+    const response = await fetchAllOrganizers();
+
+    if (response?.data && Array.isArray(response.data)) {
+      setOrganizers(response.data);
+    } else {
+      console.error("Unexpected organizers response format:", response);
+      setOrganizers([]);
+    }
+  } catch (error) {
+    console.error("Error loading organizers:", error);
+    setOrganizers([]);
+  } finally {
+    setLoadingOrganizers(false);
+  }
+};
+
+
+
+
+const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+    
+    setIsSubmitting(true);
+    setFormError("");
+    
+    try {
+      const eventData = {
+        title,
+        description,
+        start_datetime: startDateTime,
+        end_datetime: endDateTime || null,
+        location,
+        price: parseFloat(price),
+        total_tickets: parseInt(totalTickets),
+        image,
+        // Only include organizer_id if admin and a value is selected
+        ...(isAdmin && organizerId && { organizer_id: organizerId }),
+      };
+      
+      const response = await createEvent(eventData);
+      
+      toast({
+        title: "Success",
+        description: "Event created successfully",
+      });
+      
+      resetForm();
+      setIsCreateDialogOpen(false);
+      
+      // Refresh the events list
+      loadEvents();
+    } catch (error) {
+      console.error("Error creating event:", error);
+      setFormError(error.response?.data?.message || "Failed to create event");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+    
+    
+    
+    {organizers.length > 0 ? (
+                          organizers.map((organizer) => (
+                            <SelectItem 
+                              key={organizer.id} 
+                              value={organizer.id.toString()}
+                            >
+                              {organizer.name || organizer.username || organizer.email || `ID: ${organizer.id}`}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="p-2 text-sm text-muted-foreground">
+                            No organizers available
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  
+                  {/* Show selected organizer details if available */}
+                  {selectedOrganizerDetails && (
+                    <div className="mt-2 p-2 bg-muted rounded-md text-sm">
+                      <p className="font-medium">Selected Organizer Details:</p>
+                      <p>ID: {selectedOrganizerDetails.id}</p>
+                      {selectedOrganizerDetails.name && <p>Name: {selectedOrganizerDetails.name}</p>}
+                      {selectedOrganizerDetails.email && <p>Email: {selectedOrganizerDetails.email}</p>}
+                      {selectedOrganizerDetails.phone && <p>Phone: {selectedOrganizerDetails.phone}</p>}
+                    </div>
+                  )}
+                </div>

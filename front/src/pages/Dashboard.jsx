@@ -4,9 +4,10 @@ import Sidebar from "../components/dashboard/Sidebar";
 import UserProfile from "../components/dashboard/UserProfile";
 import PurchasedTickets from "../components/dashboard/PurchasedTickets";
 import OrganizerManagement from "../components/dashboard/OrganizerManagement";
-import { QRScanner } from "@/components/dashboard/QRScanner";
+import QRScanner from "../components/dashboard/QRScanner";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import OrganizedEvents from "../components/dashboard/OrganizedEvents";
 
 const Dashboard = () => {
   const [activeSection, setActiveSection] = useState("profile");
@@ -16,7 +17,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (user && user.roles) {
-      setIsAdmin(user.roles.includes("admin"));
+      setIsAdmin(user.roles.includes("Admin"));
     }
   }, [user]);
 
@@ -30,6 +31,9 @@ const Dashboard = () => {
         return isAdmin ? <OrganizerManagement /> : <UserProfile />;
       case "scanner":
         return <QRScanner />;
+      case "organized":
+        return <OrganizedEvents />;
+   
       default:
         return <UserProfile />;
     }

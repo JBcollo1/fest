@@ -320,7 +320,7 @@ const OrganizerManagement = () => {
     }
   };
 
-  if (!user?.roles?.includes("admin")) {
+  if (!user?.roles?.includes("Admin")) {
     return (
       <div className="text-center p-6">
         <h2 className="text-xl font-bold text-red-500">Access Denied</h2>

@@ -11,6 +11,12 @@ export const AuthContext = createContext({
   fetchUserData: async () => {},
   fetchAllUsers: () => Promise.resolve([]),
   fetchAllOrganizers: () => Promise.resolve([]),
+  fetchOrganizerEvents: () => Promise.resolve([]),
+  fetchEventById: () => Promise.resolve(null),
+  fetchOrganizerById: () => fetchOrganizerById(),
+  createEvent: () => Promise.resolve({}),
+  updateEvent: () => Promise.resolve({}),
+  deleteEvent: () => Promise.resolve({}),
 });
 
 export const AuthProvider = ({ children }) => {
@@ -78,7 +84,18 @@ export const AuthProvider = ({ children }) => {
       };
     }
   };
-
+  const fetchOrganizerById = async (organizerId) => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/organizers/${organizerId}`,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching organizer:', error);
+      throw error;
+    }
+  };
   const logout = async () => {
     try {
       setLoading(true);
@@ -123,6 +140,118 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Fetch events for the logged-in organizer or all events for admin
+  const fetchOrganizerEvents = async () => {
+    try {
+      // Check if the user is an admin
+      const isAdmin = user?.roles?.includes("Admin");
+      
+      if (isAdmin) {
+        // Admins can see all events
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/events`,
+          { withCredentials: true }
+        );
+        return response.data;
+      } else {
+        // For organizers, show only their events
+        const organizer = await fetchOrganizerProfile();
+        if (!organizer || !organizer.id) {
+          throw new Error("User is not an organizer");
+        }
+
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/events?organizer_id=${organizer.id}`,
+          { withCredentials: true }
+        );
+        return response.data;
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      throw error;
+    }
+  };
+
+  // Fetch a single event by ID
+  const fetchEventById = async (eventId) => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/events/${eventId}`,
+        { withCredentials: true }
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching event:', error);
+      throw error;
+    }
+  };
+
+  // Create a new event
+  const createEvent = async (eventData) => {
+    try {
+      // If admin is creating an event on behalf of an organizer, use the selected organizer ID
+      // Otherwise, for organizers, the backend will use their own organizer ID
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/events`,
+        eventData,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error creating event:', error);
+      throw error;
+    }
+  }
+
+  // Update an existing event
+  const updateEvent = async (eventId, eventData) => {
+    try {
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/events/${eventId}`,
+        eventData,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error updating event:', error);
+      throw error;
+    }
+  };
+
+  // Delete an event
+  const deleteEvent = async (eventId) => {
+    try {
+      const response = await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/events/${eventId}`,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      throw error;
+    }
+  };
+
+  // Fetch the organizer profile for the current user
+  const fetchOrganizerProfile = async () => {
+    if (!user) return null;
+    
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/users/${user.id}/organizer`,
+        { withCredentials: true }
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching organizer profile:', error);
+      // Not an error if user is not an organizer
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -131,7 +260,13 @@ export const AuthProvider = ({ children }) => {
     logout,
     fetchUserData,
     fetchAllUsers,
-    fetchAllOrganizers
+    fetchAllOrganizers,
+    fetchOrganizerEvents,
+    fetchOrganizerById,
+    fetchEventById,
+    createEvent,
+    updateEvent,
+    deleteEvent,
   };
 
   return (

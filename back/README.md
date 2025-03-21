@@ -8,7 +8,7 @@ API serves frontend
 # Main Components
 1. User Management
 - User registration and login
-- Role-based access control (admin, organizer, regular user)
+- Role-based access control (Admin, organizer, regular user)
 - User profile management
 2. Event System
 - Create and manage events

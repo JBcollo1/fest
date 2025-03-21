@@ -29,7 +29,7 @@ const Sidebar = ({
 
   useEffect(() => {
     if (user && user.roles) {
-      setIsAdmin(user.roles.includes("admin"));
+      setIsAdmin(user.roles.includes("Admin"));
       setIsOrganizer(user.roles.includes("organizer"));
     }
   }, [user]);
@@ -123,19 +123,27 @@ const Sidebar = ({
                 label="My Tickets"
                 value="tickets"
               />
-              {isOrganizer && (
+              {/* {isOrganizer && (
                 <NavItem
                   icon={<Calendar className="h-5 w-5" />}
                   label="My Events"
                   value="organized"
                 />
-              )}
+              )} */}
               {isAdmin && (
-                <NavItem
+                <div>
+                   <NavItem
                   icon={<ShieldCheck className="h-5 w-5" />}
                   label="Manage Organizers"
                   value="organizers"
                 />
+                <NavItem
+                icon={<Calendar className="h-5 w-5" />}
+                label="My Events"
+                value="organized"
+                />
+                </div>
+               
               )}
               <NavItem
                 icon={<QrCode className="h-5 w-5" />}

@@ -4,7 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from models import Event, User, Category, EventCategory, Organizer
 from utils.response import success_response, error_response, paginate_response
-from utils.auth import organizer_required
+from utils.auth import organizer_required, Admin_required
 from datetime import datetime
 
 class EventListResource(Resource):
@@ -48,67 +48,79 @@ class EventListResource(Resource):
         return paginate_response(query)
     
     @jwt_required()
-    @organizer_required
     def post(self):
-        """Create a new event (organizer only)"""
-        current_user_id = get_jwt_identity()
-        data = request.get_json()
-        
-        user = User.query.get(current_user_id)
-        organizer = Organizer.query.filter_by(user_id=current_user_id).first()
-        
-        if not organizer:
-            return error_response("User is not registered as an organizer", 403)
+            """Create a new event (admin or organizer only)"""
+            current_user_id = get_jwt_identity()
+            data = request.get_json()
             
-        required_fields = ['title', 'start_datetime', 'location', 'price', 'total_tickets']
-        for field in required_fields:
-            if field not in data:
-                return error_response(f"Missing required field: {field}")
-                
-        # Parse dates
-        try:
-            start_datetime = datetime.fromisoformat(data['start_datetime'].replace('Z', '+00:00'))
-            end_datetime = None
-            if 'end_datetime' in data and data['end_datetime']:
-                end_datetime = datetime.fromisoformat(data['end_datetime'].replace('Z', '+00:00'))
-        except ValueError:
-            return error_response("Invalid datetime format")
+            user = User.query.get(current_user_id)
             
-        # Create new event
-        new_event = Event(
-            organizer_id=organizer.id,
-            title=data['title'],
-            description=data.get('description'),
-            start_datetime=start_datetime,
-            end_datetime=end_datetime,
-            location=data['location'],
-            price=data['price'],
-            currency=data.get('currency', 'KES'),
-            image=data.get('image'),
-            featured=data.get('featured', False),
-            total_tickets=data['total_tickets'],
-            tickets_sold=0
-        )
-        
-        # Add categories if provided
-        if 'categories' in data and isinstance(data['categories'], list):
-            for category_id in data['categories']:
-                category = Category.query.get(category_id)
-                if category:
-                    new_event.categories.append(category)
+            # Check if the user is an admin
+            is_admin = user.has_role('Admin')
+            
+                        # If organizer_id is provided and user is admin, use that
+            if is_admin and 'organizer_id' in data:
+                organizer_id = data['organizer_id']
+                organizer = Organizer.query.get(organizer_id)  # Correctly using organizer_id
+                if not organizer:
+                    return error_response("Specified organizer not found", 404)
+            else:
+                # Otherwise, use the current user's organizer account
+                organizer = Organizer.query.filter_by(user_id=current_user_id).first()
+                if not organizer:
+                    return error_response("User is not registered as an organizer", 403)
+                organizer_id = organizer.id  # Ensuring organizer_id is correctly set
+
+            
+            required_fields = ['title', 'start_datetime', 'location', 'price', 'total_tickets']
+            for field in required_fields:
+                if field not in data:
+                    return error_response(f"Missing required field: {field}")
                     
-        try:
-            db.session.add(new_event)
-            db.session.commit()
-            
-            return success_response(
-                data=new_event.to_dict(include_organizer=True),
-                message="Event created successfully",
-                status_code=201
+            # Parse dates
+            try:
+                start_datetime = datetime.fromisoformat(data['start_datetime'].replace('Z', '+00:00'))
+                end_datetime = None
+                if 'end_datetime' in data and data['end_datetime']:
+                    end_datetime = datetime.fromisoformat(data['end_datetime'].replace('Z', '+00:00'))
+            except ValueError:
+                return error_response("Invalid datetime format")
+                
+            # Create new event
+            new_event = Event(
+                organizer_id=organizer_id,
+                title=data['title'],
+                description=data.get('description'),
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+                location=data['location'],
+                price=data['price'],
+                currency=data.get('currency', 'KES'),
+                image=data.get('image'),
+                featured=data.get('featured', False),
+                total_tickets=data['total_tickets'],
+                tickets_sold=0
             )
-        except Exception as e:
-            db.session.rollback()
-            return error_response(f"Error creating event: {str(e)}")
+            
+            # Add categories if provided
+            if 'categories' in data and isinstance(data['categories'], list):
+                for category_id in data['categories']:
+                    category = Category.query.get(category_id)
+                    if category:
+                        new_event.categories.append(category)
+                        
+            try:
+                db.session.add(new_event)
+                db.session.commit()
+                
+                return success_response(
+                    data=new_event.to_dict(include_organizer=True),
+                    message="Event created successfully",
+                    status_code=201
+                )
+            except Exception as e:
+                db.session.rollback()
+                return error_response(f"Error creating event: {str(e)}")
 
 
 class EventResource(Resource):
@@ -128,11 +140,11 @@ class EventResource(Resource):
         if not event:
             return error_response("Event not found", 404)
             
-        # Check if user is the event organizer or an admin
+        # Check if user is the event organizer or an Admin
         user = User.query.get(current_user_id)
         organizer = Organizer.query.filter_by(user_id=current_user_id).first()
         
-        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('admin'):
+        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         data = request.get_json()
@@ -171,7 +183,7 @@ class EventResource(Resource):
         if 'image' in data:
             event.image = data['image']
             
-        if 'featured' in data and user.has_role('admin'):  # Only admins can set featured
+        if 'featured' in data and user.has_role('Admin'):  # Only Admins can set featured
             event.featured = data['featured']
             
         if 'total_tickets' in data:
@@ -208,11 +220,11 @@ class EventResource(Resource):
         if not event:
             return error_response("Event not found", 404)
             
-        # Check if user is the event organizer or an admin
+        # Check if user is the event organizer or an Admin
         user = User.query.get(current_user_id)
         organizer = Organizer.query.filter_by(user_id=current_user_id).first()
         
-        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('admin'):
+        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         try:
@@ -243,11 +255,11 @@ class EventCategoriesResource(Resource):
         if not event:
             return error_response("Event not found", 404)
             
-        # Check if user is the event organizer or an admin
+        # Check if user is the event organizer or an Admin
         user = User.query.get(current_user_id)
         organizer = Organizer.query.filter_by(user_id=current_user_id).first()
         
-        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('admin'):
+        if not (organizer and organizer.id == event.organizer_id) and not user.has_role('Admin'):
             return error_response("Unauthorized", 403)
             
         data = request.get_json()
