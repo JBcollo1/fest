@@ -66,6 +66,14 @@ from payments import PaymentResource, PaymentListResource
 from categories import CategoryResource, CategoryListResource
 from discount_codes import DiscountCodeResource, DiscountCodeListResource, ValidateDiscountCodeResource
 from organizer import OrganizerListResource, OrganizerResource, UserOrganizerResource
+from callback import mpesaCallback
+
+
+
+
+api.add_resource(mpesaCallback, '/api/mpesa/callback')
+
+
 
 api.add_resource(UserListResource, '/api/users')
 api.add_resource(UserResource, '/api/users/<string:user_id>')
