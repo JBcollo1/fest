@@ -4,23 +4,23 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from models import User, Role, Organizer
 from utils.response import success_response, error_response, paginate_response
-from utils.auth import Admin_required
+from utils.auth import admin_required
 
 class OrganizerListResource(Resource):
     """
     Resource for organizer list operations
     """
     @jwt_required()
-    @Admin_required
+    @admin_required
     def get(self):
-        """Get all organizers (Admin only)"""
+        """Get all organizers (admin only)"""
         organizers = Organizer.query.all()
         return success_response(data=[organizer.to_dict(include_user=True) for organizer in organizers])
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def post(self):
-        """Create a new organizer from existing user (Admin only)"""
+        """Create a new organizer from existing user (admin only)"""
         data = request.get_json()
         
         if 'user_id' not in data:
@@ -45,13 +45,10 @@ class OrganizerListResource(Resource):
             company_image=data.get('company_image'),
             contact_email=data.get('contact_email'),
             contact_phone=data.get('contact_phone'),
-            kra_pin=data.get('kra_pin'),  # Example new field
-            bank_details=data.get('bank_details') ,  # Example new field
-            physical_address=data.get('physical_address'),   # Example new field
-            contact_person=data.get('contact_person')   # Example new field
-            
-        
-        
+            kra_pin=data.get('kra_pin'),
+            bank_details=data.get('bank_details'),
+            physical_address=data.get('physical_address'),
+            contact_person=data.get('contact_person')
         )
         
         # Add organizer role to user
@@ -92,9 +89,9 @@ class OrganizerResource(Resource):
         return success_response(data=organizer.to_dict(include_user=True))
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def put(self, organizer_id):
-        """Update a specific organizer (Admin only)"""
+        """Update a specific organizer (admin only)"""
         organizer = Organizer.query.get(organizer_id)
         
         if not organizer:
@@ -106,17 +103,18 @@ class OrganizerResource(Resource):
         if 'company_name' in data:
             organizer.company_name = data['company_name']
         
-        # Update new fields
+        # Update fields with correct property names
         if 'bank_details' in data:
-            organizer.new_field_1 = data['bank_details']
+            organizer.bank_details = data['bank_details']
         
         if 'kra_pin' in data:
-            organizer.new_field_2 = data['kra_pin']
+            organizer.kra_pin = data['kra_pin']
             
         if 'company_image' in data:
             organizer.company_image = data['company_image']
+            
         if 'contact_person' in data:
-            organizer.company_image = data['contact_person']
+            organizer.contact_person = data['contact_person']
             
         if 'physical_address' in data:
             organizer.physical_address = data['physical_address']
@@ -138,9 +136,9 @@ class OrganizerResource(Resource):
             return error_response(f"Error updating organizer: {str(e)}")
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def delete(self, organizer_id):
-        """Remove organizer status (Admin only)"""
+        """Remove organizer status (admin only)"""
         organizer = Organizer.query.get(organizer_id)
         
         if not organizer:

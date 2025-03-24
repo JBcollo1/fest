@@ -86,9 +86,9 @@ const EventStatsPage = ({ eventId }) => {
   const [chartType, setChartType] = useState("line");
   
   // Check if user has access - adapt based on your Role model
-  const isAdmin = user?.roles?.includes("Admin");
+  const isadmin = user?.roles?.includes("admin");
   const isOrganizer = user?.roles?.includes("Organizer");
-  const hasAccess = isAdmin || isOrganizer;
+  const hasAccess = isadmin || isOrganizer;
 
   // Load event and sales data on component mount
   useEffect(() => {

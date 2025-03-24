@@ -11,9 +11,9 @@ const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 const [selectedEvent, setSelectedEvent] = useState(null);
 
 // Check if user is admin or organizer
-const isAdmin = user?.roles?.includes("Admin");
+const isadmin = user?.roles?.includes("admin");
 const isOrganizer = user?.roles?.includes("organizer");
-const hasAccess = isAdmin || isOrganizer;
+const hasAccess = isadmin || isOrganizer;
 
 // Form states
 const [title, setTitle] = useState("");
@@ -34,11 +34,11 @@ useEffect(() => {
     loadEvents();
     
     // If admin, fetch organizers
-    if (isAdmin) {
+    if (isadmin) {
       loadOrganizers();
     }
   }
-}, [hasAccess, isAdmin]);
+}, [hasAccess, isadmin]);
 
 const loadEvents = async () => {
   try {
@@ -103,7 +103,7 @@ const handleCreateEvent = async (e) => {
         total_tickets: parseInt(totalTickets),
         image,
         // Only include organizer_id if admin and a value is selected
-        ...(isAdmin && organizerId && { organizer_id: organizerId }),
+        ...(isadmin && organizerId && { organizer_id: organizerId }),
       };
       
       const response = await createEvent(eventData);

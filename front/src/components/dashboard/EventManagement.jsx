@@ -35,9 +35,9 @@ const EventManagement = () => {
         const user = response.data;
         
         // Check if user has admin role
-        const isAdmin = user.roles && user.roles.some(role => role.name === 'admin');
+        const isadmin = user.roles && user.roles.some(role => role.name === 'admin');
         
-        if (!isAdmin) {
+        if (!isadmin) {
           // Redirect non-admin users
           navigate('/dashboard');
           return;

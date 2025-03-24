@@ -19,12 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const CreateEventDialog = ({ 
   open, 
   onOpenChange, 
   onSubmit, 
-  isAdmin, 
+  isadmin, 
   organizers, 
   fetchOrganizerById 
 }) => {
@@ -41,6 +42,7 @@ const CreateEventDialog = ({
   const [selectedOrganizerDetails, setSelectedOrganizerDetails] = useState(null);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [featured, setFeatured] = useState(false);
 
   const submitButtonRef = useRef(null);
 
@@ -71,6 +73,7 @@ const CreateEventDialog = ({
     setFormError("");
     setSelectedOrganizerDetails(null);
     setIsSubmitting(false);
+    setFeatured(false);
   };
 
   const handleOrganizerChange = async (value) => {
@@ -117,7 +120,7 @@ const CreateEventDialog = ({
       return false;
     }
     // For admins, require organizer selection
-    if (isAdmin && !organizerId) {
+    if (isadmin && !organizerId) {
       setFormError("Please select an organizer");
       return false;
     }
@@ -141,7 +144,8 @@ const CreateEventDialog = ({
       price: parseFloat(price),
       total_tickets: parseInt(totalTickets),
       image,
-      ...(isAdmin && organizerId && { organizer_id: organizerId }),
+      ...(isadmin && organizerId && { organizer_id: organizerId }),
+      featured,
     };
     
     const result = await onSubmit(eventData);
@@ -175,8 +179,8 @@ const CreateEventDialog = ({
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Organizer Selection (Admin only) */}
-              {isAdmin && (
+              {/* Organizer Selection (admin only) */}
+              {isadmin && (
                 <div className="space-y-2 md:col-span-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-md">
                   <Label htmlFor="organizerId" className="text-sm font-medium">Select Organizer</Label>
                   <Select value={organizerId || "none"} onValueChange={handleOrganizerChange}>
@@ -306,6 +310,16 @@ const CreateEventDialog = ({
                   value={image}
                   onChange={(e) => setImage(e.target.value)}
                   placeholder="https://example.com/image.jpg"
+                  className="focus-visible:ring-primary"
+                />
+              </div>
+              
+              <div className="space-y-1 md:col-span-2">
+                <Label htmlFor="featured" className="text-sm font-medium">Featured</Label>
+                <Checkbox
+                  id="featured"
+                  checked={featured}
+                  onChange={(e) => setFeatured(e.target.checked)}
                   className="focus-visible:ring-primary"
                 />
               </div>

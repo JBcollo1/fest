@@ -1,68 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, MapPin, Calendar, QrCode, Users, Clock, ChevronDown, ChevronUp, Share2, Ticket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AuthContext } from "@/contexts/AuthContext";
+import axios from "axios";
 
 const PurchasedTickets = () => {
-  // This would typically come from your API/state
-  const tickets = [
-    {
-      id: "TKT-4582",
-      eventName: "Summer Music Festival",
-      date: "2024-07-15T14:00:00",
-      endDate: "2024-07-15T23:00:00",
-      location: "Central Park, NY",
-      status: "valid",
-      type: "VIP Pass",
-      section: "Main Stage",
-      row: "A",
-      seat: "12",
-      price: "$150.00",
-      purchaseDate: "2024-03-01",
-      thumbnail: "/api/placeholder/400/200",
-      additionalInfo: "Includes access to VIP lounge and meet & greet area."
-    },
-    {
-      id: "TKT-8721",
-      eventName: "Tech Conference 2024",
-      date: "2024-09-22T09:00:00",
-      endDate: "2024-09-24T17:00:00",
-      location: "Convention Center, San Francisco",
-      status: "valid",
-      type: "Full Access",
-      section: "All Areas",
-      row: null,
-      seat: null,
-      price: "$399.00",
-      purchaseDate: "2024-02-15",
-      thumbnail: "/api/placeholder/400/200",
-      additionalInfo: "Includes workshop access and lunch on all days."
-    },
-    {
-      id: "TKT-2356",
-      eventName: "Basketball Finals",
-      date: "2024-05-30T19:30:00",
-      endDate: "2024-05-30T22:30:00",
-      location: "Madison Square Garden, NY",
-      status: "used",
-      type: "Standard",
-      section: "Block B",
-      row: "15",
-      seat: "7",
-      price: "$85.00",
-      purchaseDate: "2024-01-10",
-      thumbnail: "/api/placeholder/400/200",
-      additionalInfo: null
-    }
-  ];
-
+  const { user, loading: authLoading } = useContext(AuthContext);
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [expandedTicket, setExpandedTicket] = useState(null);
   const [activeTab, setActiveTab] = useState("upcoming");
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchTickets();
+    }
+  }, [authLoading, user]);
+
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/users/${user.id}/tickets`,
+        { withCredentials: true }
+      );
+      setTickets(response.data.data);
+    } catch (error) {
+      setError("Failed to load tickets. Please try again later.");
+      console.error("Error fetching tickets:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleExpand = (ticketId) => {
     if (expandedTicket === ticketId) {
@@ -95,6 +71,14 @@ const PurchasedTickets = () => {
 
   const upcomingTickets = tickets.filter(ticket => ticket.status === "valid");
   const pastTickets = tickets.filter(ticket => ticket.status === "used");
+
+  if (authLoading || loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>{error}</div>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -352,4 +336,4 @@ const PurchasedTickets = () => {
   );
 };
 
-export default PurchasedTickets
+export default PurchasedTickets;

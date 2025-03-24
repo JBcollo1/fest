@@ -54,6 +54,10 @@ const OrganizerManagement = () => {
   const [companyImage, setCompanyImage] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [kraPin, setKraPin] = useState("");
+  const [bankDetails, setBankDetails] = useState("");
+  const [physicalAddress, setPhysicalAddress] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
 
   useEffect(() => {
     console.log('Current users:', users);
@@ -149,7 +153,6 @@ const OrganizerManagement = () => {
     }
 
     try {
-      // First create the organizer record
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/organizers`,
         {
@@ -158,6 +161,10 @@ const OrganizerManagement = () => {
           company_image: companyImage,
           contact_email: contactEmail,
           contact_phone: contactPhone,
+          kra_pin: kraPin,
+          bank_details: bankDetails,
+          physical_address: physicalAddress,
+          contact_person: contactPerson
         },
         { withCredentials: true }
       );
@@ -182,6 +189,10 @@ const OrganizerManagement = () => {
       setCompanyImage("");
       setContactEmail("");
       setContactPhone("");
+      setKraPin("");
+      setBankDetails("");
+      setPhysicalAddress("");
+      setContactPerson("");
       setIsAddDialogOpen(false);
 
       // Refresh the organizers list
@@ -214,6 +225,10 @@ const OrganizerManagement = () => {
           company_image: companyImage,
           contact_email: contactEmail,
           contact_phone: contactPhone,
+          kra_pin: kraPin,
+          bank_details: bankDetails,
+          physical_address: physicalAddress,
+          contact_person: contactPerson
         },
         {
           headers: { 'Content-Type': 'application/json' },
@@ -231,6 +246,10 @@ const OrganizerManagement = () => {
       setCompanyImage("");
       setContactEmail("");
       setContactPhone("");
+      setKraPin("");
+      setBankDetails("");
+      setPhysicalAddress("");
+      setContactPerson("");
       setIsEditDialogOpen(false);
 
       // Refresh organizers list
@@ -281,6 +300,10 @@ const OrganizerManagement = () => {
     setCompanyImage(organizer.company_image || "");
     setContactEmail(organizer.contact_email || "");
     setContactPhone(organizer.contact_phone || "");
+    setKraPin(organizer.kra_pin || "");
+    setBankDetails(organizer.bank_details || "");
+    setPhysicalAddress(organizer.physical_address || "");
+    setContactPerson(organizer.contact_person || "");
     setIsEditDialogOpen(true);
   };
 
@@ -320,7 +343,7 @@ const OrganizerManagement = () => {
     }
   };
 
-  if (!user?.roles?.includes("Admin")) {
+  if (!user?.roles?.includes("admin")) {
     return (
       <div className="text-center p-6">
         <h2 className="text-xl font-bold text-red-500">Access Denied</h2>
@@ -430,6 +453,50 @@ const OrganizerManagement = () => {
                     id="contact-phone"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="kra-pin" className="text-right">
+                    KRA PIN
+                  </Label>
+                  <Input
+                    id="kra-pin"
+                    value={kraPin}
+                    onChange={(e) => setKraPin(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="bank-details" className="text-right">
+                    Bank Details
+                  </Label>
+                  <Input
+                    id="bank-details"
+                    value={bankDetails}
+                    onChange={(e) => setBankDetails(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="physical-address" className="text-right">
+                    Physical Address
+                  </Label>
+                  <Input
+                    id="physical-address"
+                    value={physicalAddress}
+                    onChange={(e) => setPhysicalAddress(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="contact-person" className="text-right">
+                    Contact Person
+                  </Label>
+                  <Input
+                    id="contact-person"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
                     className="col-span-3"
                   />
                 </div>
