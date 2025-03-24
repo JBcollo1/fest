@@ -249,6 +249,7 @@ class Ticket(db.Model):
       'attendee_id': self.attendee_id,
       'purchase_date': self.purchase_date.isoformat() if self.purchase_date else None,
       'price': float(self.price) if self.price else None,
+      'status': self.satus,
       'currency': self.currency,
       'qr_code': self.qr_code
     }
