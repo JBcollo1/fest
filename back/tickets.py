@@ -209,57 +209,95 @@ class TicketPurchaseResource(Resource):
 
 
 class mpesaCallback(Resource):
+
     def post(self):
         """Handles Mpesa callback response"""
-        data = request.get_json()
-        logging.info(f"Received Mpesa Callback: {data}")
-        result = process_mpesa_callback(data)
-        logging.info(f"Processed Callback Result: {result}")
-        return jsonify(result)
-
+        try:
+            # Handle different possible request formats
+            data = request.get_json(force=True)
+            result = process_mpesa_callback(data)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({
+                'ResultCode': 1, 
+                'ResultDesc': 'Callback processing error'
+            }), 500
 
 def process_mpesa_callback(data):
-    stk_callback = data.get('Body', {}).get('stkCallback', {})
+    
+  
+    # Extract nested callback data
+    body = data.get('Body', data)
+    stk_callback = body.get('stkCallback', body)
+
+    # Extract key parameters
     result_code = stk_callback.get('ResultCode')
     checkout_request_id = stk_callback.get('CheckoutRequestID')
-    callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
 
+    # Successful payment handling
     if result_code == 0:
-        receipt_number = None
-        transaction_date = None
-        transaction_amount = None
+        try:
+            # Extract callback metadata
+            callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
+            
+            # Parse payment details
+            payment_details = {}
+            for item in callback_metadata:
+                name = item.get('Name')
+                value = item.get('Value')
+                
+                if name == 'MpesaReceiptNumber':
+                    payment_details['receipt_number'] = value
+                elif name == 'Amount':
+                    payment_details['amount'] = float(value)
+                elif name == 'TransactionDate':
+                    payment_details['transaction_date'] = str(value)
 
-        for item in callback_metadata:
-            if item.get('Name') == 'MpesaReceiptNumber':
-                receipt_number = item.get('Value')
-            elif item.get('Name') == 'TransactionDate':
-                transaction_date_str = str(item.get('Value'))
-                if transaction_date_str.isdigit():
-                    transaction_date = datetime.strptime(transaction_date_str, "%Y%m%d%H%M%S")
-            elif item.get('Name') == 'Amount':
-                transaction_amount = float(item.get('Value'))
+            # Find and update payment record
+            payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
+            if not payment:
+                return {
+                    'ResultCode': 1, 
+                    'ResultDesc': 'Payment record not found'
+                }
 
-        if not receipt_number:
-            return {'ResultCode': 1, 'ResultDesc': 'Missing receipt number'}
-
-        # Update Payment Record
-        payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
-        if payment:
+            # Update payment details
             payment.payment_status = 'Completed'
-            payment.transaction_id = receipt_number
-            payment.amount = transaction_amount
-            payment.payment_date = transaction_date
+            payment.transaction_id = payment_details.get('receipt_number')
+            payment.amount = payment_details.get('amount')
+            payment.payment_date = datetime.now()
 
-            # Update ticket status
+            # Update associated ticket
             ticket = Ticket.query.filter_by(id=payment.ticket_id).first()
             if ticket:
-                ticket.satus = 'purchased'
+                ticket.status = 'purchased'
+                
+                # Update event tickets sold
+                event = Event.query.get(ticket.event_id)
+                if event:
+                    event.tickets_sold += 1
 
-            db.session.commit()  # Commit both updates in one transaction
+            # Commit changes
+            db.session.commit()
 
-            return {'ResultCode': 0, 'ResultDesc': 'Accepted'}
+            return {
+                'ResultCode': 0, 
+                'ResultDesc': 'Payment processed successfully'
+            }
 
-    return {'ResultCode': 1, 'ResultDesc': 'Payment Failed'}
+        except Exception as e:
+            # Rollback in case of any error
+            db.session.rollback()
+            return {
+                'ResultCode': 1, 
+                'ResultDesc': 'Payment processing error'
+            }
+
+    # Payment failed
+    return {
+        'ResultCode': 1, 
+        'ResultDesc': 'Payment Failed'
+    }
 
 
 class TicketListResource(Resource):
