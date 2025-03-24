@@ -171,9 +171,16 @@ class TicketPurchaseResource(Resource):
         if payment_verification.get('ResultCode') != '0':
             return make_response(jsonify({'message': 'Payment verification failed', 'details': payment_verification}), 400)
         
-        # Update the ticket status to 'purchased'
+        # Update the ticket status to 'purchased' and increment tickets_sold
         try:
             ticket.status = 'purchased'
+            
+            # Increment the tickets_sold count in the Event table
+            event = Event.query.get(ticket.event_id)
+            if event.tickets_sold >= event.total_tickets:
+                return error_response("No more tickets available for this event", 400)
+            
+            event.tickets_sold += 1
             db.session.commit()
             
             # Record the payment in the Payment table
@@ -196,3 +203,28 @@ class TicketPurchaseResource(Resource):
         except Exception as e:
             db.session.rollback()
             return error_response(f"Error processing ticket purchase: {str(e)}", 500)
+
+class TicketListResource(Resource):
+    @jwt_required()
+    def get(self, event_id):
+        """
+        Get tickets for a specific event
+        """
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        # Check if user has permission to view tickets for this event
+        event = Event.query.get(event_id)
+        if not event:
+            return error_response("Event not found", 404)
+        
+        is_admin = user.has_role('admin')
+        is_organizer = user.has_role('Organizer') and user.organizer and user.organizer.id == event.organizer_id
+        
+        if not (is_admin or is_organizer):
+            return error_response("Unauthorized", 403)
+        
+        # Get tickets for the event
+        tickets = Ticket.query.filter_by(event_id=event_id).all()
+        
+        return success_response(data=[ticket.to_dict(include_attendee=True) for ticket in tickets])
