@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Calendar, MapPin, Tag, Image, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card";
 
 const CreateEventDialog = ({ 
   open, 
@@ -45,6 +49,7 @@ const CreateEventDialog = ({
   const [featured, setFeatured] = useState(false);
 
   const submitButtonRef = useRef(null);
+  const formRef = useRef(null);
 
   // Reset form when dialog opens or closes
   useEffect(() => {
@@ -53,10 +58,11 @@ const CreateEventDialog = ({
     }
   }, [open]);
 
-  // Scroll to the submit button when the dialog opens
+  // Ensure form is scrollable when dialog opens
   useEffect(() => {
-    if (open && submitButtonRef.current) {
-      submitButtonRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (open && formRef.current) {
+      // Reset scroll position to top when dialog opens
+      formRef.current.scrollTop = 0;
     }
   }, [open]);
 
@@ -161,173 +167,233 @@ const CreateEventDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[42rem] h-full overflow-auto flex flex-col">
-        <DialogHeader className="pb-4">
-          <DialogTitle className="text-2xl">Create New Event</DialogTitle>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="pb-4 sticky top-0 bg-white dark:bg-slate-950 z-10">
+          <DialogTitle className="text-2xl font-bold text-primary">Create New Event</DialogTitle>
           <DialogDescription className="text-base">
             Fill in the details to create your new event.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="overflow-y-auto pr-2 pb-2">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <div 
+          ref={formRef} 
+          className="overflow-y-auto pr-2 pb-2 flex-grow"
+          style={{ maxHeight: "calc(90vh - 180px)" }}
+        >
+          <form onSubmit={handleSubmit} className="space-y-6">
             {formError && (
-              <div className="bg-red-50 text-red-800 p-3 rounded-md text-sm border border-red-200 flex items-start">
+              <div className="bg-red-50 text-red-800 p-4 rounded-md text-sm border border-red-200 flex items-start">
                 <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
                 <span>{formError}</span>
               </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Organizer Selection (admin only) */}
-              {isadmin && (
-                <div className="space-y-2 md:col-span-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-md">
-                  <Label htmlFor="organizerId" className="text-sm font-medium">Select Organizer</Label>
-                  <Select value={organizerId || "none"} onValueChange={handleOrganizerChange}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select an organizer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none" disabled>
-                        -- Select Organizer --
-                      </SelectItem>
-                      {organizers.length > 0 ? (
-                        organizers.map((organizer) => (
-                          <SelectItem key={organizer.id} value={organizer.id.toString()}>
-                            {organizer.user?.first_name || organizer.name || `ID: ${organizer.id}`}
+            {/* Organizer Selection (admin only) */}
+            {isadmin && (
+              <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+                <CardContent className="pt-6">
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium">Organizer Information</h3>
+                    <div className="space-y-2">
+                      <Label htmlFor="organizerId" className="text-sm font-medium">Select Organizer *</Label>
+                      <Select value={organizerId || "none"} onValueChange={handleOrganizerChange}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select an organizer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" disabled>
+                            -- Select Organizer --
                           </SelectItem>
-                        ))
-                      ) : (
-                        <div className="p-2 text-sm text-muted-foreground">No organizers available</div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                          {organizers.length > 0 ? (
+                            organizers.map((organizer) => (
+                              <SelectItem key={organizer.id} value={organizer.id.toString()}>
+                                {organizer.user?.first_name || organizer.name || `ID: ${organizer.id}`}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-2 text-sm text-muted-foreground">No organizers available</div>
+                          )}
+                        </SelectContent>
+                      </Select>
 
-                  {/* Show selected organizer details if available */}
-                  {selectedOrganizerDetails && (
-                    <div className="mt-2 p-2 bg-white dark:bg-slate-800 rounded-md text-sm border border-slate-200 dark:border-slate-700">
-                      <p className="font-medium mb-1">Selected Organizer Details:</p>
-                      <p>ID: {selectedOrganizerDetails.id}</p>
-                      {selectedOrganizerDetails.user?.first_name && <p>Name: {selectedOrganizerDetails.user.first_name}</p>}
-                      {selectedOrganizerDetails.user?.email && <p>Email: {selectedOrganizerDetails.user.email}</p>}
+                      {/* Show selected organizer details if available */}
+                      {selectedOrganizerDetails && (
+                        <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md text-sm border border-slate-200 dark:border-slate-700">
+                          <p className="font-medium mb-2 text-primary">Selected Organizer Details:</p>
+                          <div className="space-y-1">
+                            <p>ID: {selectedOrganizerDetails.id}</p>
+                            {selectedOrganizerDetails.user?.first_name && <p>Name: {selectedOrganizerDetails.user.first_name}</p>}
+                            {selectedOrganizerDetails.user?.email && <p>Email: {selectedOrganizerDetails.user.email}</p>}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Basic Event Info */}
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Event Details</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="title" className="text-sm font-medium">Event Title *</Label>
+                    <Input
+                      id="title"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Tech Conference 2024"
+                      required
+                      className="focus-visible:ring-primary"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe your event..."
+                      rows={4}
+                      className="focus-visible:ring-primary resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start-date" className="text-sm font-medium flex items-center">
+                        <Calendar className="h-4 w-4 mr-2" /> Start Date & Time *
+                      </Label>
+                      <Input
+                        id="start-date"
+                        type="datetime-local"
+                        value={startDateTime}
+                        onChange={(e) => setStartDateTime(e.target.value)}
+                        required
+                        className="focus-visible:ring-primary"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="end-date" className="text-sm font-medium flex items-center">
+                        <Calendar className="h-4 w-4 mr-2" /> End Date & Time
+                      </Label>
+                      <Input
+                        id="end-date"
+                        type="datetime-local"
+                        value={endDateTime}
+                        onChange={(e) => setEndDateTime(e.target.value)}
+                        className="focus-visible:ring-primary"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="location" className="text-sm font-medium flex items-center">
+                        <MapPin className="h-4 w-4 mr-2" /> Location *
+                      </Label>
+                      <Input
+                        id="location"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="Conference Center, New York"
+                        required
+                        className="focus-visible:ring-primary"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="image" className="text-sm font-medium flex items-center">
+                        <Image className="h-4 w-4 mr-2" /> Image URL
+                      </Label>
+                      <Input
+                        id="image"
+                        value={image}
+                        onChange={(e) => setImage(e.target.value)}
+                        placeholder="https://example.com/image.jpg"
+                        className="focus-visible:ring-primary"
+                      />
+                    </div>
+                  </div>
                 </div>
-              )}
-              
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="title" className="text-sm font-medium">Event Title *</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Tech Conference 2024"
-                  required
-                  className="focus-visible:ring-primary"
-                />
-              </div>
-              
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe your event..."
-                  rows={3}
-                  className="focus-visible:ring-primary resize-none"
-                />
-              </div>
-              
-              <div className="space-y-1">
-                <Label htmlFor="start-date" className="text-sm font-medium">Start Date & Time *</Label>
-                <Input
-                  id="start-date"
-                  type="datetime-local"
-                  value={startDateTime}
-                  onChange={(e) => setStartDateTime(e.target.value)}
-                  required
-                  className="focus-visible:ring-primary"
-                />
-              </div>
-              
-              <div className="space-y-1">
-                <Label htmlFor="end-date" className="text-sm font-medium">End Date & Time</Label>
-                <Input
-                  id="end-date"
-                  type="datetime-local"
-                  value={endDateTime}
-                  onChange={(e) => setEndDateTime(e.target.value)}
-                  className="focus-visible:ring-primary"
-                />
-              </div>
-              
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="location" className="text-sm font-medium">Location *</Label>
-                <Input
-                  id="location"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Conference Center, New York"
-                  required
-                  className="focus-visible:ring-primary"
-                />
-              </div>
-              
-              <div className="space-y-1">
-                <Label htmlFor="price" className="text-sm font-medium">Price (KES) *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="999.99"
-                  required
-                  className="focus-visible:ring-primary"
-                />
-              </div>
-              
-              <div className="space-y-1">
-                <Label htmlFor="total-tickets" className="text-sm font-medium">Total Tickets *</Label>
-                <Input
-                  id="total-tickets"
-                  type="number"
-                  min="1"
-                  value={totalTickets}
-                  onChange={(e) => setTotalTickets(e.target.value)}
-                  placeholder="100"
-                  required
-                  className="focus-visible:ring-primary"
-                />
-              </div>
-              
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="image" className="text-sm font-medium">Image URL</Label>
-                <Input
-                  id="image"
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  className="focus-visible:ring-primary"
-                />
-              </div>
-              
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="featured" className="text-sm font-medium">Featured</Label>
-                <Checkbox
-                  id="featured"
-                  checked={featured}
-                  onChange={(e) => setFeatured(e.target.checked)}
-                  className="focus-visible:ring-primary"
-                />
-              </div>
-            </div>
+              </CardContent>
+            </Card>
+
+            {/* Ticket Info */}
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Ticket Information</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price" className="text-sm font-medium flex items-center">
+                        <Tag className="h-4 w-4 mr-2" /> Price (KES) *
+                      </Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="999.99"
+                        required
+                        className="focus-visible:ring-primary"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="total-tickets" className="text-sm font-medium flex items-center">
+                        <Users className="h-4 w-4 mr-2" /> Total Tickets *
+                      </Label>
+                      <Input
+                        id="total-tickets"
+                        type="number"
+                        min="1"
+                        value={totalTickets}
+                        onChange={(e) => setTotalTickets(e.target.value)}
+                        placeholder="100"
+                        required
+                        className="focus-visible:ring-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Featured Toggle */}
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+              <CardContent className="pt-6">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="featured"
+                      checked={featured}
+                      onCheckedChange={setFeatured}
+                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    />
+                    <Label 
+                      htmlFor="featured" 
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Mark as Featured Event
+                    </Label>
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Featured events appear at the top of the list
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </form>
         </div>
         
-        <DialogFooter className="mt-4 pt-4 border-t">
+        <DialogFooter className="mt-4 pt-4 border-t sticky bottom-0 bg-white dark:bg-slate-950 z-10">
           <Button 
             type="button" 
             variant="outline" 
