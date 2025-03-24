@@ -60,13 +60,14 @@ from tickets import (
     TicketListResource, 
     UserTicketsResource, 
     TicketVerificationResource, 
-    TicketPurchaseResource  # Import the new resource
+    TicketPurchaseResource,  # Import the new resource
+    mpesaCallback
 )
 from payments import PaymentResource, PaymentListResource
 from categories import CategoryResource, CategoryListResource
 from discount_codes import DiscountCodeResource, DiscountCodeListResource, ValidateDiscountCodeResource
 from organizer import OrganizerListResource, OrganizerResource, UserOrganizerResource
-from callback import mpesaCallback
+
 
 
 
@@ -114,6 +115,9 @@ api.add_resource(UserOrganizerResource, '/api/users/<string:user_id>/organizer')
 api.add_resource(CurrentUserResource, '/api/users/me')
 # api.add_resource(LoginResource, '/api/login')
 api.add_resource(LogoutResource, '/api/logout')
+
+# Register the callback endpoint
+
 
 if __name__ == '__main__':
     app.run(debug=Config.DEBUG)
