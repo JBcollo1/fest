@@ -82,8 +82,8 @@ api.add_resource(FeaturedEventsResource, '/api/events/featured')
 api.add_resource(UserTicketsResource, '/api/users/<string:user_id>/tickets')
 api.add_resource(TicketVerificationResource, '/api/tickets/<string:ticket_id>/verify')
 
-# Add the new ticket purchase endpoint
-api.add_resource(TicketPurchaseResource, '/api/tickets/purchase/<string:ticket_id>')
+# Update the ticket purchase endpoint to use event_id
+api.add_resource(TicketPurchaseResource, '/api/events/<string:event_id>/purchase')
 
 # Add the new ticket list endpoint for a specific event
 api.add_resource(TicketListResource, '/api/events/<string:event_id>/tickets')
