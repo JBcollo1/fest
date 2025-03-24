@@ -231,7 +231,7 @@ class TicketListResource(Resource):
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        # Check if user has permission to view tickets for this event
+
         event = Event.query.get(event_id)
         if not event:
             return error_response("Event not found", 404)
