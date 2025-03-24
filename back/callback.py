@@ -5,7 +5,7 @@ from datetime import datetime
 from flask_restful import Resource
 
 
-class MpesaCallback(Resource):
+class mpesaCallback(Resource):
     def post(self):
         data = request.json
         result_code = data.get('Body', {}).get('stkCallback', {}).get('ResultCode')
