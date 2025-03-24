@@ -13,8 +13,8 @@ import time
 MPESA_BUSINESS_SHORT_CODE = '174379'
 MPESA_PASSKEY = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919'
 MPESA_CALLBACK_URL = 'https://mydomain.com/path'
-MPESA_ACCOUNT_REFERENCE = 'Moringa School Hostel'
-MPESA_TRANSACTION_DESC = 'Payment for Moringa Hostel'
+MPESA_ACCOUNT_REFERENCE = 'Fika Events'
+MPESA_TRANSACTION_DESC = 'Payment for Fika Events'
 
 def generate_access_token():
     consumer_key="NZJepip8u4ih8kHjfLjGa3NYF4mew49vMGF4HqAlUaR80e3N"
@@ -94,6 +94,7 @@ def wait_for_payment_confirmation(checkout_request_id, max_retries=10, delay=10)
         payment_status = verify_mpesa_payment(checkout_request_id)
         result_code = payment_status.get('ResultCode')
 
+        # Check for successful payment
         if result_code == '0':
             return {'status': 'confirmed', 'details': payment_status}
         elif result_code is not None:  
