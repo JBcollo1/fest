@@ -6,7 +6,7 @@ from models import Payment
 from flask import Flask, request
 from app import app, db
 import base64
-
+from datetime import datetime
 import time
 
 
@@ -89,14 +89,35 @@ def verify_mpesa_payment(checkout_request_id):
     response = requests.post(url, json=payload, headers=headers)
     return response.json()
 
+
+
 def wait_for_payment_confirmation(checkout_request_id, max_retries=10, delay=10):
     for _ in range(max_retries):
         payment_status = verify_mpesa_payment(checkout_request_id)
         result_code = payment_status.get('ResultCode')
 
-        # Check for successful payment
-        if result_code == '0':
-            return {'status': 'confirmed', 'details': payment_status}
+        if result_code == '0':  # Success
+            callback_metadata = payment_status.get('CallbackMetadata', {}).get('Item', [])
+            receipt_number = None
+            transaction_date = None
+            transaction_amount = None  # Store actual amount received
+
+            for item in callback_metadata:
+                if item.get('Name') == 'MpesaReceiptNumber':
+                    receipt_number = item.get('Value')
+                elif item.get('Name') == 'TransactionDate':
+                    transaction_date_str = str(item.get('Value'))
+                    transaction_date = datetime.strptime(transaction_date_str, "%Y%m%d%H%M%S")  # Convert to datetime
+                elif item.get('Name') == 'Amount':  # Get actual amount received
+                    transaction_amount = float(item.get('Value'))
+
+            return {
+                'status': 'confirmed',
+                'MpesaReceiptNumber': receipt_number,
+                'TransactionDate': transaction_date,
+                'TransactionAmount': transaction_amount,  # Include amount
+                'details': payment_status
+            }
         elif result_code is not None:  
             return {'status': 'canceled', 'details': payment_status}
 

@@ -142,7 +142,6 @@ class UserTicketsResource(Resource):
 
 class TicketPurchaseResource(Resource):
     @jwt_required()
-
     def post(self, event_id):
         """
         Purchase a ticket for an event
@@ -162,7 +161,6 @@ class TicketPurchaseResource(Resource):
         # Check if user has an attendee record and create one if needed
         attendee = Attendee.query.filter_by(user_id=user.id).first()
         if not attendee:
-            # Create an attendee record for the user
             try:
                 attendee = Attendee(user_id=user.id)
                 db.session.add(attendee)
@@ -183,8 +181,7 @@ class TicketPurchaseResource(Resource):
 
         if payment_verification['status'] != 'confirmed' or payment_verification['details'].get('ResultCode') != '0':
             return make_response(jsonify({'message': 'Payment verification failed', 'details': payment_verification}), 400)
-            
-        # Create a new ticket and update the event's tickets_sold
+        
         try:
             # Create a new ticket
             ticket = Ticket(
@@ -192,24 +189,26 @@ class TicketPurchaseResource(Resource):
                 attendee_id=attendee.id,  # Using the attendee object directly
                 price=total_price,
                 currency=event.currency,
-                satus='purchased'
+                satus='purchased'  
             )
             db.session.add(ticket)
             
             # Increment the tickets_sold count in the Event table
             event.tickets_sold += 1
-            db.session.commit()
-            
+
             # Record the payment in the Payment table
             payment = Payment(
                 ticket_id=ticket.id,
                 payment_method='Mpesa',
                 payment_status='Completed',
-                transaction_id=payment_verification['MpesaReceiptNumber'],
-                amount=total_price,
-                currency=ticket.currency
+                transaction_id=payment_verification.get('MpesaReceiptNumber', 'N/A'),  # Use .get() to avoid crashes
+                amount=payment_verification.get('TransactionAmount', total_price),  # Default to event price if missing
+                currency=ticket.currency,
+                payment_date=payment_verification.get('TransactionDate', datetime.utcnow())  # Default to now if missing
             )
             db.session.add(payment)
+
+            # Commit all changes at once
             db.session.commit()
             
             return success_response(
@@ -220,6 +219,7 @@ class TicketPurchaseResource(Resource):
         except Exception as e:
             db.session.rollback()
             return error_response(f"Error processing ticket purchase: {str(e)}", 500)
+
 
 class TicketListResource(Resource):
     @jwt_required()
