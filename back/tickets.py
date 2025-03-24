@@ -213,7 +213,7 @@ class mpesaCallback(Resource):
         """Handles Mpesa callback response"""
         
             # Handle different possible request formats
-        data = request.get_json()
+        data = request.json
             # result = self.process_mpesa_callback(data)
         return data ,200
         
