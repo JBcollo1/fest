@@ -141,25 +141,25 @@ class UserTicketsResource(Resource):
 
 class TicketPurchaseResource(Resource):
     @jwt_required()
-    def post(self, ticket_id):
+    def post(self, event_id):
         """
-        Purchase a ticket
+        Purchase a ticket for an event
         """
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        # Find the ticket
-        ticket = Ticket.query.get(ticket_id)
-        if not ticket:
-            return error_response("Ticket not found", 404)
+        # Find the event
+        event = Event.query.get(event_id)
+        if not event:
+            return error_response("Event not found", 404)
         
-        # Check if the ticket is available for purchase
-        if ticket.status != 'valid':
-            return error_response(f"Ticket is not available for purchase. Current status: {ticket.status}", 400)
+        # Check if there are available tickets
+        if event.tickets_sold >= event.total_tickets:
+            return error_response("No more tickets available for this event", 400)
         
         # Initiate Mpesa payment
         phone_number = user.phone
-        total_price = ticket.price
+        total_price = event.price
         payment_result = initiate_mpesa_payment(total_price, phone_number)
         
         if payment_result.get('ResponseCode') != '0':
@@ -171,15 +171,19 @@ class TicketPurchaseResource(Resource):
         if payment_verification.get('ResultCode') != '0':
             return make_response(jsonify({'message': 'Payment verification failed', 'details': payment_verification}), 400)
         
-        # Update the ticket status to 'purchased' and increment tickets_sold
+        # Create a new ticket and update the event's tickets_sold
         try:
-            ticket.status = 'purchased'
+            # Create a new ticket
+            ticket = Ticket(
+                event_id=event.id,
+                attendee_id=user.attendee.id,
+                price=total_price,
+                currency=event.currency,
+                status='purchased'
+            )
+            db.session.add(ticket)
             
             # Increment the tickets_sold count in the Event table
-            event = Event.query.get(ticket.event_id)
-            if event.tickets_sold >= event.total_tickets:
-                return error_response("No more tickets available for this event", 400)
-            
             event.tickets_sold += 1
             db.session.commit()
             
