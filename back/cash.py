@@ -50,7 +50,7 @@ def initiate_mpesa_payment(amount, phone_number):
         "Password": password,
         "Timestamp": timestamp,
         "TransactionType": "CustomerPayBillOnline",
-        "Amount": str(amount), 
+        "Amount": str(int(amount)) , 
         "PartyA": str(phone_number),
         "PartyB": MPESA_BUSINESS_SHORT_CODE,
         "PhoneNumber": str(phone_number),
