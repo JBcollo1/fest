@@ -142,6 +142,7 @@ class UserTicketsResource(Resource):
 
 class TicketPurchaseResource(Resource):
     @jwt_required()
+
     def post(self, event_id):
         """
         Purchase a ticket for an event
@@ -158,6 +159,18 @@ class TicketPurchaseResource(Resource):
         if event.tickets_sold >= event.total_tickets:
             return error_response("No more tickets available for this event", 400)
         
+        # Check if user has an attendee record and create one if needed
+        attendee = Attendee.query.filter_by(user_id=user.id).first()
+        if not attendee:
+            # Create an attendee record for the user
+            try:
+                attendee = Attendee(user_id=user.id)
+                db.session.add(attendee)
+                db.session.flush()  # Get the ID without committing
+            except Exception as e:
+                db.session.rollback()
+                return error_response(f"Error creating attendee record: {str(e)}", 500)
+        
         # Initiate Mpesa payment
         phone_number = user.phone
         total_price = event.price
@@ -166,16 +179,17 @@ class TicketPurchaseResource(Resource):
         if payment_result.get('ResponseCode') != '0':
             return make_response(jsonify({'message': 'Payment initiation failed', 'details': payment_result}), 400)
         
-            
         payment_verification = wait_for_payment_confirmation(payment_result['CheckoutRequestID'])
 
         if payment_verification['status'] != 'confirmed' or payment_verification['details'].get('ResultCode') != '0':
-            return make_response(jsonify({'message': 'Payment verification failed', 'details': payment_verification}), 400) # Create a new ticket and update the event's tickets_sold
+            return make_response(jsonify({'message': 'Payment verification failed', 'details': payment_verification}), 400)
+            
+        # Create a new ticket and update the event's tickets_sold
         try:
             # Create a new ticket
             ticket = Ticket(
                 event_id=event.id,
-                attendee_id=user.attendee.id,
+                attendee_id=attendee.id,  # Using the attendee object directly
                 price=total_price,
                 currency=event.currency,
                 status='purchased'
