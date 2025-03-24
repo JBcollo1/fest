@@ -208,7 +208,7 @@ class TicketPurchaseResource(Resource):
             return error_response(f"Error processing ticket purchase: {str(e)}", 500)
 
 
-class MpesaCallback(Resource):
+class mpesaCallback(Resource):
     def post(self):
         """Handles Mpesa callback response"""
         data = request.json
