@@ -8,7 +8,7 @@ from utils.response import success_response, error_response
 from datetime import datetime
 from cash import initiate_mpesa_payment
 from callback import process_mpesa_callback  # Import the callback processing function
-
+import logging
 
 class TicketVerificationResource(Resource):
     @jwt_required()
@@ -212,7 +212,9 @@ class mpesaCallback(Resource):
     def post(self):
         """Handles Mpesa callback response"""
         data = request.json
+        logging.info(f"Received Mpesa Callback: {data}")
         result = process_mpesa_callback(data)
+        logging.info(f"Processed Callback Result: {result}")
         return jsonify(result)
 
 
