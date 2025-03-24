@@ -71,7 +71,7 @@ from callback import mpesaCallback
 
 
 
-api.add_resource(mpesaCallback, '/api/mpesa/callback')
+api.add_resource(mpesaCallback, '/mpesa/callback')
 
 
 
