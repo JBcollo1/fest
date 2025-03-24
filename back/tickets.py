@@ -215,7 +215,7 @@ class mpesaCallback(Resource):
             # Handle different possible request formats
             data = request.get_json(force=True)
             result = self.process_mpesa_callback(data)
-            return result
+            return data ,200
         except Exception as e:
             # Log the exception for debugging
             print(f"Callback processing error: {str(e)}")
