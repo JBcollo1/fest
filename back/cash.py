@@ -19,7 +19,7 @@ MPESA_TRANSACTION_DESC = 'Payment for Fika Events'
 def generate_access_token():
     consumer_key="NZJepip8u4ih8kHjfLjGa3NYF4mew49vMGF4HqAlUaR80e3N"
     consumer_secret = "RMQnuli4SbkhM6I6UzaODrY9VIGODG9G2ggRHNsGvtOBf0AlZAWsHnEFMLAChBq3"
-    endpoint = 'https://sandbox.safaricom.co.ke/mpesa/b2b/v1/paymentrequest'
+    endpoint = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
                 
     response = requests.get (endpoint, auth=HTTPBasicAuth (consumer_key, consumer_secret))
     if response.status_code == 200:
