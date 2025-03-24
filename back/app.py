@@ -55,7 +55,13 @@ from models import User, Role, UserRole, Organizer, Attendee, Event, Category, E
 
 from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource, CurrentUserResource, LogoutResource
 from events import EventResource, EventListResource, EventCategoriesResource, FeaturedEventsResource
-from tickets import TicketResource, TicketListResource, UserTicketsResource, TicketVerificationResource
+from tickets import (
+    TicketResource, 
+    TicketListResource, 
+    UserTicketsResource, 
+    TicketVerificationResource, 
+    TicketPurchaseResource  # Import the new resource
+)
 from payments import PaymentResource, PaymentListResource
 from categories import CategoryResource, CategoryListResource
 from discount_codes import DiscountCodeResource, DiscountCodeListResource, ValidateDiscountCodeResource
@@ -73,11 +79,14 @@ api.add_resource(EventListResource, '/api/events')
 api.add_resource(EventResource, '/api/events/<string:event_id>')
 api.add_resource(EventCategoriesResource, '/api/events/<string:event_id>/categories')
 api.add_resource(FeaturedEventsResource, '/api/events/featured')
-
-api.add_resource(TicketListResource, '/api/tickets')
-api.add_resource(TicketResource, '/api/tickets/<string:ticket_id>')
 api.add_resource(UserTicketsResource, '/api/users/<string:user_id>/tickets')
 api.add_resource(TicketVerificationResource, '/api/tickets/<string:ticket_id>/verify')
+
+# Add the new ticket purchase endpoint
+api.add_resource(TicketPurchaseResource, '/api/tickets/purchase/<string:ticket_id>')
+
+# Add the new ticket list endpoint for a specific event
+api.add_resource(TicketListResource, '/api/events/<string:event_id>/tickets')
 
 api.add_resource(PaymentListResource, '/api/payments')
 api.add_resource(PaymentResource, '/api/payments/<string:payment_id>')
