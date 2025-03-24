@@ -192,7 +192,7 @@ class TicketPurchaseResource(Resource):
                 attendee_id=attendee.id,  # Using the attendee object directly
                 price=total_price,
                 currency=event.currency,
-                status='purchased'
+                satus='purchased'
             )
             db.session.add(ticket)
             
