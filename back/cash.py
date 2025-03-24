@@ -12,7 +12,7 @@ import time
 
 MPESA_BUSINESS_SHORT_CODE = '174379'
 MPESA_PASSKEY = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919'
-MPESA_CALLBACK_URL = 'https://mydomain.com/path'
+MPESA_CALLBACK_URL = 'https://fest-hrrc.onrender.com/mpesa/callback'
 MPESA_ACCOUNT_REFERENCE = 'Fika Events'
 MPESA_TRANSACTION_DESC = 'Payment for Fika Events'
 
@@ -35,10 +35,12 @@ def format_phone_number(phone_number):
         return '254' + phone_number
     return phone_number
 
+import base64
+
 def generate_password(business_short_code, passkey, timestamp):
     data_to_encode = business_short_code + passkey + timestamp
-    encoded_string = base64.b64encode(data_to_encode.encode())
-    return encoded_string.decode('utf-8')
+    encoded_bytes = base64.b64encode(data_to_encode.encode('utf-8'))  # Encode as bytes
+    return encoded_bytes.decode('utf-8')  # Convert back to string
 
 def initiate_mpesa_payment(amount, phone_number):
     phone_number = format_phone_number(phone_number)

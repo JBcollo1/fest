@@ -142,84 +142,42 @@ class UserTicketsResource(Resource):
 
 class TicketPurchaseResource(Resource):
     @jwt_required()
+    
     def post(self, event_id):
-        """
-        Purchase a ticket for an event
-        """
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
-        
-        # Find the event
         event = Event.query.get(event_id)
+
         if not event:
             return error_response("Event not found", 404)
-        
-        # Check if there are available tickets
         if event.tickets_sold >= event.total_tickets:
-            return error_response("No more tickets available for this event", 400)
-        
-        # Check if user has an attendee record and create one if needed
+            return error_response("No more tickets available", 400)
+
         attendee = Attendee.query.filter_by(user_id=user.id).first()
         if not attendee:
             try:
                 attendee = Attendee(user_id=user.id)
                 db.session.add(attendee)
-                db.session.flush()  # Get the ID without committing
+                db.session.flush()  
             except Exception as e:
                 db.session.rollback()
-                return error_response(f"Error creating attendee record: {str(e)}", 500)
-        
-        # Initiate Mpesa payment
+                return error_response(f"Error creating attendee: {str(e)}", 500)
+
+        # Initiate Mpesa Payment
         phone_number = user.phone
         total_price = event.price
         payment_result = initiate_mpesa_payment(total_price, phone_number)
-        
+
         if payment_result.get('ResponseCode') != '0':
-            return make_response(jsonify({'message': 'Payment initiation failed', 'details': payment_result}), 400)
-        
-        payment_verification = wait_for_payment_confirmation(payment_result['CheckoutRequestID'])
+            return error_response("Payment initiation failed", 400)
 
-        if payment_verification['status'] != 'confirmed' or payment_verification['details'].get('ResultCode') != '0':
-            return make_response(jsonify({'message': 'Payment verification failed', 'details': payment_verification}), 400)
-        
-        try:
-            # Create a new ticket
-            ticket = Ticket(
-                event_id=event.id,
-                attendee_id=attendee.id,  # Using the attendee object directly
-                price=total_price,
-                currency=event.currency,
-                satus='purchased'  
-            )
-            db.session.add(ticket)
-            db.session.flush()  # Add this line to get the ticket ID
-            
-            # Increment the tickets_sold count in the Event table
-            event.tickets_sold += 1
+        # Instead of waiting, immediately return success response
+        return success_response(
+            message="Payment initiated. Await confirmation via callback.",
+            data={"CheckoutRequestID": payment_result['CheckoutRequestID']},
+            status_code=200
+        )
 
-            # Record the payment in the Payment table
-            payment = Payment(
-                ticket_id=ticket.id,
-                payment_method='Mpesa',
-                payment_status='Completed',
-                transaction_id=payment_verification.get('MpesaReceiptNumber', 'N/A'),  # Use .get() to avoid crashes
-                amount=payment_verification.get('TransactionAmount', total_price),  # Default to event price if missing
-                currency=ticket.currency,
-                payment_date=payment_verification.get('TransactionDate', datetime.utcnow())  # Default to now if missing
-            )
-            db.session.add(payment)
-
-            # Commit all changes at once
-            db.session.commit()
-            
-            return success_response(
-                data=ticket.to_dict(),
-                message="Ticket purchased successfully",
-                status_code=200
-            )
-        except Exception as e:
-            db.session.rollback()
-            return error_response(f"Error processing ticket purchase: {str(e)}", 500)
 
 
 class TicketListResource(Resource):
