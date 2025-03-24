@@ -601,7 +601,7 @@ const EventStatsPage = ({ eventId }) => {
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={paymentData.byMethod}
+                      data={paymentData.byMethod || []}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -610,7 +610,7 @@ const EventStatsPage = ({ eventId }) => {
                       dataKey="value"
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
-                      {paymentData.byMethod.map((entry, index) => (
+                      {(paymentData.byMethod || []).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -630,7 +630,7 @@ const EventStatsPage = ({ eventId }) => {
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={paymentData.byStatus}
+                      data={paymentData.byStatus || []}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -639,7 +639,7 @@ const EventStatsPage = ({ eventId }) => {
                       dataKey="value"
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
-                      {paymentData.byStatus.map((entry, index) => (
+                      {(paymentData.byStatus || []).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
