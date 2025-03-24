@@ -211,12 +211,11 @@ class TicketPurchaseResource(Resource):
 class mpesaCallback(Resource):
     def post(self):
         """Handles Mpesa callback response"""
-        data = request.json
+        data = request.get_json()
         logging.info(f"Received Mpesa Callback: {data}")
-        # result = process_mpesa_callback(data)
-        # logging.info(f"Processed Callback Result: {result}")
-        # return jsonify(data)
-        return jsonify({"status": "success", "received_data": data})
+        result = process_mpesa_callback(data)
+        logging.info(f"Processed Callback Result: {result}")
+        return jsonify(result)
 
 
 def process_mpesa_callback(data):
