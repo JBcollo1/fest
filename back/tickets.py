@@ -8,6 +8,7 @@ from utils.response import success_response, error_response
 from datetime import datetime
 from cash import initiate_mpesa_payment, wait_for_payment_confirmation
 
+
 class TicketVerificationResource(Resource):
     @jwt_required()
     def post(self, ticket_id):
@@ -232,3 +233,4 @@ class TicketListResource(Resource):
         tickets = Ticket.query.filter_by(event_id=event_id).all()
         
         return success_response(data=[ticket.to_dict(include_attendee=True) for ticket in tickets])
+
