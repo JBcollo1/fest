@@ -181,7 +181,7 @@ class TicketPurchaseResource(Resource):
                 attendee_id=attendee.id,
                 price=total_price,
                 currency=event.currency,
-                status='pending'
+                satus='pending'
             )
             db.session.add(ticket)
             db.session.flush()  # Get the ticket ID
@@ -251,7 +251,7 @@ def process_mpesa_callback(data):
             # Update ticket status
             ticket = Ticket.query.filter_by(id=payment.ticket_id).first()
             if ticket:
-                ticket.status = 'purchased'
+                ticket.satus = 'purchased'
 
             db.session.commit()  # Commit both updates in one transaction
 
