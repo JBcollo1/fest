@@ -7,7 +7,7 @@ from models import Ticket, Event, User, Attendee, Payment
 from utils.response import success_response, error_response
 from datetime import datetime
 from cash import initiate_mpesa_payment
-from callback import process_mpesa_callback  # Import the callback processing function
+
 import logging
 
 class TicketVerificationResource(Resource):
@@ -213,10 +213,10 @@ class mpesaCallback(Resource):
         """Handles Mpesa callback response"""
         # Handle different possible request formats
         data = request.json
-        result = self.process_mpesa_callback(data)
+        result = process_mpesa_callback(data)
         return result
 
-    def process_mpesa_callback(self, data):
+def process_mpesa_callback(data):
         """Process the M-Pesa callback data"""
         # Extract nested callback data
         body = data.get('Body', data)
