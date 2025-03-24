@@ -216,8 +216,7 @@ class mpesaCallback(Resource):
         # result = process_mpesa_callback(data)
         # logging.info(f"Processed Callback Result: {result}")
         # return jsonify(data)
-        print(data)
-        return "ok"
+        return jsonify({"status": "success", "received_data": data})
 
 
 def process_mpesa_callback(data):
