@@ -1,12 +1,13 @@
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask import jsonify, make_response
+from flask import jsonify, make_response, request
 
 from app import db
 from models import Ticket, Event, User, Attendee, Payment
 from utils.response import success_response, error_response
 from datetime import datetime
-from cash import initiate_mpesa_payment, wait_for_payment_confirmation
+from cash import initiate_mpesa_payment
+from callback import process_mpesa_callback  # Import the callback processing function
 
 
 class TicketVerificationResource(Resource):
@@ -139,10 +140,8 @@ class UserTicketsResource(Resource):
         tickets = Ticket.query.filter_by(attendee_id=attendee.id).all()
         
         return success_response(data=[ticket.to_dict(include_event=True) for ticket in tickets])
-
 class TicketPurchaseResource(Resource):
     @jwt_required()
-    
     def post(self, event_id):
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
@@ -158,7 +157,7 @@ class TicketPurchaseResource(Resource):
             try:
                 attendee = Attendee(user_id=user.id)
                 db.session.add(attendee)
-                db.session.flush()  
+                db.session.commit()  # Ensure attendee ID is set
             except Exception as e:
                 db.session.rollback()
                 return error_response(f"Error creating attendee: {str(e)}", 500)
@@ -168,16 +167,97 @@ class TicketPurchaseResource(Resource):
         total_price = event.price
         payment_result = initiate_mpesa_payment(total_price, phone_number)
 
-        if payment_result.get('ResponseCode') != '0':
+        if not payment_result or payment_result.get('ResponseCode', '1') != '0':
             return error_response("Payment initiation failed", 400)
 
-        # Instead of waiting, immediately return success response
-        return success_response(
-            message="Payment initiated. Await confirmation via callback.",
-            data={"CheckoutRequestID": payment_result['CheckoutRequestID']},
-            status_code=200
-        )
+        checkout_request_id = payment_result.get('CheckoutRequestID')
+        if not checkout_request_id:
+            return error_response("Invalid payment response", 400)
 
+        try:
+            # Create a new ticket
+            ticket = Ticket(
+                event_id=event.id,
+                attendee_id=attendee.id,
+                price=total_price,
+                currency=event.currency,
+                status='pending'
+            )
+            db.session.add(ticket)
+            db.session.flush()  # Get the ticket ID
+
+            # Record the payment
+            payment = Payment(
+                ticket_id=ticket.id,
+                payment_method='Mpesa',
+                payment_status='Pending',
+                transaction_id=checkout_request_id,
+                amount=total_price,
+                currency=ticket.currency
+            )
+            db.session.add(payment)
+            db.session.commit()
+
+            return success_response(
+                message="Payment initiated. Await confirmation via callback.",
+                data={"CheckoutRequestID": checkout_request_id},
+                status_code=200
+            )
+        except Exception as e:
+            db.session.rollback()
+            return error_response(f"Error processing ticket purchase: {str(e)}", 500)
+
+
+class MpesaCallback(Resource):
+    def post(self):
+        """Handles Mpesa callback response"""
+        data = request.json
+        result = process_mpesa_callback(data)
+        return jsonify(result)
+
+
+def process_mpesa_callback(data):
+    stk_callback = data.get('Body', {}).get('stkCallback', {})
+    result_code = stk_callback.get('ResultCode')
+    checkout_request_id = stk_callback.get('CheckoutRequestID')
+    callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
+
+    if result_code == 0:
+        receipt_number = None
+        transaction_date = None
+        transaction_amount = None
+
+        for item in callback_metadata:
+            if item.get('Name') == 'MpesaReceiptNumber':
+                receipt_number = item.get('Value')
+            elif item.get('Name') == 'TransactionDate':
+                transaction_date_str = str(item.get('Value'))
+                if transaction_date_str.isdigit():
+                    transaction_date = datetime.strptime(transaction_date_str, "%Y%m%d%H%M%S")
+            elif item.get('Name') == 'Amount':
+                transaction_amount = float(item.get('Value'))
+
+        if not receipt_number:
+            return {'ResultCode': 1, 'ResultDesc': 'Missing receipt number'}
+
+        # Update Payment Record
+        payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
+        if payment:
+            payment.payment_status = 'Completed'
+            payment.transaction_id = receipt_number
+            payment.amount = transaction_amount
+            payment.payment_date = transaction_date
+
+            # Update ticket status
+            ticket = Ticket.query.filter_by(id=payment.ticket_id).first()
+            if ticket:
+                ticket.status = 'purchased'
+
+            db.session.commit()  # Commit both updates in one transaction
+
+            return {'ResultCode': 0, 'ResultDesc': 'Accepted'}
+
+    return {'ResultCode': 1, 'ResultDesc': 'Payment Failed'}
 
 
 class TicketListResource(Resource):
