@@ -209,96 +209,97 @@ class TicketPurchaseResource(Resource):
 
 
 class mpesaCallback(Resource):
-
     def post(self):
         """Handles Mpesa callback response"""
         try:
             # Handle different possible request formats
             data = request.get_json(force=True)
-            result = process_mpesa_callback(data)
-            return jsonify(result)
+            result = self.process_mpesa_callback(data)
+            return result
         except Exception as e:
-            return jsonify({
+            # Log the exception for debugging
+            print(f"Callback processing error: {str(e)}")
+            return {
                 'ResultCode': 1, 
                 'ResultDesc': 'Callback processing error'
-            }), 500
+            }, 500
 
-def process_mpesa_callback(data):
-    
-  
-    # Extract nested callback data
-    body = data.get('Body', data)
-    stk_callback = body.get('stkCallback', body)
+    def process_mpesa_callback(self, data):
+        """Process the M-Pesa callback data"""
+        # Extract nested callback data
+        body = data.get('Body', data)
+        stk_callback = body.get('stkCallback', body)
 
-    # Extract key parameters
-    result_code = stk_callback.get('ResultCode')
-    checkout_request_id = stk_callback.get('CheckoutRequestID')
+        # Extract key parameters
+        result_code = stk_callback.get('ResultCode')
+        checkout_request_id = stk_callback.get('CheckoutRequestID')
 
-    # Successful payment handling
-    if result_code == 0:
-        try:
-            # Extract callback metadata
-            callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
-            
-            # Parse payment details
-            payment_details = {}
-            for item in callback_metadata:
-                name = item.get('Name')
-                value = item.get('Value')
+        # Successful payment handling
+        if result_code == 0:
+            try:
+                # Extract callback metadata
+                callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
                 
-                if name == 'MpesaReceiptNumber':
-                    payment_details['receipt_number'] = value
-                elif name == 'Amount':
-                    payment_details['amount'] = float(value)
-                elif name == 'TransactionDate':
-                    payment_details['transaction_date'] = str(value)
+                # Parse payment details
+                payment_details = {}
+                for item in callback_metadata:
+                    name = item.get('Name')
+                    value = item.get('Value')
+                    
+                    if name == 'MpesaReceiptNumber':
+                        payment_details['receipt_number'] = value
+                    elif name == 'Amount':
+                        payment_details['amount'] = float(value)
+                    elif name == 'TransactionDate':
+                        payment_details['transaction_date'] = str(value)
 
-            # Find and update payment record
-            payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
-            if not payment:
+                # Find and update payment record
+                payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
+                if not payment:
+                    return {
+                        'ResultCode': 1, 
+                        'ResultDesc': 'Payment record not found'
+                    }, 404
+
+                # Update payment details
+                payment.payment_status = 'Completed'
+                payment.transaction_id = payment_details.get('receipt_number')
+                payment.amount = payment_details.get('amount')
+                payment.payment_date = datetime.now()
+
+                # Update associated ticket
+                ticket = Ticket.query.filter_by(id=payment.ticket_id).first()
+                if ticket:
+                    ticket.status = 'purchased'
+                    
+                    # Update event tickets sold
+                    event = Event.query.get(ticket.event_id)
+                    if event:
+                        event.tickets_sold += 1
+
+                # Commit changes
+                db.session.commit()
+
                 return {
-                    'ResultCode': 1, 
-                    'ResultDesc': 'Payment record not found'
+                    'ResultCode': 0, 
+                    'ResultDesc': 'Payment processed successfully'
                 }
 
-            # Update payment details
-            payment.payment_status = 'Completed'
-            payment.transaction_id = payment_details.get('receipt_number')
-            payment.amount = payment_details.get('amount')
-            payment.payment_date = datetime.now()
+            except Exception as e:
+                # Rollback in case of any error
+                db.session.rollback()
+                # Log the exception for debugging
+                print(f"Payment processing error: {str(e)}")
+                return {
+                    'ResultCode': 1, 
+                    'ResultDesc': 'Payment processing error'
+                }, 500
 
-            # Update associated ticket
-            ticket = Ticket.query.filter_by(id=payment.ticket_id).first()
-            if ticket:
-                ticket.status = 'purchased'
-                
-                # Update event tickets sold
-                event = Event.query.get(ticket.event_id)
-                if event:
-                    event.tickets_sold += 1
-
-            # Commit changes
-            db.session.commit()
-
-            return {
-                'ResultCode': 0, 
-                'ResultDesc': 'Payment processed successfully'
-            }
-
-        except Exception as e:
-            # Rollback in case of any error
-            db.session.rollback()
-            return {
-                'ResultCode': 1, 
-                'ResultDesc': 'Payment processing error'
-            }
-
-    # Payment failed
-    return {
-        'ResultCode': 1, 
-        'ResultDesc': 'Payment Failed'
-    }
-
+        # Payment failed
+        return {
+            'ResultCode': 1, 
+            'ResultDesc': 'Payment Failed'
+        }, 400
 
 class TicketListResource(Resource):
     @jwt_required()
