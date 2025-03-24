@@ -211,12 +211,11 @@ class TicketPurchaseResource(Resource):
 class mpesaCallback(Resource):
     def post(self):
         """Handles Mpesa callback response"""
-        
-            # Handle different possible request formats
+        # Handle different possible request formats
         data = request.json
-            # result = self.process_mpesa_callback(data)
-        return data ,200
-        
+        result = self.process_mpesa_callback(data)
+        return result
+
     def process_mpesa_callback(self, data):
         """Process the M-Pesa callback data"""
         # Extract nested callback data
