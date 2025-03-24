@@ -3,16 +3,16 @@ from functools import wraps
 from flask import jsonify
 from models import User
 
-def Admin_required(f):
-  # endpoints that require Admin role
+def admin_required(f):
+  # endpoints that require admin role
     @wraps(f)
     def decorated(*args, **kwargs):
         verify_jwt_in_request()
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if not user or not user.has_role('Admin'):
-            return jsonify({"message": "Admin privileges required"}), 403
+        if not user or not user.has_role('admin'):
+            return jsonify({"message": "admin privileges required"}), 403
         return f(*args, **kwargs)
     return decorated
 
@@ -23,7 +23,7 @@ def organizer_required(f):
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if not user or not user.has_role('organizer') or not user.has_role('Admin'):
+        if not user or not user.has_role('organizer') or not user.has_role('admin'):
             return jsonify({"message": "Organizer privileges required"}), 403
         return f(*args, **kwargs)
     return decorated

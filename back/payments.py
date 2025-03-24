@@ -11,11 +11,11 @@ class PaymentListResource(Resource):
     """
     @jwt_required()
     def get(self):
-        """Get all payments (Admin only)"""
+        """Get all payments (admin only)"""
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if not user.has_role('Admin'):
+        if not user.has_role('admin'):
             return error_response("Unauthorized", 403)
             
         # Build query
@@ -43,7 +43,7 @@ class PaymentListResource(Resource):
             
         # Check if user is authorized to make payment for this ticket
         attendee = Attendee.query.filter_by(user_id=current_user_id).first()
-        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('Admin'):
+        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('admin'):
             return error_response("Unauthorized", 403)
             
         # Check if payment already exists
@@ -93,18 +93,18 @@ class PaymentResource(Resource):
         ticket = Ticket.query.get(payment.ticket_id)
         attendee = Attendee.query.filter_by(user_id=current_user_id).first()
         
-        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('Admin'):
+        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('admin'):
             return error_response("Unauthorized", 403)
             
         return success_response(data=payment.to_dict(include_ticket=True))
     
     @jwt_required()
     def put(self, payment_id):
-        """Update a payment status (Admin only)"""
+        """Update a payment status (admin only)"""
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if not user.has_role('Admin'):
+        if not user.has_role('admin'):
             return error_response("Unauthorized", 403)
             
         payment = Payment.query.get(payment_id)

@@ -13,7 +13,7 @@ class TicketListResource(Resource):
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if not user.has_role('Admin'):
+        if not user.has_role('admin'):
             return error_response("Unauthorized", 403)
             
         query = Ticket.query
@@ -100,7 +100,7 @@ class TicketResource(Resource):
             return error_response("Ticket not found", 404)
             
         attendee = Attendee.query.filter_by(user_id=current_user_id).first()
-        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('Admin'):
+        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('admin'):
             return error_response("Unauthorized", 403)
             
         return success_response(data=ticket.to_dict(include_event=True))
@@ -115,7 +115,7 @@ class TicketResource(Resource):
             return error_response("Ticket not found", 404)
             
         attendee = Attendee.query.filter_by(user_id=current_user_id).first()
-        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('Admin'):
+        if not (attendee and attendee.id == ticket.attendee_id) and not user.has_role('admin'):
             return error_response("Unauthorized", 403)
             
         payment = Payment.query.filter_by(ticket_id=ticket.id).first()
@@ -152,7 +152,7 @@ class TicketVerificationResource(Resource):
         user = User.query.get(current_user_id)
         
         # Verify the user has permission to check in tickets (admin or event organizer)
-        if not user.has_role('Admin') and not user.has_role('Organizer'):
+        if not user.has_role('admin') and not user.has_role('Organizer'):
             return error_response("Unauthorized. Only admins and organizers can verify tickets.", 403)
         
         # Find the ticket
@@ -166,7 +166,7 @@ class TicketVerificationResource(Resource):
             return error_response("Event associated with this ticket does not exist", 404)
         
         # If user is an organizer, verify they are the organizer of this event
-        if not user.has_role('Admin'):
+        if not user.has_role('admin'):
             organizer = user.organizer
             if not organizer or organizer.id != event.organizer_id:
                 return error_response("Unauthorized. You can only verify tickets for events you organize.", 403)
@@ -226,7 +226,7 @@ class TicketVerificationResource(Resource):
             return error_response("Event associated with this ticket does not exist", 404)
         
         # Check if user has permission to view ticket
-        is_admin = user.has_role('Admin')
+        is_admin = user.has_role('admin')
         is_organizer = user.has_role('Organizer') and user.organizer and user.organizer.id == event.organizer_id
         is_ticket_owner = user.attendee and user.attendee.id == ticket.attendee_id
         
@@ -259,7 +259,7 @@ class UserTicketsResource(Resource):
         user = User.query.get(current_user_id)
         
         # Check if user is authorized to view these tickets
-        if current_user_id != user_id and not user.has_role('Admin'):
+        if current_user_id != user_id and not user.has_role('admin'):
             return error_response("Unauthorized", 403)
             
         # Get attendee record

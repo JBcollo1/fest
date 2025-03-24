@@ -4,23 +4,23 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from models import User, Role, Organizer
 from utils.response import success_response, error_response, paginate_response
-from utils.auth import Admin_required
+from utils.auth import admin_required
 
 class OrganizerListResource(Resource):
     """
     Resource for organizer list operations
     """
     @jwt_required()
-    @Admin_required
+    @admin_required
     def get(self):
-        """Get all organizers (Admin only)"""
+        """Get all organizers (admin only)"""
         organizers = Organizer.query.all()
         return success_response(data=[organizer.to_dict(include_user=True) for organizer in organizers])
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def post(self):
-        """Create a new organizer from existing user (Admin only)"""
+        """Create a new organizer from existing user (admin only)"""
         data = request.get_json()
         
         if 'user_id' not in data:
@@ -92,9 +92,9 @@ class OrganizerResource(Resource):
         return success_response(data=organizer.to_dict(include_user=True))
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def put(self, organizer_id):
-        """Update a specific organizer (Admin only)"""
+        """Update a specific organizer (admin only)"""
         organizer = Organizer.query.get(organizer_id)
         
         if not organizer:
@@ -138,9 +138,9 @@ class OrganizerResource(Resource):
             return error_response(f"Error updating organizer: {str(e)}")
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def delete(self, organizer_id):
-        """Remove organizer status (Admin only)"""
+        """Remove organizer status (admin only)"""
         organizer = Organizer.query.get(organizer_id)
         
         if not organizer:

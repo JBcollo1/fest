@@ -5,14 +5,14 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_tok
 from app import db
 from models import User, Role, UserRole
 from utils.response import success_response, error_response
-from utils.auth import Admin_required, generate_tokens
+from utils.auth import admin_required, generate_tokens
 from datetime import datetime, timedelta
 
 class UserListResource(Resource):
     @jwt_required()
-    # @Admin_required
+    # @admin_required
     def get(self):
-        # Admin only can get all users
+        # admin only can get all users
         users = User.query.all()
         return success_response(data=[user.to_dict() for user in users])
     
@@ -88,8 +88,8 @@ class UserResource(Resource):
         if not user:
             return error_response("User not found", 404)
             
-        # Only allow users to access their own data or Admin users
-        if current_user_id != user_id and not User.query.get(current_user_id).has_role('Admin'):
+        # Only allow users to access their own data or admin users
+        if current_user_id != user_id and not User.query.get(current_user_id).has_role('admin'):
             return error_response("Unauthorized", 403)
             
         return success_response(data=user.to_dict())
@@ -103,8 +103,8 @@ class UserResource(Resource):
         if not user:
             return error_response("User not found", 404)
             
-        # Only allow users to update their own data or Admin users
-        if current_user_id != user_id and not User.query.get(current_user_id).has_role('Admin'):
+        # Only allow users to update their own data or admin users
+        if current_user_id != user_id and not User.query.get(current_user_id).has_role('admin'):
             return error_response("Unauthorized", 403)
         
         data = request.get_json()
@@ -156,8 +156,8 @@ class UserResource(Resource):
         if not user:
             return error_response("User not found", 404)
             
-        # Only allow users to delete their own account or Admins to delete any account
-        if current_user_id != user_id and not User.query.get(current_user_id).has_role('Admin'):
+        # Only allow users to delete their own account or admins to delete any account
+        if current_user_id != user_id and not User.query.get(current_user_id).has_role('admin'):
             return error_response("Unauthorized", 403)
         
         try:
@@ -218,9 +218,9 @@ class UserRolesResource(Resource):
     Resource for managing user roles
     """
     @jwt_required()
-    @Admin_required
+    @admin_required
     def get(self, user_id):
-        """Get roles for a specific user (Admin only)"""
+        """Get roles for a specific user (admin only)"""
         user = User.query.get(user_id)
         
         if not user:
@@ -229,9 +229,9 @@ class UserRolesResource(Resource):
         return success_response(data=[role.to_dict() for role in user.roles])
     
     # @jwt_required()
-    # @Admin_required
+    # @admin_required
     def post(self, user_id):
-        """Add a role to a user (Admin only)"""
+        """Add a role to a user (admin only)"""
         user = User.query.get(user_id)
         
         if not user:
@@ -263,9 +263,9 @@ class UserRolesResource(Resource):
             return error_response(f"Error adding role: {str(e)}")
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def delete(self, user_id):
-        """Remove a role from a user (Admin only)"""
+        """Remove a role from a user (admin only)"""
         user = User.query.get(user_id)
         
         if not user:
@@ -305,7 +305,7 @@ class LogoutResource(Resource):
 class RoleListResource(Resource):
    
     def post(self):
-        """Create a new role (Admin only)"""
+        """Create a new role (admin only)"""
         data = request.get_json()
         
         if 'name' not in data:

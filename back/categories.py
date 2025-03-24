@@ -4,7 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from models import Category, User
 from utils.response import success_response, error_response
-from utils.auth import Admin_required
+from utils.auth import admin_required
 
 class CategoryListResource(Resource):
     """
@@ -16,9 +16,9 @@ class CategoryListResource(Resource):
         return success_response(data=[category.to_dict() for category in categories])
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def post(self):
-        """Create a new category (Admin only)"""
+        """Create a new category (admin only)"""
         data = request.get_json()
         
         if 'name' not in data:
@@ -56,9 +56,9 @@ class CategoryResource(Resource):
         return success_response(data=category.to_dict())
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def put(self, category_id):
-        """Update a specific category (Admin only)"""
+        """Update a specific category (admin only)"""
         category = Category.query.get(category_id)
         
         if not category:
@@ -87,9 +87,9 @@ class CategoryResource(Resource):
             return error_response(f"Error updating category: {str(e)}")
     
     @jwt_required()
-    @Admin_required
+    @admin_required
     def delete(self, category_id):
-        """Delete a specific category (Admin only)"""
+        """Delete a specific category (admin only)"""
         category = Category.query.get(category_id)
         
         if not category:

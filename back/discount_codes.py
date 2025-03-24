@@ -4,12 +4,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from models import DiscountCode, Event, User, Organizer, EventDiscountCode
 from utils.response import success_response, error_response, paginate_response
-from utils.auth import Admin_required, organizer_required
+from utils.auth import admin_required, organizer_required
 from datetime import datetime
 
 class DiscountCodeListResource(Resource):
     @jwt_required()
-    @Admin_required
+    @admin_required
     def get(self):
         discount_codes = DiscountCode.query.all()
         return success_response(data=[code.to_dict() for code in discount_codes])
@@ -60,7 +60,7 @@ class DiscountCodeListResource(Resource):
                 
                 # Verify that the user is the organizer of this event
                 organizer = Organizer.query.filter_by(user_id=current_user_id).first()
-                if not event or (event.organizer_id != organizer.id and not User.query.get(current_user_id).has_role('Admin')):
+                if not event or (event.organizer_id != organizer.id and not User.query.get(current_user_id).has_role('admin')):
                     continue
                     
                 new_discount_code.events.append(event)
@@ -93,8 +93,8 @@ class DiscountCodeResource(Resource):
         if not discount_code:
             return error_response("Discount code not found", 404)
             
-        # Check if user is Admin or has access to this discount code
-        if not user.has_role('Admin'):
+        # Check if user is admin or has access to this discount code
+        if not user.has_role('admin'):
             organizer = Organizer.query.filter_by(user_id=current_user_id).first()
             if not organizer:
                 return error_response("Unauthorized", 403)
@@ -118,8 +118,8 @@ class DiscountCodeResource(Resource):
         if not discount_code:
             return error_response("Discount code not found", 404)
             
-        # Check if user is Admin or has access to this discount code
-        if not user.has_role('Admin'):
+        # Check if user is admin or has access to this discount code
+        if not user.has_role('admin'):
             organizer = Organizer.query.filter_by(user_id=current_user_id).first()
             if not organizer:
                 return error_response("Unauthorized", 403)
@@ -160,8 +160,8 @@ class DiscountCodeResource(Resource):
         if discount_code.valid_from >= discount_code.valid_to:
             return error_response("valid_to must be after valid_from")
             
-        # Update events if provided (Admin only)
-        if 'event_ids' in data and isinstance(data['event_ids'], list) and user.has_role('Admin'):
+        # Update events if provided (admin only)
+        if 'event_ids' in data and isinstance(data['event_ids'], list) and user.has_role('admin'):
             # Clear existing events
             discount_code.events = []
             
@@ -191,8 +191,8 @@ class DiscountCodeResource(Resource):
         if not discount_code:
             return error_response("Discount code not found", 404)
             
-        # Only Admins can delete discount codes
-        if not user.has_role('Admin'):
+        # Only admins can delete discount codes
+        if not user.has_role('admin'):
             return error_response("Unauthorized", 403)
             
         try:

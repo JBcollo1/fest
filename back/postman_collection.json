@@ -20,7 +20,7 @@
       
     },
     "role2":{
-          "name": "Admin",
+          "name": "admin",
         "description": "Manages all events"
     },
   "new2": {

@@ -25,7 +25,7 @@ const CreateEventDialog = ({
   open, 
   onOpenChange, 
   onSubmit, 
-  isAdmin, 
+  isadmin, 
   organizers, 
   fetchOrganizerById 
 }) => {
@@ -120,7 +120,7 @@ const CreateEventDialog = ({
       return false;
     }
     // For admins, require organizer selection
-    if (isAdmin && !organizerId) {
+    if (isadmin && !organizerId) {
       setFormError("Please select an organizer");
       return false;
     }
@@ -144,7 +144,7 @@ const CreateEventDialog = ({
       price: parseFloat(price),
       total_tickets: parseInt(totalTickets),
       image,
-      ...(isAdmin && organizerId && { organizer_id: organizerId }),
+      ...(isadmin && organizerId && { organizer_id: organizerId }),
       featured,
     };
     
@@ -179,8 +179,8 @@ const CreateEventDialog = ({
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Organizer Selection (Admin only) */}
-              {isAdmin && (
+              {/* Organizer Selection (admin only) */}
+              {isadmin && (
                 <div className="space-y-2 md:col-span-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-md">
                   <Label htmlFor="organizerId" className="text-sm font-medium">Select Organizer</Label>
                   <Select value={organizerId || "none"} onValueChange={handleOrganizerChange}>

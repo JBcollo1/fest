@@ -13,7 +13,7 @@ import {
   import { Button } from "@/components/ui/button";
   import { format, isValid, parseISO } from "date-fns";
   
-  const EventCard = ({ event, onDelete, isAdmin, organizers }) => {
+  const EventCard = ({ event, onDelete, isadmin, organizers }) => {
     // Format the date for display
     const formatEventDate = (dateString) => {
       try {
@@ -93,7 +93,7 @@ import {
                 <span className="font-medium">{event.tickets_sold || 0}</span> / {event.total_tickets} tickets sold
               </span>
             </div>
-            {isAdmin && event.organizer_id && (
+            {isadmin && event.organizer_id && (
               <div className="flex items-center text-muted-foreground">
                 <User className="h-4 w-4 mr-2 text-primary/70" />
                 <span>

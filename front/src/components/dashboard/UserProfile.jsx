@@ -217,7 +217,7 @@ const UserProfile = () => {
           <CardContent className="pt-6 text-center">
             <div className="flex justify-center">
               <Badge variant="outline" className="px-3 py-1 mb-2 bg-primary/5 font-normal">
-                {user.roles?.includes("admin") ? "Admin" : "Member"}
+                {user.roles?.includes("admin") ? "admin" : "Member"}
               </Badge>
             </div>
             <h2 className="text-xl font-semibold mb-1 flex justify-center items-center gap-2">

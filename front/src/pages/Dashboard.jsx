@@ -15,11 +15,11 @@ const Dashboard = () => {
   const [activeSection, setActiveSection] = useState("profile");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isadmin, setIsadmin] = useState(false);
   
   useEffect(() => {
     if (user && user.roles) {
-      setIsAdmin(user.roles.includes("Admin"));
+      setIsadmin(user.roles.includes("admin"));
     }
   }, [user]);
   
@@ -46,7 +46,7 @@ const Dashboard = () => {
               <Ticket className="h-4 w-4" />
               My Tickets
             </TabsTrigger>
-            {isAdmin && (
+            {isadmin && (
               <>
                 <TabsTrigger value="organizers" className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4" />
@@ -72,7 +72,7 @@ const Dashboard = () => {
             <PurchasedTickets />
           </TabsContent>
           
-          {isAdmin && (
+          {isadmin && (
             <>
               <TabsContent value="organizers">
                 <OrganizerManagement />

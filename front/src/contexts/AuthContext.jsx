@@ -163,10 +163,10 @@ export const AuthProvider = ({ children }) => {
   const fetchOrganizerEvents = async () => {
     try {
       // Check if the user is an admin
-      const isAdmin = user?.roles?.includes("Admin");
+      const isadmin = user?.roles?.includes("admin");
       
-      if (isAdmin) {
-        // Admins can see all events
+      if (isadmin) {
+        // admins can see all events
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/api/events`,
           { withCredentials: true }
