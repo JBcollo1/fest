@@ -56,7 +56,7 @@ from models import User, Role, UserRole, Organizer, Attendee, Event, Category, E
 from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource, CurrentUserResource, LogoutResource
 from events import EventResource, EventListResource, EventCategoriesResource, FeaturedEventsResource
 from tickets import (
-    TicketResource, 
+   
     TicketListResource, 
     UserTicketsResource, 
     TicketVerificationResource, 
