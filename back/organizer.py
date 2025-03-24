@@ -45,13 +45,10 @@ class OrganizerListResource(Resource):
             company_image=data.get('company_image'),
             contact_email=data.get('contact_email'),
             contact_phone=data.get('contact_phone'),
-            kra_pin=data.get('kra_pin'),  # Example new field
-            bank_details=data.get('bank_details') ,  # Example new field
-            physical_address=data.get('physical_address'),   # Example new field
-            contact_person=data.get('contact_person')   # Example new field
-            
-        
-        
+            kra_pin=data.get('kra_pin'),
+            bank_details=data.get('bank_details'),
+            physical_address=data.get('physical_address'),
+            contact_person=data.get('contact_person')
         )
         
         # Add organizer role to user
@@ -106,17 +103,18 @@ class OrganizerResource(Resource):
         if 'company_name' in data:
             organizer.company_name = data['company_name']
         
-        # Update new fields
+        # Update fields with correct property names
         if 'bank_details' in data:
-            organizer.new_field_1 = data['bank_details']
+            organizer.bank_details = data['bank_details']
         
         if 'kra_pin' in data:
-            organizer.new_field_2 = data['kra_pin']
+            organizer.kra_pin = data['kra_pin']
             
         if 'company_image' in data:
             organizer.company_image = data['company_image']
+            
         if 'contact_person' in data:
-            organizer.company_image = data['contact_person']
+            organizer.contact_person = data['contact_person']
             
         if 'physical_address' in data:
             organizer.physical_address = data['physical_address']
