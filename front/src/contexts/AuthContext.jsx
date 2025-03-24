@@ -9,6 +9,7 @@ export const AuthContext = createContext({
   login: async () => {},
   logout: async () => {},
   fetchUserData: async () => {},
+  updateUserData: async () => {},
   fetchAllUsers: () => Promise.resolve([]),
   fetchAllOrganizers: () => Promise.resolve([]),
   fetchOrganizerEvents: () => Promise.resolve([]),
@@ -63,6 +64,21 @@ export const AuthProvider = ({ children }) => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateUserData = async (userData) => {
+    try {
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/users/${user.id}`,
+        userData,
+        { withCredentials: true }
+      );
+      setUser(response.data.data); // Update the user state with the new data
+      return response.data;
+    } catch (error) {
+      console.error("Error updating user data:", error);
+      throw error;
     }
   };
 
@@ -301,6 +317,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     fetchUserData,
+    updateUserData,
     fetchAllUsers,
     fetchAllOrganizers,
     fetchOrganizerEvents,

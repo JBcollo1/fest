@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const CreateEventDialog = ({ 
   open, 
@@ -41,6 +42,7 @@ const CreateEventDialog = ({
   const [selectedOrganizerDetails, setSelectedOrganizerDetails] = useState(null);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [featured, setFeatured] = useState(false);
 
   const submitButtonRef = useRef(null);
 
@@ -71,6 +73,7 @@ const CreateEventDialog = ({
     setFormError("");
     setSelectedOrganizerDetails(null);
     setIsSubmitting(false);
+    setFeatured(false);
   };
 
   const handleOrganizerChange = async (value) => {
@@ -142,6 +145,7 @@ const CreateEventDialog = ({
       total_tickets: parseInt(totalTickets),
       image,
       ...(isAdmin && organizerId && { organizer_id: organizerId }),
+      featured,
     };
     
     const result = await onSubmit(eventData);
@@ -306,6 +310,16 @@ const CreateEventDialog = ({
                   value={image}
                   onChange={(e) => setImage(e.target.value)}
                   placeholder="https://example.com/image.jpg"
+                  className="focus-visible:ring-primary"
+                />
+              </div>
+              
+              <div className="space-y-1 md:col-span-2">
+                <Label htmlFor="featured" className="text-sm font-medium">Featured</Label>
+                <Checkbox
+                  id="featured"
+                  checked={featured}
+                  onChange={(e) => setFeatured(e.target.checked)}
                   className="focus-visible:ring-primary"
                 />
               </div>

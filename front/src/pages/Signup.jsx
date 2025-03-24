@@ -22,7 +22,11 @@ const SignUp = () => {
     email: "",
     password: "",
     confirm_password: "",
-    phone: ""
+    phone: "",
+    national_id: "",
+    photo_img: "",
+    next_of_kin_name: "",
+    next_of_kin_contact: ""
   });
   
   const [showPassword, setShowPassword] = useState(false);
@@ -80,6 +84,11 @@ const SignUp = () => {
     if (formData.password !== formData.confirm_password) {
       newErrors.confirm_password = "Passwords do not match";
     }
+    
+    if (!formData.national_id) newErrors.national_id = "National ID is required";
+    if (!formData.photo_img) newErrors.photo_img = "Photo image is required";
+    if (!formData.next_of_kin_name) newErrors.next_of_kin_name = "Next of kin name is required";
+    if (!formData.next_of_kin_contact) newErrors.next_of_kin_contact = "Next of kin contact is required";
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -185,6 +194,66 @@ const SignUp = () => {
                   onChange={handleChange}
                   disabled={signupMutation.isPending}
                 />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="national_id">National ID</Label>
+                <Input
+                  id="national_id"
+                  name="national_id"
+                  placeholder="Enter national ID"
+                  value={formData.national_id}
+                  onChange={handleChange}
+                  disabled={signupMutation.isPending}
+                />
+                {errors.national_id && (
+                  <p className="text-sm text-destructive">{errors.national_id}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="photo_img">Photo Image</Label>
+                <Input
+                  id="photo_img"
+                  name="photo_img"
+                  placeholder="Enter photo image URL"
+                  value={formData.photo_img}
+                  onChange={handleChange}
+                  disabled={signupMutation.isPending}
+                />
+                {errors.photo_img && (
+                  <p className="text-sm text-destructive">{errors.photo_img}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="next_of_kin_name">Next of Kin Name</Label>
+                <Input
+                  id="next_of_kin_name"
+                  name="next_of_kin_name"
+                  placeholder="Enter next of kin name"
+                  value={formData.next_of_kin_name}
+                  onChange={handleChange}
+                  disabled={signupMutation.isPending}
+                />
+                {errors.next_of_kin_name && (
+                  <p className="text-sm text-destructive">{errors.next_of_kin_name}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="next_of_kin_contact">Next of Kin Contact</Label>
+                <Input
+                  id="next_of_kin_contact"
+                  name="next_of_kin_contact"
+                  placeholder="Enter next of kin contact"
+                  value={formData.next_of_kin_contact}
+                  onChange={handleChange}
+                  disabled={signupMutation.isPending}
+                />
+                {errors.next_of_kin_contact && (
+                  <p className="text-sm text-destructive">{errors.next_of_kin_contact}</p>
+                )}
               </div>
               
               <div className="space-y-2">

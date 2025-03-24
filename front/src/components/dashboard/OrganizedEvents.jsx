@@ -19,9 +19,9 @@ const OrganizedEvents = () => {
   const [error, setError] = useState(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(null);
-  const [selectedIndex, setSelectedIndex] = useState(0); // Track the index of the selected event
+  const [selectedIndex, setSelectedIndex] = useState(0);
   
-  // Check if user is admin or organizer
+  // Determine user roles
   const isAdmin = user?.roles?.includes("Admin");
   const isOrganizer = user?.roles?.includes("organizer");
   const hasAccess = isAdmin || isOrganizer;
@@ -42,24 +42,30 @@ const OrganizedEvents = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetchOrganizerEvents();
+      
+      let response;
+      if (isAdmin) {
+        // Fetch all events for admin
+        response = await fetchOrganizerEvents({ all: true });
+      } else if (isOrganizer) {
+        // Fetch only the organizer's events
+        response = await fetchOrganizerEvents();
+      }
   
       if (response?.data?.items && Array.isArray(response.data.items)) {
         const eventsWithOrganizerNames = await Promise.all(
           response.data.items.map(async (event) => {
-            // Fetch user details for the organizer
             if (event.organizer_id) {
               try {
                 const userResponse = await fetchOrganizerById(event.organizer_id);
-                // Check if userResponse is valid and has data
                 if (userResponse?.data) {
-                  event.organizer_name = userResponse.data.name || "Unknown Organizer"; // Set organizer name
+                  event.organizer_name = userResponse.data.name || "Unknown Organizer";
                 } else {
-                  event.organizer_name = "Unknown Organizer"; // Fallback if no data
+                  event.organizer_name = "Unknown Organizer";
                 }
               } catch (error) {
                 console.error(`Error fetching organizer details for ID ${event.organizer_id}:`, error);
-                event.organizer_name = "Unknown Organizer"; // Fallback on error
+                event.organizer_name = "Unknown Organizer";
               }
             }
             return event;

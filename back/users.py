@@ -134,11 +134,11 @@ class UserResource(Resource):
         
         # Update new fields
         if 'photo_img' in data:
-            user.new_field_1 = data['photo_img']
+            user.photo_img = data['photo_img']
         if 'next_of_kin_contact' in data:
-            user.new_field_2 = data['next_of_kin_contact']
+            user.next_of_kin_contact = data['next_of_kin_contact']
         if 'next_of_kin_name' in data:
-            user.new_field_2 = data['next_of_kin_name']
+            user.next_of_kin_name = data['next_of_kin_name']
         
         try:
             db.session.commit()
