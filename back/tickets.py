@@ -166,13 +166,13 @@ class TicketPurchaseResource(Resource):
         if payment_result.get('ResponseCode') != '0':
             return make_response(jsonify({'message': 'Payment initiation failed', 'details': payment_result}), 400)
         
-        # Wait for payment confirmation
+       
         payment_verification = wait_for_payment_confirmation(payment_result['CheckoutRequestID'])
+
         
-        if payment_verification.get('ResultCode') != '0':
+        if payment_verification['status'] != 'confirmed' or payment_verification['details']['details'].get('ResultCode') != '0':
             return make_response(jsonify({'message': 'Payment verification failed', 'details': payment_verification}), 400)
-        
-        # Create a new ticket and update the event's tickets_sold
+                # Create a new ticket and update the event's tickets_sold
         try:
             # Create a new ticket
             ticket = Ticket(
