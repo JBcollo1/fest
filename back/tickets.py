@@ -192,6 +192,7 @@ class TicketPurchaseResource(Resource):
                 satus='purchased'  
             )
             db.session.add(ticket)
+            db.session.flush()  # Add this line to get the ticket ID
             
             # Increment the tickets_sold count in the Event table
             event.tickets_sold += 1

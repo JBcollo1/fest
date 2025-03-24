@@ -100,7 +100,7 @@ def wait_for_payment_confirmation(checkout_request_id, max_retries=10, delay=10)
             callback_metadata = payment_status.get('CallbackMetadata', {}).get('Item', [])
             receipt_number = None
             transaction_date = None
-            transaction_amount = None  # Store actual amount received
+            transaction_amount = None  
 
             for item in callback_metadata:
                 if item.get('Name') == 'MpesaReceiptNumber':
