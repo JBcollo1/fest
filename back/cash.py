@@ -82,10 +82,10 @@ def initiate_mpesa_payment(amount, phone_number):
         return {"error": "Failed to initiate payment request"}
 
 # Verify Payment
-def verify_mpesa_payment(checkout_request_id):
+def verify_mpesa_payment(checkout_request_id, access_token):
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     password = generate_password(MPESA_BUSINESS_SHORT_CODE, MPESA_PASSKEY, timestamp)
-    access_token = generate_access_token()
+    
     payload = {
         "BusinessShortCode": MPESA_BUSINESS_SHORT_CODE,
         "Password": password,
