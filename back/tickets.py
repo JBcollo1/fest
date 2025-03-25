@@ -211,9 +211,12 @@ class mpesaCallback(Resource):
     def post(self):
         """Handles Mpesa callback response"""
         try:
-            # Log the raw request data
             raw_data = request.data
             logging.info(f"Raw request data: {raw_data}")
+
+            if not raw_data:
+                logging.error("Received empty request data.")
+                return {'ResultCode': 1, 'ResultDesc': 'Bad Request: Empty request data'}, 400
 
             data = request.get_json()
             if data is None:
@@ -221,6 +224,12 @@ class mpesaCallback(Resource):
                 return {'ResultCode': 1, 'ResultDesc': 'Bad Request: Malformed JSON'}, 400
 
             logging.info(f"Received M-Pesa Callback: {data}")
+
+            # Check for user cancellation
+            result_code = data.get('Body', {}).get('stkCallback', {}).get('ResultCode')
+            if result_code == 1032:
+                logging.warning("Payment cancelled by user.")
+                return {'ResultCode': 0, 'ResultDesc': 'Payment cancelled by user'}, 200
 
             result = process_mpesa_callback(data)
             response = make_response(result)
