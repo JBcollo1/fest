@@ -46,7 +46,8 @@ def generate_password(shortcode, passkey, timestamp):
     return base64.b64encode(data_to_encode.encode("utf-8")).decode("utf-8")
 
 # Initiate Payment Request
-def initiate_mpesa_payment(amount, phone_number, access_token):
+def initiate_mpesa_payment(amount, phone_number):
+    access_token = generate_access_token()
     phone_number = format_phone_number(phone_number)
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     password = generate_password(MPESA_BUSINESS_SHORT_CODE, MPESA_PASSKEY, timestamp)
@@ -74,10 +75,10 @@ def initiate_mpesa_payment(amount, phone_number, access_token):
     return response.json()
 
 # Verify Payment
-def verify_mpesa_payment(checkout_request_id, access_token):
+def verify_mpesa_payment(checkout_request_id):
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     password = generate_password(MPESA_BUSINESS_SHORT_CODE, MPESA_PASSKEY, timestamp)
-    
+    access_token = generate_access_token()
     payload = {
         "BusinessShortCode": MPESA_BUSINESS_SHORT_CODE,
         "Password": password,
@@ -94,7 +95,8 @@ def verify_mpesa_payment(checkout_request_id, access_token):
     return response.json()
 
 # Wait for Payment Confirmation
-def wait_for_payment_confirmation(checkout_request_id, access_token, max_retries=10, delay=10):
+def wait_for_payment_confirmation(checkout_request_id, max_retries=10, delay=10):
+    access_token = generate_access_token()
     for _ in range(max_retries):
         payment_status = verify_mpesa_payment(checkout_request_id, access_token)
         result_code = payment_status.get("ResultCode")
