@@ -268,7 +268,7 @@ def process_mpesa_callback(data):
 
         # Extract callback metadata
         callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
-        payment_details = {item['Name']: item['Value'] for item in callback_metadata}
+        payment_details = {item['Name']: item.get('Value') for item in callback_metadata if 'Value' in item}
 
         # Retrieve payment record
         payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
