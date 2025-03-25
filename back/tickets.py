@@ -215,11 +215,15 @@ class mpesaCallback(Resource):
             logging.info(f"Received M-Pesa Callback: {data}")
 
             result = process_mpesa_callback(data)
-            return result
+            response = make_response(result)
+            response.headers['Content-Type'] = 'application/json'
+            return response
 
         except Exception as e:
             logging.error(f"Callback Processing Error: {str(e)}")
-            return {'ResultCode': 1, 'ResultDesc': 'Internal Server Error'}, 500
+            response = make_response({'ResultCode': 1, 'ResultDesc': 'Internal Server Error'}, 500)
+            response.headers['Content-Type'] = 'application/json'
+            return response
 
 def process_mpesa_callback(data):
     """Process the M-Pesa callback data"""
