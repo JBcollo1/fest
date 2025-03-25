@@ -211,7 +211,15 @@ class mpesaCallback(Resource):
     def post(self):
         """Handles Mpesa callback response"""
         try:
+            # Log the raw request data
+            raw_data = request.data
+            logging.info(f"Raw request data: {raw_data}")
+
             data = request.get_json()
+            if data is None:
+                logging.error("No JSON data received or malformed JSON.")
+                return {'ResultCode': 1, 'ResultDesc': 'Bad Request: Malformed JSON'}, 400
+
             logging.info(f"Received M-Pesa Callback: {data}")
 
             result = process_mpesa_callback(data)
