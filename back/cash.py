@@ -8,6 +8,7 @@ from app import app, db
 import base64
 from datetime import datetime
 import time
+import logging
 
 
 MPESA_BUSINESS_SHORT_CODE = '174379'
@@ -71,8 +72,13 @@ def initiate_mpesa_payment(amount, phone_number):
         "Authorization": f"Bearer {access_token}"
     }
     
-    response = requests.post(f"{BASE_URL}/mpesa/stkpush/v1/processrequest", json=payload, headers=headers)
-    return response.json()
+    try:
+        response = requests.post(f"{BASE_URL}/mpesa/stkpush/v1/processrequest", json=payload, headers=headers)
+        response.raise_for_status()  # Raises an HTTPError for bad responses
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error during M-Pesa STK Push request: {str(e)}")
+        return {"error": "Failed to initiate payment request"}
 
 # Verify Payment
 def verify_mpesa_payment(checkout_request_id):
