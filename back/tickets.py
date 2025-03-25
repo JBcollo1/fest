@@ -151,6 +151,8 @@ class TicketPurchaseResource(Resource):
             return error_response("Event not found", 404)
         if event.tickets_sold >= event.total_tickets:
             return error_response("No more tickets available", 400)
+
+        # Clean up pending tickets and payments before proceeding
         cleanup_pending_tickets_and_payments()
 
         attendee = Attendee.query.filter_by(user_id=user.id).first()
@@ -182,7 +184,6 @@ class TicketPurchaseResource(Resource):
         if result_code != "0":  # If payment is not successful
             return error_response("Payment verification failed", 400)
 
-
         try:
             # Create a new ticket
             ticket = Ticket(
@@ -190,16 +191,20 @@ class TicketPurchaseResource(Resource):
                 attendee_id=attendee.id,
                 price=total_price,
                 currency=event.currency,
-                satus='pending'
+                status='confirmed'  # Assuming payment is verified
             )
             db.session.add(ticket)
             db.session.flush()  # Get the ticket ID
+
+            # Ensure ticket ID is not null
+            if not ticket.id:
+                raise Exception("Failed to create ticket")
 
             # Record the payment
             payment = Payment(
                 ticket_id=ticket.id,
                 payment_method='Mpesa',
-                payment_status='Pending',
+                payment_status='Confirmed',  # Assuming payment is verified
                 transaction_id=checkout_request_id,
                 amount=total_price,
                 currency=ticket.currency
@@ -208,7 +213,7 @@ class TicketPurchaseResource(Resource):
             db.session.commit()
 
             return success_response(
-                message="Payment initiated. Await confirmation via callback.",
+                message="Payment verified and ticket purchased successfully.",
                 data={"CheckoutRequestID": checkout_request_id},
                 status_code=200
             )
