@@ -47,6 +47,7 @@ def generate_password(shortcode, passkey, timestamp):
     return base64.b64encode(data_to_encode.encode("utf-8")).decode("utf-8")
 
 # Initiate Payment Request
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 def initiate_mpesa_payment(amount, phone_number):
     access_token = generate_access_token()
     phone_number = format_phone_number(phone_number)

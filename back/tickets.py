@@ -206,7 +206,7 @@ class TicketPurchaseResource(Resource):
         except Exception as e:
             db.session.rollback()
             return error_response(f"Error processing ticket purchase: {str(e)}", 500)
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 class mpesaCallback(Resource):
     def post(self):
         """Handles Mpesa callback response"""
