@@ -58,7 +58,7 @@ class TicketPurchaseResource(Resource):
                 attendee_id=attendee.id,
                 price=total_price,
                 currency=event.currency,
-                status='confirmed'  # Assuming payment is verified
+                satus='confirmed'  # Assuming payment is verified
             )
             db.session.add(ticket)
             db.session.flush()  # Get the ticket ID
@@ -286,7 +286,7 @@ def process_mpesa_callback(data):
         # Update ticket status
         ticket = Ticket.query.filter_by(id=payment.ticket_id).first()
         if ticket:
-            ticket.status = 'purchased'
+            ticket.satus = 'purchased'
 
             # Update event ticket count
             event = Event.query.get(ticket.event_id)
