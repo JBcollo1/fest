@@ -9,6 +9,119 @@ from datetime import datetime, timedelta
 from cash import initiate_mpesa_payment, verify_mpesa_payment
 
 import logging
+class TicketPurchaseResource(Resource):
+    @jwt_required()
+    def post(self, event_id):
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        event = Event.query.get(event_id)
+
+        if not event:
+            return error_response("Event not found", 404)
+        if event.tickets_sold >= event.total_tickets:
+            return error_response("No more tickets available", 400)
+
+        # Clean up pending tickets and payments before proceeding
+        # cleanup_pending_tickets_and_payments()
+
+        attendee = Attendee.query.filter_by(user_id=user.id).first()
+        if not attendee:
+            try:
+                attendee = Attendee(user_id=user.id)
+                db.session.add(attendee)
+                db.session.commit()  # Ensure attendee ID is set
+            except Exception as e:
+                db.session.rollback()
+                return error_response(f"Error creating attendee: {str(e)}", 500)
+
+        # Initiate Mpesa Payment
+        phone_number = user.phone
+        total_price = event.price
+        payment_result = initiate_mpesa_payment(total_price, phone_number)
+
+        if not payment_result or payment_result.get('ResponseCode', '1') != '0':
+            return error_response("Payment initiation failed", 400)
+
+        checkout_request_id = payment_result.get('CheckoutRequestID')
+        if not checkout_request_id:
+            return error_response("Invalid payment response", 400)
+
+        # Verify Mpesa Payment
+        payment_status = verify_mpesa_payment(checkout_request_id)
+        result_code = payment_status.get("ResultCode")
+
+        if result_code != "0":  # If payment is not successful
+            return error_response("Payment verification failed", 400)
+
+        try:
+            # Create a new ticket
+            ticket = Ticket(
+                event_id=event.id,
+                attendee_id=attendee.id,
+                price=total_price,
+                currency=event.currency,
+                status='confirmed'  # Assuming payment is verified
+            )
+            db.session.add(ticket)
+            db.session.flush()  # Get the ticket ID
+
+            # Ensure ticket ID is not null
+            if not ticket.id:
+                raise Exception("Failed to create ticket")
+
+            # Record the payment
+            payment = Payment(
+                ticket_id=ticket.id,
+                payment_method='Mpesa',
+                payment_status='Confirmed',  # Assuming payment is verified
+                transaction_id=checkout_request_id,
+                amount=total_price,
+                currency=ticket.currency
+            )
+            db.session.add(payment)
+            db.session.commit()
+
+            return success_response(
+                message="Payment verified and ticket purchased successfully.",
+                data={"CheckoutRequestID": checkout_request_id},
+                status_code=200
+            )
+        except Exception as e:
+            db.session.rollback()
+            return error_response(f"Error processing ticket purchase: {str(e)}", 500)
+
+class mpesaCallback(Resource):
+    def post(self):
+        """Handles Mpesa callback response"""
+        try:
+            raw_data = request.data
+            logging.info(f"Raw request data: {raw_data}")
+
+            if not raw_data:
+                logging.error("Received empty request data.")
+                logging.info(f"Request headers: {request.headers}")
+                return {'ResultCode': 1, 'ResultDesc': 'Bad Request: Empty request data'}, 400
+
+            data = request.get_json()
+            if data is None:
+                logging.error("No JSON data received or malformed JSON.")
+                return {'ResultCode': 1, 'ResultDesc': 'Bad Request: Malformed JSON'}, 400
+
+            logging.info(f"Received M-Pesa Callback: {data}")
+
+            # Check for user cancellation
+            result_code = data.get('Body', {}).get('stkCallback', {}).get('ResultCode')
+            if result_code == 1032:
+                logging.warning("Payment cancelled by user.")
+                return {'ResultCode': 0, 'ResultDesc': 'Payment cancelled by user'}, 200
+
+            result = process_mpesa_callback(data)
+            response = make_response(result)
+            response.headers['Content-Type'] = 'application/json'
+            return response
+
+        except Exception as e:
+            logging.error(f"Callback Processing Error: {str(e)}")
 
 class TicketVerificationResource(Resource):
     @jwt_required()
@@ -140,122 +253,7 @@ class UserTicketsResource(Resource):
         tickets = Ticket.query.filter_by(attendee_id=attendee.id).all()
         
         return success_response(data=[ticket.to_dict(include_event=True) for ticket in tickets])
-class TicketPurchaseResource(Resource):
-    @jwt_required()
-    def post(self, event_id):
-        current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
-        event = Event.query.get(event_id)
 
-        if not event:
-            return error_response("Event not found", 404)
-        if event.tickets_sold >= event.total_tickets:
-            return error_response("No more tickets available", 400)
-
-        # Clean up pending tickets and payments before proceeding
-        cleanup_pending_tickets_and_payments()
-
-        attendee = Attendee.query.filter_by(user_id=user.id).first()
-        if not attendee:
-            try:
-                attendee = Attendee(user_id=user.id)
-                db.session.add(attendee)
-                db.session.commit()  # Ensure attendee ID is set
-            except Exception as e:
-                db.session.rollback()
-                return error_response(f"Error creating attendee: {str(e)}", 500)
-
-        # Initiate Mpesa Payment
-        phone_number = user.phone
-        total_price = event.price
-        payment_result = initiate_mpesa_payment(total_price, phone_number)
-
-        if not payment_result or payment_result.get('ResponseCode', '1') != '0':
-            return error_response("Payment initiation failed", 400)
-
-        checkout_request_id = payment_result.get('CheckoutRequestID')
-        if not checkout_request_id:
-            return error_response("Invalid payment response", 400)
-
-        # Verify Mpesa Payment
-        payment_status = verify_mpesa_payment(checkout_request_id)
-        result_code = payment_status.get("ResultCode")
-
-        if result_code != "0":  # If payment is not successful
-            return error_response("Payment verification failed", 400)
-
-        try:
-            # Create a new ticket
-            ticket = Ticket(
-                event_id=event.id,
-                attendee_id=attendee.id,
-                price=total_price,
-                currency=event.currency,
-                status='confirmed'  # Assuming payment is verified
-            )
-            db.session.add(ticket)
-            db.session.flush()  # Get the ticket ID
-
-            # Ensure ticket ID is not null
-            if not ticket.id:
-                raise Exception("Failed to create ticket")
-
-            # Record the payment
-            payment = Payment(
-                ticket_id=ticket.id,
-                payment_method='Mpesa',
-                payment_status='Confirmed',  # Assuming payment is verified
-                transaction_id=checkout_request_id,
-                amount=total_price,
-                currency=ticket.currency
-            )
-            db.session.add(payment)
-            db.session.commit()
-
-            return success_response(
-                message="Payment verified and ticket purchased successfully.",
-                data={"CheckoutRequestID": checkout_request_id},
-                status_code=200
-            )
-        except Exception as e:
-            db.session.rollback()
-            return error_response(f"Error processing ticket purchase: {str(e)}", 500)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-class mpesaCallback(Resource):
-    def post(self):
-        """Handles Mpesa callback response"""
-        try:
-            raw_data = request.data
-            logging.info(f"Raw request data: {raw_data}")
-
-            if not raw_data:
-                logging.error("Received empty request data.")
-                logging.info(f"Request headers: {request.headers}")
-                return {'ResultCode': 1, 'ResultDesc': 'Bad Request: Empty request data'}, 400
-
-            data = request.get_json()
-            if data is None:
-                logging.error("No JSON data received or malformed JSON.")
-                return {'ResultCode': 1, 'ResultDesc': 'Bad Request: Malformed JSON'}, 400
-
-            logging.info(f"Received M-Pesa Callback: {data}")
-
-            # Check for user cancellation
-            result_code = data.get('Body', {}).get('stkCallback', {}).get('ResultCode')
-            if result_code == 1032:
-                logging.warning("Payment cancelled by user.")
-                return {'ResultCode': 0, 'ResultDesc': 'Payment cancelled by user'}, 200
-
-            result = process_mpesa_callback(data)
-            response = make_response(result)
-            response.headers['Content-Type'] = 'application/json'
-            return response
-
-        except Exception as e:
-            logging.error(f"Callback Processing Error: {str(e)}")
-            response = make_response({'ResultCode': 1, 'ResultDesc': 'Internal Server Error'}, 500)
-            response.headers['Content-Type'] = 'application/json'
-            return response
 
 def process_mpesa_callback(data):
     """Process the M-Pesa callback data"""
@@ -308,6 +306,7 @@ def process_mpesa_callback(data):
         db.session.rollback()
         logging.error(f"Payment processing error: {str(e)}")
         return {'ResultCode': 1, 'ResultDesc': 'Payment processing error'}, 500
+
 class TicketListResource(Resource):
     @jwt_required()
     def get(self, event_id):
@@ -341,14 +340,14 @@ def cleanup_pending_tickets_and_payments():
     try:
         # Find tickets that are pending and older than 4 minutes
         pending_tickets = Ticket.query.filter(
-            Ticket.satus == 'pending',
-            Ticket.purchase_date < cutoff_time
+            Ticket.satus == 'pending'
+           
         ).all()
 
         # Find payments that are pending and older than 4 minutes
         pending_payments = Payment.query.filter(
             Payment.payment_status == 'Pending',
-            Payment.payment_date < cutoff_time
+            
         ).all()
 
         # Delete the pending tickets and payments
