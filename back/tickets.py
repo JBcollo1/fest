@@ -6,7 +6,7 @@ from app import db
 from models import Ticket, Event, User, Attendee, Payment
 from utils.response import success_response, error_response
 from datetime import datetime
-from cash import initiate_mpesa_payment
+from cash import initiate_mpesa_payment, verify_mpesa_payment
 
 import logging
 
@@ -173,6 +173,14 @@ class TicketPurchaseResource(Resource):
         checkout_request_id = payment_result.get('CheckoutRequestID')
         if not checkout_request_id:
             return error_response("Invalid payment response", 400)
+
+        # Verify Mpesa Payment
+        payment_status = verify_mpesa_payment(checkout_request_id)
+        result_code = payment_status.get("ResultCode")
+
+        if result_code != "0":  # If payment is not successful
+            return error_response("Payment verification failed", 400)
+
 
         try:
             # Create a new ticket
