@@ -5,7 +5,7 @@ from flask import jsonify, make_response, request
 from app import db
 from models import Ticket, Event, User, Attendee, Payment
 from utils.response import success_response, error_response
-from datetime import datetime
+from datetime import datetime, timedelta
 from cash import initiate_mpesa_payment, verify_mpesa_payment
 
 import logging
@@ -151,6 +151,7 @@ class TicketPurchaseResource(Resource):
             return error_response("Event not found", 404)
         if event.tickets_sold >= event.total_tickets:
             return error_response("No more tickets available", 400)
+        cleanup_pending_tickets_and_payments()
 
         attendee = Attendee.query.filter_by(user_id=user.id).first()
         if not attendee:
@@ -326,4 +327,36 @@ class TicketListResource(Resource):
         tickets = Ticket.query.filter_by(event_id=event_id).all()
         
         return success_response(data=[ticket.to_dict(include_attendee=True) for ticket in tickets])
+
+def cleanup_pending_tickets_and_payments():
+    """Delete tickets and payments that are pending for more than 4 minutes."""
+    # Calculate the cutoff time
+    cutoff_time = datetime.utcnow() - timedelta(minutes=10)
+
+    try:
+        # Find tickets that are pending and older than 4 minutes
+        pending_tickets = Ticket.query.filter(
+            Ticket.satus == 'pending',
+            Ticket.created_at < cutoff_time
+        ).all()
+
+        # Find payments that are pending and older than 4 minutes
+        pending_payments = Payment.query.filter(
+            Payment.payment_status == 'Pending',
+            Payment.created_at < cutoff_time
+        ).all()
+
+        # Delete the pending tickets and payments
+        for ticket in pending_tickets:
+            db.session.delete(ticket)
+
+        for payment in pending_payments:
+            db.session.delete(payment)
+
+        # Commit the changes to the database
+        db.session.commit()
+        logging.info(f"Deleted {len(pending_tickets)} pending tickets and {len(pending_payments)} pending payments.")
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error during cleanup of pending tickets and payments: {str(e)}")
 
