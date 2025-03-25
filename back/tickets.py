@@ -337,13 +337,13 @@ def cleanup_pending_tickets_and_payments():
         # Find tickets that are pending and older than 4 minutes
         pending_tickets = Ticket.query.filter(
             Ticket.satus == 'pending',
-            Ticket.created_at < cutoff_time
+            Ticket.purchase_date < cutoff_time
         ).all()
 
         # Find payments that are pending and older than 4 minutes
         pending_payments = Payment.query.filter(
             Payment.payment_status == 'Pending',
-            Payment.created_at < cutoff_time
+            Payment.payment_date < cutoff_time
         ).all()
 
         # Delete the pending tickets and payments
