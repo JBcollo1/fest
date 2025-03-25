@@ -215,11 +215,11 @@ class mpesaCallback(Resource):
             logging.info(f"Received M-Pesa Callback: {data}")
 
             result = process_mpesa_callback(data)
-            return jsonify(result)
+            return result
 
         except Exception as e:
             logging.error(f"Callback Processing Error: {str(e)}")
-            return jsonify({'ResultCode': 1, 'ResultDesc': 'Internal Server Error'}), 500
+            return {'ResultCode': 1, 'ResultDesc': 'Internal Server Error'}, 500
 
 def process_mpesa_callback(data):
     """Process the M-Pesa callback data"""
