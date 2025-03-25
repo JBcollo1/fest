@@ -216,6 +216,7 @@ class mpesaCallback(Resource):
 
             if not raw_data:
                 logging.error("Received empty request data.")
+                logging.info(f"Request headers: {request.headers}")
                 return {'ResultCode': 1, 'ResultDesc': 'Bad Request: Empty request data'}, 400
 
             data = request.get_json()
