@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -6,14 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react";
+import { EyeIcon, EyeOffIcon, Loader2, Image } from "lucide-react";
 import { useMutate } from "@/hooks/useQuery";
 import { UserPlus, Mail, KeyRound, User, ArrowRight } from 'lucide-react';
+import { uploadImage } from "@/utils/imageUpload";
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     first_name: "",
@@ -31,6 +33,8 @@ const SignUp = () => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState("");
 
   // Use the useMutate hook for the signup API call
   const signupMutation = useMutate('/api/users', 'post', {
@@ -104,6 +108,42 @@ const SignUp = () => {
     
     // Use the mutation to submit the form
     signupMutation.mutate(userData);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+
+    try {
+      setIsUploading(true);
+      const result = await uploadImage(file, {
+        isPrivate: true,
+        target: 'user'
+      });
+      setFormData(prev => ({
+        ...prev,
+        photo_img: result.url
+      }));
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -212,15 +252,58 @@ const SignUp = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="photo_img">Photo Image</Label>
-                <Input
-                  id="photo_img"
-                  name="photo_img"
-                  placeholder="Enter photo image URL"
-                  value={formData.photo_img}
-                  onChange={handleChange}
-                  disabled={signupMutation.isPending}
-                />
+                <Label htmlFor="photo_img">Profile Photo</Label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    id="photo_img"
+                    name="photo_img"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    ref={fileInputRef}
+                    disabled={signupMutation.isPending}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={signupMutation.isPending || isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Image className="h-4 w-4 mr-2" />
+                        Choose Image
+                      </>
+                    )}
+                  </Button>
+                  {imagePreview && (
+                    <div className="relative w-20 h-20">
+                      <img
+                        src={imagePreview}
+                        alt="Profile Preview"
+                        className="w-full h-full object-cover rounded-md"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => {
+                          setImagePreview("");
+                          setFormData(prev => ({ ...prev, photo_img: "" }));
+                        }}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 {errors.photo_img && (
                   <p className="text-sm text-destructive">{errors.photo_img}</p>
                 )}

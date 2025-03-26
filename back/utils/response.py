@@ -1,7 +1,7 @@
 from flask import request, make_response
 import math
 
-# Standardized success and error messag
+# Standardized success and error 
 def success_response(data=None, message="Success", status_code=200):
     response = {
         "status": "success",
