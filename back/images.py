@@ -127,6 +127,11 @@ class ImageResource(Resource):
                     if not organizer:
                         return {'error': 'Organization not found for this user'}, 404
                     organizer.company_image = image_url
+                # elif target == 'event':
+                #     event = Event.query.filter_by(id=current_user_id).first()
+                #     if not event:
+                #         return {'error': 'Event not found for this user'}, 404
+                #     event.image = image_url
                 else:
                     return {'error': 'Invalid target specified'}, 400
                 
