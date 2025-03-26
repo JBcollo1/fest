@@ -1,6 +1,6 @@
 import { Cloudinary } from '@cloudinary/url-gen';
+import { AdvancedImage } from '@cloudinary/react';
 
-// Initialize Cloudinary with your cloud name
 export const cld = new Cloudinary({
   cloud: {
     cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
@@ -8,10 +8,39 @@ export const cld = new Cloudinary({
 });
 
 export const CloudinaryImage = ({ publicId, alt, className, ...props }) => {
-  return <>Image</>
+  const image = cld.image(publicId);
+  
+  // default transformations
+  image
+    .quality('auto')
+    .format('auto')
+    .delivery('q_auto,f_auto');
+    
+  return (
+    <AdvancedImage
+      cldImg={image}
+      alt={alt}
+      className={className}
+      {...props}
+    />
+  );
 };
 
-// React component for responsive Cloudinary images
 export const ResponsiveCloudinaryImage = ({ publicId, width, alt, className, ...props }) => {
-  return <>Image</>
+  const image = cld.image(publicId);
+  
+  image
+    .quality('auto')
+    .format('auto')
+    .resize('w_' + width)
+    .delivery('q_auto,f_auto');
+    
+  return (
+    <AdvancedImage
+      cldImg={image}
+      alt={alt}
+      className={className}
+      {...props}
+    />
+  );
 }; 
