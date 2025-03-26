@@ -7,7 +7,8 @@ from flask_jwt_extended import JWTManager
 from config import Config
 from datetime import timedelta
 import os
-
+import cloudinary
+from cloudinary import uploader, utils
 
 app = Flask(__name__)
 
@@ -34,6 +35,13 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 # Initialize JWT
 jwt = JWTManager(app)
 
+# Cloudinary Configuration
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET')
+)
+
 # Blocklist token check
 @jwt.token_in_blocklist_loader
 def check_if_token_in_blocklist(jwt_header, jwt_payload):
@@ -42,7 +50,7 @@ def check_if_token_in_blocklist(jwt_header, jwt_payload):
 CORS(
     app,
     supports_credentials=True,  # Critical for cookies
-    origins=["https://fest-hrrc.onrender.com", "http://127.0.0.1:5173"],  # Your frontend origins
+    origins=["*"],  # Your frontend origins
     allow_headers=["Content-Type", "Authorization"],
     expose_headers=["Set-Cookie"],  # Expose the Set-Cookie header
     methods=["GET", "POST", "PUT", "DELETE"]
@@ -67,6 +75,7 @@ from payments import PaymentResource, PaymentListResource
 from categories import CategoryResource, CategoryListResource
 from discount_codes import DiscountCodeResource, DiscountCodeListResource, ValidateDiscountCodeResource
 from organizer import OrganizerListResource, OrganizerResource, UserOrganizerResource
+from images import  ImageResource, ImageTransformResource
 
 
 
@@ -118,6 +127,9 @@ api.add_resource(LogoutResource, '/api/logout')
 
 # Register the callback endpoint
 
+# Add image routes
+api.add_resource(ImageResource, '/api/images/<string:public_id>')
+api.add_resource(ImageTransformResource, '/api/images/<string:public_id>/transform')
 
 if __name__ == '__main__':
     app.run(debug=Config.DEBUG)
