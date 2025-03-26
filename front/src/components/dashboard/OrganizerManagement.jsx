@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import axios from "axios";
@@ -36,7 +36,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Pencil, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, CheckCircle, XCircle, Image } from "lucide-react";
+import { uploadImage } from "@/utils/imageUpload";
 
 const OrganizerManagement = () => {
   const { toast } = useToast();
@@ -58,6 +59,8 @@ const OrganizerManagement = () => {
   const [bankDetails, setBankDetails] = useState("");
   const [physicalAddress, setPhysicalAddress] = useState("");
   const [contactPerson, setContactPerson] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     console.log('Current users:', users);
@@ -343,6 +346,32 @@ const OrganizerManagement = () => {
     }
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const result = await uploadImage(file, {
+        isPrivate: false,
+        target: 'organization'
+      });
+      setCompanyImage(result.url);
+      toast({
+        title: "Success",
+        description: "Company image uploaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   if (!user?.roles?.includes("admin")) {
     return (
       <div className="text-center p-6">
@@ -424,14 +453,54 @@ const OrganizerManagement = () => {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="company-image" className="text-right">
-                    Company Image URL
+                    Company Image
                   </Label>
-                  <Input
-                    id="company-image"
-                    value={companyImage}
-                    onChange={(e) => setCompanyImage(e.target.value)}
-                    className="col-span-3"
-                  />
+                  <div className="col-span-3 flex items-center gap-2">
+                    <Input
+                      id="company-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      ref={fileInputRef}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Image className="h-4 w-4 mr-2" />
+                          Choose Image
+                        </>
+                      )}
+                    </Button>
+                    {companyImage && (
+                      <div className="relative w-20 h-20">
+                        <img
+                          src={companyImage}
+                          alt="Company Preview"
+                          className="w-full h-full object-cover rounded-md"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={() => setCompanyImage("")}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="contact-email" className="text-right">
@@ -531,14 +600,54 @@ const OrganizerManagement = () => {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-company-image" className="text-right">
-                  Company Image URL
+                  Company Image
                 </Label>
-                <Input
-                  id="edit-company-image"
-                  value={companyImage}
-                  onChange={(e) => setCompanyImage(e.target.value)}
-                  className="col-span-3"
-                />
+                <div className="col-span-3 flex items-center gap-2">
+                  <Input
+                    id="edit-company-image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    ref={fileInputRef}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Image className="h-4 w-4 mr-2" />
+                        Choose Image
+                      </>
+                    )}
+                  </Button>
+                  {companyImage && (
+                    <div className="relative w-20 h-20">
+                      <img
+                        src={companyImage}
+                        alt="Company Preview"
+                        className="w-full h-full object-cover rounded-md"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => setCompanyImage("")}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-contact-email" className="text-right">

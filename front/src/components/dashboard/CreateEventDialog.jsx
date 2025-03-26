@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { uploadImage } from "@/utils/imageUpload";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -47,9 +49,11 @@ const CreateEventDialog = ({
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [featured, setFeatured] = useState(false);
-
+  const [isUploading, setIsUploading] = useState(false);
+  const { toast } = useToast();
   const submitButtonRef = useRef(null);
   const formRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Reset form when dialog opens or closes
   useEffect(() => {
@@ -162,6 +166,32 @@ const CreateEventDialog = ({
       // Error
       setFormError(result.error || "An error occurred");
       setIsSubmitting(false);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const result = await uploadImage(file, {
+        isPrivate: false, // Event images are public
+        target: 'event'
+      });
+      setImage(result.url);
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -307,15 +337,54 @@ const CreateEventDialog = ({
                     
                     <div className="space-y-2">
                       <Label htmlFor="image" className="text-sm font-medium flex items-center">
-                        <Image className="h-4 w-4 mr-2" /> Image URL
+                        <Image className="h-4 w-4 mr-2" /> Event Image
                       </Label>
-                      <Input
-                        id="image"
-                        value={image}
-                        onChange={(e) => setImage(e.target.value)}
-                        placeholder="https://example.com/image.jpg"
-                        className="focus-visible:ring-primary"
-                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="image"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          ref={fileInputRef}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading}
+                        >
+                          {isUploading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Image className="h-4 w-4 mr-2" />
+                              Choose Image
+                            </>
+                          )}
+                        </Button>
+                        {image && (
+                          <div className="relative w-20 h-20">
+                            <img
+                              src={image}
+                              alt="Preview"
+                              className="w-full h-full object-cover rounded-md"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute -top-2 -right-2 h-6 w-6"
+                              onClick={() => setImage("")}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
