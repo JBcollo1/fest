@@ -21,7 +21,7 @@ MPESA_TRANSACTION_DESC = 'Payment for Fika Events'
 
 BASE_URL = "https://sandbox.safaricom.co.ke"  # Change for production
 
-# Generate Access Token (Fetch Once & Reuse)
+
 def generate_access_token():
     consumer_key="NZJepip8u4ih8kHjfLjGa3NYF4mew49vMGF4HqAlUaR80e3N"
     consumer_secret = "RMQnuli4SbkhM6I6UzaODrY9VIGODG9G2ggRHNsGvtOBf0AlZAWsHnEFMLAChBq3"

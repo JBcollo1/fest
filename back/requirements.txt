@@ -13,5 +13,5 @@ sqlalchemy-serializer==1.4.22
 requests==2.31.0  
 
 cloudinary==1.43.0
-utils==1.0.2
+
 Werkzeug==3.1.3
