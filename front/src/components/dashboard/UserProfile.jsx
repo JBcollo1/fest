@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { 
   Card, 
   CardHeader, 
@@ -26,16 +26,23 @@ import {
   LogOut, 
   Check, 
   AlertCircle, 
-  X 
+  X,
+  Image,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { uploadImage } from "@/utils/imageUpload";
+import { useToast } from "@/components/ui/use-toast";
 
 const UserProfile = () => {
   const { user, fetchUserData, updateUserData, logout } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // 'success', 'error', or null
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -43,7 +50,8 @@ const UserProfile = () => {
     last_name: "",
     phone: "",
     next_of_kin_name: "",
-    next_of_kin_contact: ""
+    next_of_kin_contact: "",
+    photo_img: ""
   });
 
   useEffect(() => {
@@ -71,7 +79,8 @@ const UserProfile = () => {
         last_name: user.last_name || "",
         phone: user.phone || "",
         next_of_kin_name: user.next_of_kin_name || "",
-        next_of_kin_contact: user.next_of_kin_contact || ""
+        next_of_kin_contact: user.next_of_kin_contact || "",
+        photo_img: user.photo_img || ""
       });
     }
   }, [user]);
@@ -93,7 +102,8 @@ const UserProfile = () => {
         last_name: user.last_name || "",
         phone: user.phone || "",
         next_of_kin_name: user.next_of_kin_name || "",
-        next_of_kin_contact: user.next_of_kin_contact || ""
+        next_of_kin_contact: user.next_of_kin_contact || "",
+        photo_img: user.photo_img || ""
       });
     }
   };
@@ -114,6 +124,35 @@ const UserProfile = () => {
     } catch (err) {
       setSaveStatus('error');
       setError(err.message || "Failed to update profile");
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const result = await uploadImage(file, {
+        isPrivate: true, 
+        target: 'user'
+      });
+      setFormData(prev => ({
+        ...prev,
+        photo_img: result.url
+      }));
+      toast({
+        title: "Success",
+        description: "Profile image uploaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -270,6 +309,42 @@ const UserProfile = () => {
           <CardContent>
             {isEditing ? (
               <form onSubmit={handleFormSubmit} className="space-y-4">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="relative">
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage src={formData.photo_img} alt="Profile" />
+                      <AvatarFallback>{getInitials()}</AvatarFallback>
+                    </Avatar>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      ref={fileInputRef}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Image className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Profile Picture</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Upload a new profile picture
+                    </p>
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
@@ -368,6 +443,19 @@ const UserProfile = () => {
               </form>
             ) : (
               <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={user?.photo_img} alt="Profile" />
+                    <AvatarFallback>{getInitials()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {user?.first_name} {user?.last_name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Username</Label>
