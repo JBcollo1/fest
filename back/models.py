@@ -242,7 +242,7 @@ class Ticket(db.Model):
   
   payment = db.relationship('Payment', backref='ticket', uselist=False)
   
-  def to_dict(self, include_event=False, include_attendee=False):
+  def to_dict(self, include_event=False, include_attendee=True, include_payment=True):
     ticket_dict = {
       'id': self.id,
       'event_id': self.event_id,
@@ -259,6 +259,9 @@ class Ticket(db.Model):
         
     if include_attendee:
       ticket_dict['attendee'] = self.attendee.to_dict()
+        
+    if include_payment and self.payment:
+      ticket_dict['payment'] = self.payment.to_dict()
         
     return ticket_dict
 
