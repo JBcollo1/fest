@@ -97,7 +97,7 @@ def cleanup_pending_tickets_and_payments():
 
         # Find pending tickets
         pending_tickets = Ticket.query.filter(
-            Ticket.status == 'pending'  # Fixed earlier typo
+            Ticket.satus == 'pending'  # Fixed earlier typo
         ).all()
 
         ticket_count = len(pending_tickets)
