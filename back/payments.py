@@ -82,16 +82,24 @@ class PaymentListResource(Resource):
             db.session.rollback()
             return error_response(f"Error creating payment: {str(e)}")
 
-
 def cleanup_pending_tickets_and_payments():
-  
+    
     try:
-        # Find pending tickets first
+        # Delete payments with null ticket IDs
+        null_ticket_payments = Payment.query.filter(
+            Payment.ticket_id == None
+        ).all()
+        
+        # Track counts for logging
+        null_ticket_payment_count = len(null_ticket_payments)
+        for payment in null_ticket_payments:
+            db.session.delete(payment)
+
+        # Find pending tickets
         pending_tickets = Ticket.query.filter(
-            Ticket.satus == 'pending'  # Fixed typo here
+            Ticket.status == 'pending'  # Fixed earlier typo
         ).all()
 
-        # Track counts for logging
         ticket_count = len(pending_tickets)
         payment_count = 0
 
@@ -117,7 +125,8 @@ def cleanup_pending_tickets_and_payments():
         # Commit all changes
         db.session.commit()
         
-        logging.info(f"Deleted {ticket_count} pending tickets and {payment_count} associated pending payments.")
+        logging.info(f"Deleted {null_ticket_payment_count} payments with null ticket IDs, "
+                     f"{ticket_count} pending tickets, and {payment_count} associated pending payments.")
     
     except IntegrityError as e:
         db.session.rollback()
