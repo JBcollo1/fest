@@ -8,6 +8,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 from datetime import datetime, timedelta
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_
 
 
 
@@ -83,35 +84,50 @@ class PaymentListResource(Resource):
 
 
 def cleanup_pending_tickets_and_payments():
-    """Delete all tickets and payments that are pending."""
+  
     try:
-        # Delete pending payments first to avoid foreign key issues
-        pending_payments = Payment.query.filter(
-            Payment.payment_status == 'Pending'
-        ).all()
-
-        for payment in pending_payments:
-            db.session.delete(payment)
-
-        # Delete pending tickets
+        # Find pending tickets first
         pending_tickets = Ticket.query.filter(
-            Ticket.satus == 'pending'
+            Ticket.satus == 'pending'  # Fixed typo here
         ).all()
 
+        # Track counts for logging
+        ticket_count = len(pending_tickets)
+        payment_count = 0
+
+        # Delete payments associated with pending tickets
         for ticket in pending_tickets:
+            # Find and delete pending payments for this ticket
+            pending_payments = Payment.query.filter(
+                and_(
+                    Payment.ticket_id == ticket.id,
+                    Payment.payment_status == 'Pending'
+                )
+            ).all()
+            
+            payment_count += len(pending_payments)
+            
+            # Delete associated payments first
+            for payment in pending_payments:
+                db.session.delete(payment)
+            
+            # Then delete the ticket
             db.session.delete(ticket)
 
-        # Commit the changes to the database
+        # Commit all changes
         db.session.commit()
-        logging.info(f"Deleted {len(pending_tickets)} pending tickets and {len(pending_payments)} pending payments.")
+        
+        logging.info(f"Deleted {ticket_count} pending tickets and {payment_count} associated pending payments.")
     
     except IntegrityError as e:
         db.session.rollback()
-        logging.error(f"Integrity error: {str(e)} - Likely foreign key violation.")
+        logging.error(f"Integrity error during cleanup: {str(e)}")
+        raise
     
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error during cleanup of pending tickets and payments: {str(e)}")
+        logging.error(f"Unexpected error during cleanup of pending tickets and payments: {str(e)}")
+        raise
 
 class PaymentResource(Resource):
     """
