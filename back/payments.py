@@ -7,6 +7,10 @@ from utils.response import success_response, error_response, paginate_response
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 from datetime import datetime, timedelta
+from sqlalchemy.exc import IntegrityError
+
+
+
 
 class PaymentListResource(Resource):
     """
@@ -77,38 +81,37 @@ class PaymentListResource(Resource):
             db.session.rollback()
             return error_response(f"Error creating payment: {str(e)}")
 
+
 def cleanup_pending_tickets_and_payments():
-    """Delete tickets and payments that are pending for more than 4 minutes."""
-    # Calculate the cutoff time
-    cutoff_time = datetime.utcnow() - timedelta(minutes=10)
-
+    """Delete all tickets and payments that are pending."""
     try:
-        # Find tickets that are pending and older than 4 minutes
-        pending_tickets = Ticket.query.filter(
-            Ticket.satus == 'pending'
-           
-        ).all()
-
-        # Find payments that are pending and older than 4 minutes
+        # Delete pending payments first to avoid foreign key issues
         pending_payments = Payment.query.filter(
-            Payment.payment_status == 'Pending',
-            
+            Payment.payment_status == 'Pending'
         ).all()
-
-        # Delete the pending tickets and payments
-        for ticket in pending_tickets:
-            db.session.delete(ticket)
 
         for payment in pending_payments:
             db.session.delete(payment)
 
+        # Delete pending tickets
+        pending_tickets = Ticket.query.filter(
+            Ticket.status == 'pending'
+        ).all()
+
+        for ticket in pending_tickets:
+            db.session.delete(ticket)
+
         # Commit the changes to the database
         db.session.commit()
         logging.info(f"Deleted {len(pending_tickets)} pending tickets and {len(pending_payments)} pending payments.")
+    
+    except IntegrityError as e:
+        db.session.rollback()
+        logging.error(f"Integrity error: {str(e)} - Likely foreign key violation.")
+    
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error during cleanup of pending tickets and payments: {str(e)}")
-
 
 class PaymentResource(Resource):
     """
