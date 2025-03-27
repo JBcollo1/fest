@@ -95,7 +95,7 @@ def cleanup_pending_tickets_and_payments():
 
         # Delete pending tickets
         pending_tickets = Ticket.query.filter(
-            Ticket.status == 'pending'
+            Ticket.satus == 'pending'
         ).all()
 
         for ticket in pending_tickets:
