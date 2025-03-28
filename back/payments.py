@@ -4,6 +4,14 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from models import Payment, Ticket, User, Attendee
 from utils.response import success_response, error_response, paginate_response
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from datetime import datetime, timedelta
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_
+
+
+
 
 class PaymentListResource(Resource):
     """
@@ -17,7 +25,7 @@ class PaymentListResource(Resource):
         
         if not user.has_role('admin'):
             return error_response("Unauthorized", 403)
-            
+        cleanup_pending_tickets_and_payments()
         # Build query
         query = Payment.query
         
@@ -74,6 +82,61 @@ class PaymentListResource(Resource):
             db.session.rollback()
             return error_response(f"Error creating payment: {str(e)}")
 
+def cleanup_pending_tickets_and_payments():
+    
+    try:
+        # Delete payments with null ticket IDs
+        null_ticket_payments = Payment.query.filter(
+            Payment.ticket_id == None
+        ).all()
+        
+        # Track counts for logging
+        null_ticket_payment_count = len(null_ticket_payments)
+        for payment in null_ticket_payments:
+            db.session.delete(payment)
+
+        # Find pending tickets
+        pending_tickets = Ticket.query.filter(
+            Ticket.satus == 'pending'  # Fixed earlier typo
+        ).all()
+
+        ticket_count = len(pending_tickets)
+        payment_count = 0
+
+        # Delete payments associated with pending tickets
+        for ticket in pending_tickets:
+            # Find and delete pending payments for this ticket
+            pending_payments = Payment.query.filter(
+                and_(
+                    Payment.ticket_id == ticket.id,
+                    Payment.payment_status == 'Pending'
+                )
+            ).all()
+            
+            payment_count += len(pending_payments)
+            
+            # Delete associated payments first
+            for payment in pending_payments:
+                db.session.delete(payment)
+            
+            # Then delete the ticket
+            db.session.delete(ticket)
+
+        # Commit all changes
+        db.session.commit()
+        
+        logging.info(f"Deleted {null_ticket_payment_count} payments with null ticket IDs, "
+                     f"{ticket_count} pending tickets, and {payment_count} associated pending payments.")
+    
+    except IntegrityError as e:
+        db.session.rollback()
+        logging.error(f"Integrity error during cleanup: {str(e)}")
+        raise
+    
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Unexpected error during cleanup of pending tickets and payments: {str(e)}")
+        raise
 
 class PaymentResource(Resource):
     """

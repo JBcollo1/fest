@@ -50,7 +50,7 @@ def check_if_token_in_blocklist(jwt_header, jwt_payload):
 CORS(
     app,
     supports_credentials=True,  # Critical for cookies
-    origins=["https://fest-hrrc.onrender.com","https://fikaevents.netlify.app","http://localhost:5173", "http://127.0.0.1:5173"],  # Your frontend origins
+    origins=["https://fest-hrrc.onrender.com","https://fikaevents.netlify.app","http://localhost:5173", "http://127.0.0.1:5173", "http://*.local:5173"  ],  # Your frontend origins
     allow_headers=["Content-Type", "Authorization"],
     expose_headers=["Set-Cookie"],  # Expose the Set-Cookie header
     methods=["GET", "POST", "PUT", "DELETE"]

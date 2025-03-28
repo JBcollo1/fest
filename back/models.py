@@ -240,7 +240,7 @@ class Ticket(db.Model):
   satus = db.Column(db.String(20), default='valid')
   qr_code = db.Column(db.String(40), unique=True, default=lambda: str(uuid.uuid4()))
   
-  payment = db.relationship('Payment', backref='ticket', uselist=False)
+  payment = db.relationship('Payment', backref='ticket', uselist=False, cascade="all, delete")
   
   def to_dict(self, include_event=False, include_attendee=True, include_payment=True):
     ticket_dict = {
@@ -306,7 +306,7 @@ class Payment(db.Model):
   __tablename__ = 'payments'
 
   id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-  ticket_id = db.Column(db.String(36), db.ForeignKey('tickets.id'), nullable=False)
+  ticket_id = db.Column(db.String(36), db.ForeignKey('tickets.id', ondelete='CASCADE'), nullable=False)
   payment_method = db.Column(db.String(50), nullable=False)  # e.g., 'Mpesa', 'PayPal'
   payment_status = db.Column(db.String(50), nullable=False)  # e.g., 'Pending', 'Completed'
   transaction_id = db.Column(db.String(100), unique=True, nullable=False)
