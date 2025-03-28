@@ -66,8 +66,8 @@ const About = () => {
           minHeight: '65vh'
         }}
       >
-        <div className='pt-18 md:pt-28'>
-          <div className="max-w-7xl mx-auto  text-center space-y-6 pt-16 md:pt-24">
+        <div className='pt-18 md:pt-34 '>
+          <div className="max-w-7xl mx-auto  text-center space-y-6 pt-16 md:pt-24"> 
             <h1 className="text-4xl md:text-6xl font-bold mb-6">Fika Event Solutions</h1>
             <p 
               className="text-2xl md:text-4xl mb-8 max-w-3xl mx-auto leading-tight" 
