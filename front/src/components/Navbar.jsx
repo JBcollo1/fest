@@ -54,6 +54,10 @@ const Navbar = () => {
             <a href="/#safari" className="font-medium hover:text-primary transition-colors">
               Safari
             </a>
+            <Link to="/d" className="font-medium hover:text-primary transition-colors">
+              Dashboard
+            </Link>
+            
          
             
           </nav>
@@ -96,14 +100,14 @@ const Navbar = () => {
               <Link to="/" className="font-medium text-lg hover:text-primary transition-colors">
                 Home
               </Link>
-              <Link to="/events" className="font-medium text-lg hover:text-primary transition-colors">
-                Events
-              </Link>
+              <a href="/#safari" className="font-medium hover:text-primary transition-colors">
+              Safari
+            </a>
               <Link to="/about" className="font-medium text-lg hover:text-primary transition-colors">
                 About
               </Link>
-              <Link to="/contact" className="font-medium text-lg hover:text-primary transition-colors">
-                Contact
+              <Link to="/d" className="font-medium text-lg hover:text-primary transition-colors">
+                Dashboard
               </Link>
             </nav>
             <div className="flex flex-col space-y-4">
