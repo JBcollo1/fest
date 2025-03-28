@@ -7,6 +7,18 @@ from models import User, Role, UserRole
 from utils.response import success_response, error_response
 from utils.auth import admin_required, generate_tokens
 from datetime import datetime, timedelta
+from werkzeug.utils import secure_filename
+import cloudinary.uploader
+import cloudinary.utils
+import os
+import logging
+import time
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 class UserListResource(Resource):
     @jwt_required()
@@ -107,6 +119,10 @@ class UserResource(Resource):
         if current_user_id != user_id and not User.query.get(current_user_id).has_role('admin'):
             return error_response("Unauthorized", 403)
         
+        # Check if this is a file upload request
+        if 'file' in request.files:
+            return self.handle_image_upload(user)
+            
         data = request.get_json()
         
         # Update fields if provided
@@ -146,6 +162,72 @@ class UserResource(Resource):
         except Exception as e:
             db.session.rollback()
             return error_response(f"Error updating user: {str(e)}")
+
+    def handle_image_upload(self, user):
+        """Handle image upload for user profile"""
+        try:
+            file = request.files['file']
+            if file.filename == '':
+                return error_response("No file selected", 400)
+                
+            if not allowed_file(file.filename):
+                return error_response("File type not allowed", 400)
+                
+            # Check file size
+            file.seek(0, os.SEEK_END)
+            size = file.tell()
+            file.seek(0)
+            
+            if size > MAX_FILE_SIZE:
+                return error_response("File size exceeds 5MB limit", 400)
+            
+            filename = secure_filename(file.filename)
+
+            # Upload parameters
+            upload_params = {
+                'resource_type': 'image',
+                'type': 'private',
+                'access_mode': 'authenticated'
+            }
+
+            try:
+                cloudinary_response = cloudinary.uploader.upload(file, **upload_params)
+                logging.debug(f"Cloudinary response: {cloudinary_response}")
+                
+                # Generate a signed URL with 1 hour expiration
+                timestamp = int(time.time()) + 3600
+                image_url = cloudinary.utils.private_download_url(
+                    cloudinary_response['public_id'],
+                    format=cloudinary_response.get('format', 'jpg'),
+                    resource_type='image',
+                    type='private',
+                    expires_at=timestamp
+                )
+                
+                # Update user's photo
+                user.photo_img = image_url
+                
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    return error_response("Failed to save image URL to database", 500)
+
+                response_data = {
+                    'success': True,
+                    'image_url': image_url,
+                    'public_id': cloudinary_response['public_id'],
+                    'expires_at': timestamp
+                }
+                
+                return success_response(data=response_data, message="Profile image uploaded successfully")
+                    
+            except Exception as e:
+                return error_response(f"Failed to upload image: {str(e)}", 500)
+                
+        except Exception as e:
+            logging.error(f"Error in profile image upload: {str(e)}")
+            return error_response(str(e), 500)
     
     @jwt_required()
     def delete(self, user_id):
@@ -161,6 +243,15 @@ class UserResource(Resource):
             return error_response("Unauthorized", 403)
         
         try:
+            # If user has a profile image, delete it from Cloudinary
+            if user.photo_img:
+                try:
+                    # Extract public_id from the URL
+                    public_id = user.photo_img.split('/')[-1].split('.')[0]
+                    cloudinary.uploader.destroy(public_id, resource_type='image', type='private')
+                except Exception as e:
+                    logging.error(f"Error deleting image from Cloudinary: {str(e)}")
+            
             db.session.delete(user)
             db.session.commit()
             return success_response(message="User deleted successfully")
@@ -199,7 +290,7 @@ class UserLoginResource(Resource):
                     secure=False,  # Correct for HTTPS
                     samesite='Lax',  # Use 'None' (string) instead of None (Python value)
                     path='/',
-                    domain='fest-hrrc.onrender.com'  
+                    # domain='fest-hrrc.onrender.com'  
                   )
                 print("Login attempt for:", email)
                 print("Response status:", response.status_code)

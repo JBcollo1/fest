@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -6,16 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { EyeIcon, EyeOffIcon, Loader2, Image } from "lucide-react";
+import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react";
 import { useMutate } from "@/hooks/useQuery";
 import { UserPlus, Mail, KeyRound, User, ArrowRight } from 'lucide-react';
-import { uploadImage } from "@/utils/imageUpload";
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { toast } = useToast();
-  const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     first_name: "",
@@ -33,8 +31,10 @@ const SignUp = () => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-  const [isUploading, setIsUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState("");
+
+  // Add new state for file handling
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   // Use the useMutate hook for the signup API call
   const signupMutation = useMutate('/api/users', 'post', {
@@ -90,7 +90,7 @@ const SignUp = () => {
     }
     
     if (!formData.national_id) newErrors.national_id = "National ID is required";
-    if (!formData.photo_img) newErrors.photo_img = "Photo image is required";
+    if (!selectedFile) newErrors.photo_img = "Photo image is required";
     if (!formData.next_of_kin_name) newErrors.next_of_kin_name = "Next of kin name is required";
     if (!formData.next_of_kin_contact) newErrors.next_of_kin_contact = "Next of kin contact is required";
     
@@ -98,52 +98,48 @@ const SignUp = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  // Update handleFileSelect to also clear any existing photo_img error
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Preview the selected image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setSelectedFile(file);
+      
+      // Clear the photo_img error if it exists
+      setErrors(prev => ({
+        ...prev,
+        photo_img: undefined
+      }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) return;
     
-    // Remove confirm_password before sending to API
-    const { confirm_password, ...userData } = formData;
+    // Create FormData object to send file and other data
+    const formDataToSend = new FormData();
     
-    // Use the mutation to submit the form
-    signupMutation.mutate(userData);
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Show preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-    };
-    reader.readAsDataURL(file);
-
-    try {
-      setIsUploading(true);
-      const result = await uploadImage(file, {
-        isPrivate: true,
-        target: 'user'
-      });
-      setFormData(prev => ({
-        ...prev,
-        photo_img: result.url
-      }));
-      toast({
-        title: "Success",
-        description: "Image uploaded successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload image",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
+    // Add all text fields except confirm_password
+    Object.keys(formData).forEach(key => {
+      if (key !== 'confirm_password') {
+        formDataToSend.append(key, formData[key]);
+      }
+    });
+    
+    // Add the file if selected
+    if (selectedFile) {
+      formDataToSend.append('file', selectedFile);
     }
+    
+    // Update the mutation to handle FormData
+    signupMutation.mutate(formDataToSend);
   };
 
   return (
@@ -253,60 +249,29 @@ const SignUp = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="photo_img">Profile Photo</Label>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col items-center gap-4">
+                  {previewUrl && (
+                    <div className="relative w-32 h-32 rounded-full overflow-hidden">
+                      <img 
+                        src={previewUrl} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
                   <Input
                     id="photo_img"
                     name="photo_img"
                     type="file"
                     accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    ref={fileInputRef}
+                    onChange={handleFileSelect}
                     disabled={signupMutation.isPending}
+                    className="cursor-pointer"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={signupMutation.isPending || isUploading}
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Image className="h-4 w-4 mr-2" />
-                        Choose Image
-                      </>
-                    )}
-                  </Button>
-                  {imagePreview && (
-                    <div className="relative w-20 h-20">
-                      <img
-                        src={imagePreview}
-                        alt="Profile Preview"
-                        className="w-full h-full object-cover rounded-md"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={() => {
-                          setImagePreview("");
-                          setFormData(prev => ({ ...prev, photo_img: "" }));
-                        }}
-                      >
-                        ×
-                      </Button>
-                    </div>
+                  {errors.photo_img && (
+                    <p className="text-sm text-destructive">{errors.photo_img}</p>
                   )}
                 </div>
-                {errors.photo_img && (
-                  <p className="text-sm text-destructive">{errors.photo_img}</p>
-                )}
               </div>
               
               <div className="space-y-2">

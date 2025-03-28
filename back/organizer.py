@@ -5,6 +5,18 @@ from app import db
 from models import User, Role, Organizer
 from utils.response import success_response, error_response, paginate_response
 from utils.auth import admin_required
+from werkzeug.utils import secure_filename
+import cloudinary.uploader
+import cloudinary.utils
+import os
+import logging
+import time
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 class OrganizerListResource(Resource):
     """
@@ -97,13 +109,16 @@ class OrganizerResource(Resource):
         if not organizer:
             return error_response("Organizer not found", 404)
             
+        # Check if this is a file upload request
+        if 'file' in request.files:
+            return self.handle_image_upload(organizer)
+            
         data = request.get_json()
         
         # Update fields if provided
         if 'company_name' in data:
             organizer.company_name = data['company_name']
         
-        # Update fields with correct property names
         if 'bank_details' in data:
             organizer.bank_details = data['bank_details']
         
@@ -134,6 +149,88 @@ class OrganizerResource(Resource):
         except Exception as e:
             db.session.rollback()
             return error_response(f"Error updating organizer: {str(e)}")
+
+    def handle_image_upload(self, organizer):
+        """Handle image upload for organizer company image"""
+        try:
+            file = request.files['file']
+            if file.filename == '':
+                # If no file is selected, set company_image to null
+                organizer.company_image = None
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    return error_response("Failed to update company image in database", 500)
+                return success_response(message="Company image removed successfully")
+                
+            if not allowed_file(file.filename):
+                return error_response("File type not allowed", 400)
+                
+            # Check file size
+            file.seek(0, os.SEEK_END)
+            size = file.tell()
+            file.seek(0)
+            
+            if size > MAX_FILE_SIZE:
+                return error_response("File size exceeds 5MB limit", 400)
+            
+            filename = secure_filename(file.filename)
+
+            # Upload parameters
+            upload_params = {
+                'resource_type': 'image',
+                'type': 'private',
+                'access_mode': 'authenticated'
+            }
+
+            try:
+                # Delete old image if it exists
+                if organizer.company_image:
+                    try:
+                        # Extract public_id from the URL
+                        public_id = organizer.company_image.split('/')[-1].split('.')[0]
+                        cloudinary.uploader.destroy(public_id, resource_type='image', type='private')
+                    except Exception as e:
+                        logging.error(f"Error deleting old image from Cloudinary: {str(e)}")
+
+                cloudinary_response = cloudinary.uploader.upload(file, **upload_params)
+                logging.debug(f"Cloudinary response: {cloudinary_response}")
+                
+                # Generate a signed URL with 1 hour expiration
+                timestamp = int(time.time()) + 3600
+                image_url = cloudinary.utils.private_download_url(
+                    cloudinary_response['public_id'],
+                    format=cloudinary_response.get('format', 'jpg'),
+                    resource_type='image',
+                    type='private',
+                    expires_at=timestamp
+                )
+                
+                # Update organizer's company image
+                organizer.company_image = image_url
+                
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    return error_response("Failed to save image URL to database", 500)
+
+                response_data = {
+                    'success': True,
+                    'image_url': image_url,
+                    'public_id': cloudinary_response['public_id'],
+                    'expires_at': timestamp
+                }
+                
+                return success_response(data=response_data, message="Company image uploaded successfully")
+                    
+            except Exception as e:
+                return error_response(f"Failed to upload image: {str(e)}", 500)
+                
+        except Exception as e:
+            logging.error(f"Error in company image upload: {str(e)}")
+            return error_response(str(e), 500)
     
     @jwt_required()
     @admin_required
@@ -145,6 +242,15 @@ class OrganizerResource(Resource):
             return error_response("Organizer not found", 404)
             
         user = User.query.get(organizer.user_id)
+        
+        # Delete company image if it exists
+        if organizer.company_image:
+            try:
+                # Extract public_id from the URL
+                public_id = organizer.company_image.split('/')[-1].split('.')[0]
+                cloudinary.uploader.destroy(public_id, resource_type='image', type='private')
+            except Exception as e:
+                logging.error(f"Error deleting image from Cloudinary: {str(e)}")
         
         # Remove organizer role
         organizer_role = Role.query.filter_by(name='organizer').first()

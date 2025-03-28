@@ -75,7 +75,6 @@ from payments import PaymentResource, PaymentListResource
 from categories import CategoryResource, CategoryListResource
 from discount_codes import DiscountCodeResource, DiscountCodeListResource, ValidateDiscountCodeResource
 from organizer import OrganizerListResource, OrganizerResource, UserOrganizerResource
-from images import  ImageResource, ImageTransformResource
 
 
 
@@ -126,10 +125,6 @@ api.add_resource(CurrentUserResource, '/api/users/me')
 api.add_resource(LogoutResource, '/api/logout')
 
 # Register the callback endpoint
-
-# Add image routes
-api.add_resource(ImageResource, '/api/images/<string:public_id>')
-api.add_resource(ImageTransformResource, '/api/images/<string:public_id>/transform')
 
 if __name__ == '__main__':
     app.run(debug=Config.DEBUG)
