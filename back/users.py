@@ -291,16 +291,16 @@ class UserLoginResource(Resource):
                     )
                 )
                 
-                # Set the JWT as an HTTP-only cookie
+                    # Set the JWT as an HTTP-only cookie
                 response.set_cookie(
-                    'access_token_cookie',
-                    access_token,
-                    httponly=True,
-                    secure=False,  # Correct for HTTPS
-                    samesite='Lax',  # Use 'None' (string) instead of None (Python value)
-                    path='/',
-                    # domain='fest-hrrc.onrender.com'  
-                  )
+                        'access_token_cookie',
+                        access_token,
+                        httponly=True,
+                        secure=True,
+                        samesite='None',
+                        path='/'
+                    )
+
                 print("Login attempt for:", email)
                 print("Response status:", response.status_code)
                 print("Access token generated:", access_token)
