@@ -45,7 +45,7 @@ const SafariSection = () => {
             {safariTypes.map((safari, index) => (
               <AnimatedSection key={safari.name} delay={100 + index * 50}>
                 <Link to={`/events?category=Safari&type=${safari.name}`} className="block">
-                  <div className="glass rounded-xl p-0 text-center h-full card-hover bg-secondary relative" style={{ width: '512px', height: '512px' }}>
+                  <div className="glass rounded-xl p-0 text-center h-full card-hover bg-secondary relative" >
                     <img src={safari.image} alt={safari.name} className="w-full h-full object-cover rounded-xl"style={{ filter:'brightness(0.7)' }} />
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
                       <h3 className="font-semibold text-lg">{safari.name}</h3>

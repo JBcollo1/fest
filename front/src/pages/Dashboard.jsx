@@ -24,22 +24,12 @@ const Dashboard = () => {
   }, [user]);
   
   return (
-    <div className="relative flex min-h-screen pt-8"
-    
-    >
-      <main className="flex-1 p-6 mt-8 transition-all duration-300 ease-in-out">
-        <div className="md:hidden mb-4">
-          {/* <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            <Menu className="h-6 w-6" />
-          </Button> */}
-        </div>
+    <div className="relative flex flex-col min-h-screen pt-8">
+      <main className="flex-1 p-4 sm:p-6 mt-8 transition-all duration-300 ease-in-out">
+       
         
         <Tabs defaultValue={activeSection} onValueChange={setActiveSection} className="w-full">
-          <TabsList className="mb-6">
+          <TabsList className="flex flex-wrap justify-center mb-6">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Profile
