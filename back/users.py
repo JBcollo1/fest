@@ -29,62 +29,71 @@ class UserListResource(Resource):
         return success_response(data=[user.to_dict() for user in users])
     
     def post(self):
-        data = request.get_json()
-        
-        required_fields = ['username', 'email', 'password', 'first_name', 'last_name']
-        for field in required_fields:
-            if field not in data:
-                return error_response(f"Missing required field: {field}")
-        
-        if User.query.filter_by(username=data['username']).first():
-            return error_response("Username already exists")
-        
-        if User.query.filter_by(email=data['email']).first():
-            return error_response("Email already exists")
-        
-        new_user = User(
-            username=data['username'],
-            email=data['email'],
-            first_name=data['first_name'],
-            last_name=data['last_name'],
-            phone=data.get('phone'),
-            national_id=data.get(' national_id'),  # Example new field
-            photo_img =data.get('photo_img '),  # Example new field
-            next_of_kin_name=data.get('next_of_kin_name'),  # Example new field
-            
-            next_of_kin_contact=data.get('next_of_kin_contact'),  # Example new field
-           
-            
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        
-        new_user.set_password(data['password'])
-        
-        user_role = Role.query.filter_by(name='user').first()
-        if not user_role:
-            user_role = Role(name='user', description='Regular user')
-            db.session.add(user_role)
-        
-        new_user.roles.append(user_role)
-        # print(new_user.to_dict()) 
         try:
-            db.session.add(new_user)
-            db.session.commit()
+            # Handle both JSON and form data
+            if request.is_json:
+                data = request.get_json()
+            else:
+                data = request.form.to_dict()
+                # Handle file upload if present
+                if 'file' in request.files:
+                    file = request.files['file']
+                    if file.filename != '' and allowed_file(file.filename):
+                        # Upload to Cloudinary
+                        upload_result = cloudinary.uploader.upload(file)
+                        data['photo_img'] = upload_result['secure_url']
             
-          
+            required_fields = ['username', 'email', 'password', 'first_name', 'last_name']
+            for field in required_fields:
+                if field not in data:
+                    return error_response(f"Missing required field: {field}")
             
-            return success_response(
-                data={
-                    'user': new_user.to_dict()
-                    
-                },
-                message="User registered successfully",
-                status_code=201
+            if User.query.filter_by(username=data['username']).first():
+                return error_response("Username already exists")
+            
+            if User.query.filter_by(email=data['email']).first():
+                return error_response("Email already exists")
+            
+            new_user = User(
+                username=data['username'],
+                email=data['email'],
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                phone=data.get('phone'),
+                national_id=data.get('national_id'),
+                photo_img=data.get('photo_img'),
+                next_of_kin_name=data.get('next_of_kin_name'),
+                next_of_kin_contact=data.get('next_of_kin_contact'),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
             )
+            
+            new_user.set_password(data['password'])
+            
+            user_role = Role.query.filter_by(name='user').first()
+            if not user_role:
+                user_role = Role(name='user', description='Regular user')
+                db.session.add(user_role)
+            
+            new_user.roles.append(user_role)
+            
+            try:
+                db.session.add(new_user)
+                db.session.commit()
+                
+                return success_response(
+                    data={
+                        'user': new_user.to_dict()
+                    },
+                    message="User registered successfully",
+                    status_code=201
+                )
+            except Exception as e:
+                db.session.rollback()
+                return error_response(f"Error creating user: {str(e)}")
+                
         except Exception as e:
-            db.session.rollback()
-            return error_response(f"Error creating user: {str(e)}")
+            return error_response(f"Error processing request: {str(e)}")
 
 
 class UserResource(Resource):
@@ -422,7 +431,6 @@ class RoleListResource(Resource):
 
 class CurrentUserResource(Resource):
 
-    @jwt_required()
     def get(self):
         try:
             current_user_id = get_jwt_identity()

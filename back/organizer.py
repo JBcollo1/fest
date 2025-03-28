@@ -33,57 +33,72 @@ class OrganizerListResource(Resource):
     @admin_required
     def post(self):
         """Create a new organizer from existing user (admin only)"""
-        data = request.get_json()
-        
-        if 'user_id' not in data:
-            return error_response("Missing required field: user_id")
-            
-        if 'company_name' not in data:
-            return error_response("Missing required field: company_name")
-            
-        # Check if user exists
-        user = User.query.get(data['user_id'])
-        if not user:
-            return error_response("User not found", 404)
-            
-        # Check if user is already an organizer
-        if Organizer.query.filter_by(user_id=data['user_id']).first():
-            return error_response("User is already registered as an organizer")
-            
-        # Create new organizer with additional fields
-        new_organizer = Organizer(
-            user_id=data['user_id'],
-            company_name=data['company_name'],
-            company_image=data.get('company_image'),
-            contact_email=data.get('contact_email'),
-            contact_phone=data.get('contact_phone'),
-            kra_pin=data.get('kra_pin'),
-            bank_details=data.get('bank_details'),
-            physical_address=data.get('physical_address'),
-            contact_person=data.get('contact_person')
-        )
-        
-        # Add organizer role to user
-        organizer_role = Role.query.filter_by(name='organizer').first()
-        if not organizer_role:
-            organizer_role = Role(name='organizer', description='Event organizer')
-            db.session.add(organizer_role)
-            
-        if not user.has_role('organizer'):
-            user.add_role(organizer_role)
-            
         try:
-            db.session.add(new_organizer)
-            db.session.commit()
+            # Handle both JSON and form data
+            if request.is_json:
+                data = request.get_json()
+            else:
+                data = request.form.to_dict()
+                # Handle file upload if present
+                if 'file' in request.files:
+                    file = request.files['file']
+                    if file.filename != '' and allowed_file(file.filename):
+                        # Upload to Cloudinary
+                        upload_result = cloudinary.uploader.upload(file)
+                        data['company_image'] = upload_result['secure_url']
             
-            return success_response(
-                data=new_organizer.to_dict(include_user=True),
-                message="Organizer created successfully",
-                status_code=201
+            if 'user_id' not in data:
+                return error_response("Missing required field: user_id")
+                
+            if 'company_name' not in data:
+                return error_response("Missing required field: company_name")
+                
+            # Check if user exists
+            user = User.query.get(data['user_id'])
+            if not user:
+                return error_response("User not found", 404)
+                
+            # Check if user is already an organizer
+            if Organizer.query.filter_by(user_id=data['user_id']).first():
+                return error_response("User is already registered as an organizer")
+                
+            # Create new organizer with additional fields
+            new_organizer = Organizer(
+                user_id=data['user_id'],
+                company_name=data['company_name'],
+                company_image=data.get('company_image'),
+                contact_email=data.get('contact_email'),
+                contact_phone=data.get('contact_phone'),
+                kra_pin=data.get('kra_pin'),
+                bank_details=data.get('bank_details'),
+                physical_address=data.get('physical_address'),
+                contact_person=data.get('contact_person')
             )
+            
+            # Add organizer role to user
+            organizer_role = Role.query.filter_by(name='organizer').first()
+            if not organizer_role:
+                organizer_role = Role(name='organizer', description='Event organizer')
+                db.session.add(organizer_role)
+                
+            if not user.has_role('organizer'):
+                user.add_role(organizer_role)
+                
+            try:
+                db.session.add(new_organizer)
+                db.session.commit()
+                
+                return success_response(
+                    data=new_organizer.to_dict(include_user=True),
+                    message="Organizer created successfully",
+                    status_code=201
+                )
+            except Exception as e:
+                db.session.rollback()
+                return error_response(f"Error creating organizer: {str(e)}")
+                
         except Exception as e:
-            db.session.rollback()
-            return error_response(f"Error creating organizer: {str(e)}")
+            return error_response(f"Error processing request: {str(e)}")
 
 
 class OrganizerResource(Resource):

@@ -59,6 +59,10 @@ const SignUp = () => {
         title: "Registration failed",
         description: error.response?.data?.message || "An error occurred during registration.",
       });
+    },
+    // Add headers for multipart/form-data
+    headers: {
+      'Content-Type': 'multipart/form-data',
     }
   });
 
