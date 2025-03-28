@@ -60,33 +60,37 @@ const About = () => {
     <div className="bg-white text-gray-900 w-full">
       {/* Hero Section */}
       <div 
-        className="text-white pt-24 md:pt-32 px-4 sm:px-6 lg:px-8"
+        className="text-white pt-24  md:pt-32 mb-8 md:mb-16 px-4 sm:px-6 lg:px-8"
         style={{
           background: `linear-gradient(135deg, ${colors.darkestBlue}, ${colors.darkBlue})`,
-          minHeight: '85vh'
+          minHeight: '65vh'
         }}
       >
-        <div className="max-w-7xl mx-auto text-center space-y-6 pt-16 md:pt-24">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">Fika Event Solutions</h1>
-          <p 
-            className="text-2xl md:text-4xl mb-8 max-w-3xl mx-auto leading-tight" 
-            style={{color: colors.yellow}}
-          >
-            We Make Experience Out Of Events!
-          </p>
-          <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto">
-            A cutting-edge event management platform that transforms experiences through innovative technology and expert planning.
-          </p>
-          <a 
-            href="#services" 
-            className="inline-block hover:bg-opacity-90 px-8 py-3 md:px-12 md:py-4 rounded-full font-semibold transition duration-300 text-lg mt-10"
-            style={{
-              backgroundColor: colors.yellow,
-              color: colors.darkestBlue
-            }}
-          >
-            Explore Our Services
-          </a>
+        <div className='pt-18 md:pt-28'>
+          <div className="max-w-7xl mx-auto  text-center space-y-6 pt-16 md:pt-24">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">Fika Event Solutions</h1>
+            <p 
+              className="text-2xl md:text-4xl mb-8 max-w-3xl mx-auto leading-tight" 
+              style={{color: colors.yellow}}
+            >
+              We Make Experience Out Of Events!
+            </p>
+            <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto">
+              A cutting-edge event management platform that transforms experiences through innovative technology and expert planning.
+            </p>
+            <div className='mt-40'>
+              <a 
+                href="#services" 
+                className="top-12 hover:bg-opacity-90 px-8 py-3 md:px-12 md:py-4 rounded-full font-semibold transition duration-300 text-lg mt-40 mb-8"
+                style={{
+                  backgroundColor: colors.yellow,
+                  color: colors.darkestBlue
+                }}
+              >
+                Explore Our Services
+              </a>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -178,30 +182,32 @@ const About = () => {
       {/* <CurveBottom fill="#001D3D1A" /> */}
 
       {/* Target Markets */}
-      <div className="bg-white pt-20 md:pt-28 pb-16 md:pb-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <h2 
-            className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16" 
-            style={{color: colors.darkBlue}}
-          >
-            Markets We Serve
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
-            {targetMarkets.map((market, index) => (
-              <div 
-                key={index} 
-                className="px-6 py-3 rounded-full font-medium text-sm md:text-base text-center"
-                style={{
-                  backgroundColor: colors.brightYellow + '20',
-                  color: colors.darkestBlue
-                }}
+     <div className='min-h-[450px] '>
+        <div className="bg-white pt-20 md:pt-28  pb-18 md:pb-24 px-4 sm:px-6 lg:px-8 ">
+            <div className="max-w-7xl mx-auto">
+              <h2 
+                className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16" 
+                style={{color: colors.darkBlue}}
               >
-                {market}
+                Markets We Serve
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-3   lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
+                {targetMarkets.map((market, index) => (
+                  <div 
+                    key={index} 
+                    className="px-6 py-3 rounded-full font-medium text-sm md:text-base text-center"
+                    style={{
+                      backgroundColor: colors.brightYellow + '20',
+                      color: colors.darkestBlue
+                    }}
+                  >
+                    {market}
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-        </div>
-      </div>
+     </div>
 
       {/* <CurveTop fill="#ffffff" /> */}
 

@@ -151,11 +151,11 @@ class TicketVerificationResource(Resource):
                 return error_response("Unauthorized. You can only verify tickets for events you organize.", 403)
         
         # Check if the ticket has already been used
-        if ticket.status == 'used':
+        if ticket.satus == 'used':
             return error_response("Ticket has already been used", 400)
         
         # Check if the ticket is valid (additional validation could be added here)
-        if ticket.status != 'valid':
+        if ticket.satus != 'valid':
             return error_response(f"Invalid ticket status: {ticket.status}", 400)
         
         # Update the ticket to mark it as used
