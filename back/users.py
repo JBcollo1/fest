@@ -430,7 +430,7 @@ class RoleListResource(Resource):
             return error_response(f"Error creating role: {str(e)}")
 
 class CurrentUserResource(Resource):
-
+    @jwt_required()
     def get(self):
         try:
             current_user_id = get_jwt_identity()
