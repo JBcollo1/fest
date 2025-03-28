@@ -24,7 +24,9 @@ const Dashboard = () => {
   }, [user]);
   
   return (
-    <div className="relative flex min-h-screen pt-8">
+    <div className="relative flex min-h-screen pt-8"
+    
+    >
       <main className="flex-1 p-6 mt-8 transition-all duration-300 ease-in-out">
         <div className="md:hidden mb-4">
           {/* <Button
