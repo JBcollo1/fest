@@ -1,40 +1,114 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import SearchBar from '@/components/SearchBar';
 import EventCard from '@/components/EventCard';
 import AnimatedSection from '@/components/AnimatedSection';
-import { eventsData, categories } from '@/utils/data';
 import { Button } from "@/components/ui/button";
-import { Filter, Calendar, MapPin } from 'lucide-react';
+import { Filter, Calendar, MapPin, AlertCircle } from 'lucide-react';
+import axios from 'axios';
 
 const Events = () => {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
+  const [categories, setCategories] = useState([]);
+  const abortControllerRef = useRef(null);
+  
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/categories`);
+      if (response.data?.data) {
+        setCategories(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
-  
-  const categories = ['all', 'music', 'business', 'food', 'art', 'tech', 'sports'];
-  
   useEffect(() => {
-    // Simulate API fetch with timeout
-    const timer = setTimeout(() => {
-      setEvents(eventsData);
-      setIsLoading(false);
-    }, 800);
-    
-    return () => clearTimeout(timer);
+    fetchCategories();
   }, []);
   
-  const filteredEvents = eventsData.filter(event => 
-    selectedCategory === 'All' || event.category === selectedCategory
-  );
+  const fetchEvents = useCallback(async (signal) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      let url = '/api/events';
+      const params = new URLSearchParams();
+      
+      if (activeFilter !== 'all') {
+        params.append('category', activeFilter);
+      }
+      
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}${url}`, { signal });
+      
+      if (response.data?.data?.items) {
+        setEvents(response.data.data.items);
+        setRetryCount(0); // Reset retry count on success
+      } else {
+        setEvents([]);
+      }
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log('Request cancelled');
+        return;
+      }
+      
+      console.error('Error fetching events:', error);
+      setError(error.response?.data?.message || 'Failed to load events');
+      
+      // Implement exponential backoff for retries
+      if (retryCount < 3) {
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+        }, delay);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeFilter, searchQuery, retryCount]);
+
+  useEffect(() => {
+    // Cancel any pending requests when filter or search changes
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    
+    fetchEvents(abortControllerRef.current.signal);
+    
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [fetchEvents]);
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+  };
+
+  const handleRetry = () => {
+    setRetryCount(0);
+    fetchEvents(abortControllerRef.current.signal);
+  };
 
   return (
-    <div className=" pt-20 min-h-screen bg-background flex flex-col">
-    
-      
+    <div className="pt-20 min-h-screen bg-background flex flex-col">
       <section className="pt-24 pb-10 px-4 md:px-8 container mx-auto">
         <AnimatedSection>
           <div className="text-center mb-8">
@@ -45,18 +119,29 @@ const Events = () => {
           </div>
           
           <div className="max-w-3xl mx-auto mb-10">
-            <SearchBar />
+            <SearchBar onSearch={handleSearch} />
           </div>
           
-          <div className="flex flex-wrap gap-2 justify-center mb-10">
-            {categories.map((category) => (
-              <Button 
-                key={category}
-                variant={activeFilter === category ? "default" : "outline"}
-                onClick={() => setActiveFilter(category)}
-                className="capitalize"
+          <div className="flex flex-wrap gap-2 mb-6">
+            <Button
+              variant={activeFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveFilter('all')}
+              className="flex items-center gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              All Events
+            </Button>
+            {categories.map(category => (
+              <Button
+                key={category.id}
+                variant={activeFilter === category.name ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveFilter(category.name)}
+                className="flex items-center gap-2"
               >
-                {category}
+                <Filter className="w-4 h-4" />
+                {category.name}
               </Button>
             ))}
           </div>
@@ -76,56 +161,36 @@ const Events = () => {
               </div>
             ))}
           </div>
+        ) : error ? (
+          <div className="text-center py-10">
+            <div className="flex items-center justify-center mb-4">
+              <AlertCircle className="h-8 w-8 text-destructive mr-2" />
+              <p className="text-destructive">{error}</p>
+            </div>
+            {retryCount < 3 ? (
+              <p className="text-muted-foreground mb-4">
+                Retrying in {Math.min(1000 * Math.pow(2, retryCount), 10000) / 1000} seconds...
+              </p>
+            ) : (
+              <Button onClick={handleRetry} className="mt-4">Try Again</Button>
+            )}
+          </div>
         ) : (
-          <>
-            <AnimatedSection delay={100}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-                {filteredEvents.length > 0 ? (
-                  filteredEvents.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))
-                ) : (
-                  <div className="col-span-3 text-center py-10">
-                    <h3 className="text-xl font-medium mb-2">No events found</h3>
-                    <p className="text-muted-foreground mb-6">Try changing your filter or search criteria</p>
-                    <Button onClick={() => setActiveFilter('all')}>View All Events</Button>
-                  </div>
-                )}
-              </div>
-            </AnimatedSection>
-            
-            <AnimatedSection delay={200}>
-              <div className="flex flex-col items-center mt-16 mb-8">
-                <h2 className="text-2xl font-display font-semibold mb-8">Top Cities</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl">
-                  {['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru'].map((city) => (
-                    <div key={city} className="glass rounded-xl p-6 text-center card-hover">
-                      <MapPin className="h-8 w-8 mx-auto mb-3 text-primary" />
-                      <h3 className="font-medium">{city}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {Math.floor(Math.random() * 15) + 5} Events
-                      </p>
-                    </div>
-                  ))}
+          <AnimatedSection delay={100}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+              {events.length > 0 ? (
+                events.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))
+              ) : (
+                <div className="col-span-3 text-center py-10">
+                  <h3 className="text-xl font-medium mb-2">No events found</h3>
+                  <p className="text-muted-foreground mb-6">Try changing your filter or search criteria</p>
+                  <Button onClick={() => setActiveFilter('all')}>View All Events</Button>
                 </div>
-              </div>
-              
-              <div className="flex flex-col items-center my-16">
-                <h2 className="text-2xl font-display font-semibold mb-8">Upcoming Months</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl">
-                  {['June', 'July', 'August', 'September'].map((month) => (
-                    <div key={month} className="glass rounded-xl p-6 text-center card-hover">
-                      <Calendar className="h-8 w-8 mx-auto mb-3 text-primary" />
-                      <h3 className="font-medium">{month}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {Math.floor(Math.random() * 20) + 10} Events
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </AnimatedSection>
-          </>
+              )}
+            </div>
+          </AnimatedSection>
         )}
       </section>
     </div>
