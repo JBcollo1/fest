@@ -67,7 +67,7 @@ api = Api(app)
 
 from models import User, Role, UserRole, Organizer, Attendee, Event, Category, EventCategory, Ticket, DiscountCode, EventDiscountCode, Payment
 
-from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource, CurrentUserResource, LogoutResource
+from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource, CurrentUserResource, LogoutResource, DevAdminResource
 from events import EventResource, EventListResource, EventCategoriesResource, FeaturedEventsResource
 from tickets import (
    
@@ -129,6 +129,10 @@ api.add_resource(UserOrganizerResource, '/api/users/<string:user_id>/organizer')
 api.add_resource(CurrentUserResource, '/api/users/me')
 # api.add_resource(LoginResource, '/api/login')
 api.add_resource(LogoutResource, '/api/logout')
+
+
+# dev 
+api.add_resource(DevAdminResource, '/api/dev/make-admin')
 
 # Register the callback endpoint
 
