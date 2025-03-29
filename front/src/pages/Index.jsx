@@ -1,25 +1,51 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Calendar, Filter, ChevronRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import SearchBar from '@/components/SearchBar';
 import EventCard from '@/components/EventCard';
-import FeaturedEvent from '@/components/FeaturedEvent';
+import HeroSlider from '@/components/HeroSlider';
 import AnimatedSection from '@/components/AnimatedSection';
 import { eventsData, categories } from '@/utils/data';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SafariSection from './Safari';
 import { useRef } from 'react';
-import { useEffect } from 'react';
+import axios from 'axios';
 
 const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   
-  const featuredEvent = eventsData.find(event => event.featured);
+  // Fetch featured events from API
+  useEffect(() => {
+    const fetchFeaturedEvents = async () => {
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured`);
+        if (response.data?.data) {
+          // Sort events by start_datetime
+          const sortedEvents = response.data.data.sort((a, b) => 
+            new Date(a.start_datetime) - new Date(b.start_datetime)
+          );
+          setFeaturedEvents(sortedEvents);
+        }
+      } catch (error) {
+        console.error('Error fetching featured events:', error);
+        setError('Failed to load featured events');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFeaturedEvents();
+  }, []);
   
-  const filteredEvents = eventsData.filter(event => 
-    selectedCategory === 'All' || event.category === selectedCategory
+  // Filter featured events by category if selected
+  const filteredEvents = featuredEvents.filter(event => 
+    selectedCategory === 'All' || 
+    event.categories.some(category => category.name === selectedCategory)
   );
 
   useEffect(() => {
@@ -37,11 +63,9 @@ const Index = () => {
 
     // Add an event listener for hash changes
     window.addEventListener('hashchange', handleScrollToSection);
-
+    
     // Cleanup the event listener on unmount
-    return () => {
-      window.removeEventListener('hashchange', handleScrollToSection);
-    };
+    return () => window.removeEventListener('hashchange', handleScrollToSection);
   }, []);
 
   return (
@@ -50,7 +74,9 @@ const Index = () => {
       
       {/* Hero Section */}
       <section className="pt-20 md:pt-24">
-        {featuredEvent && <FeaturedEvent event={featuredEvent} />}
+        <div className="container mx-auto px-4">
+          <HeroSlider />
+        </div>
       </section>
       
       {/* Search Section */}
@@ -96,13 +122,29 @@ const Index = () => {
             </div>
           </AnimatedSection>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.slice(0, 6).map((event, index) => (
-              <AnimatedSection key={event.id} delay={150 + index * 50}>
-                <EventCard event={event} />
-              </AnimatedSection>
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, index) => (
+                <div key={index} className="animate-pulse">
+                  <div className="h-[220px] bg-muted rounded-xl mb-4"></div>
+                  <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-destructive">{error}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEvents.slice(0, 6).map((event, index) => (
+                <AnimatedSection key={event.id} delay={150 + index * 50}>
+                  <EventCard event={event} />
+                </AnimatedSection>
+              ))}
+            </div>
+          )}
         </div>
       </section>
       

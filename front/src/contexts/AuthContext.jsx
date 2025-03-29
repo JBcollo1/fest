@@ -26,6 +26,7 @@ export const AuthContext = createContext({
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [eventCache, setEventCache] = useState({});
   const navigate = useNavigate();
 
   // Fetch user data when the component mounts
@@ -191,14 +192,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Fetch a single event by ID
+  // Fetch a single event by ID with caching
   const fetchEventById = async (eventId) => {
+    // Check cache first
+    if (eventCache[eventId]) {
+      return eventCache[eventId];
+    }
+
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/events/${eventId}`,
         { withCredentials: true }
       );
-      return response.data.data;
+      const eventData = response.data.data;
+      
+      // Update cache
+      setEventCache(prev => ({
+        ...prev,
+        [eventId]: eventData
+      }));
+      
+      return eventData;
     } catch (error) {
       console.error('Error fetching event:', error);
       throw error;
@@ -244,6 +258,14 @@ export const AuthProvider = ({ children }) => {
         `${import.meta.env.VITE_API_URL}/api/events/${eventId}`,
         { withCredentials: true }
       );
+      
+      // Remove from cache
+      setEventCache(prev => {
+        const newCache = { ...prev };
+        delete newCache[eventId];
+        return newCache;
+      });
+      
       return response.data;
     } catch (error) {
       console.error('Error deleting event:', error);

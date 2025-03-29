@@ -1,16 +1,37 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, DollarSign } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 
-const EventCard = ({ event, featured = false }) => {
+const EventCard = ({ 
+  event = {
+    id: '',
+    title: '',
+    image: '',
+    start_datetime: new Date(),
+    location: '',
+    currency: '',
+    price: 0,
+    description: '',
+    featured: false,
+    total_tickets: 0,
+    tickets_sold: 0,
+    categories: [],
+    organizer: null
+  }, 
+  featured = false 
+}) => {
   const [isHovered, setIsHovered] = useState(false);
-  const formattedDate = new Date(event.date).toLocaleDateString('en-US', {
+  
+  // Format the date using the API's datetime format
+  const formattedDate = new Date(event.start_datetime).toLocaleDateString('en-US', {
     day: 'numeric',
     month: 'short',
     year: 'numeric'
   });
+
+  // Calculate tickets available
+  const ticketsAvailable = event.total_tickets - event.tickets_sold;
 
   return (
     <Link 
@@ -27,17 +48,25 @@ const EventCard = ({ event, featured = false }) => {
             isHovered ? 'scale-105' : 'scale-100'
           }`}
           style={{ 
-            backgroundImage: `url(${event.image})`,
+            backgroundImage: `url(${event.image || '/default-event-image.jpg'})`,
             backgroundSize: 'cover',
-            
             backgroundPosition: 'center',
             height: featured ? '350px' : '220px'
           }}
         />
-        <div className="absolute top-4 left-4 z-10">
-          <Badge variant="secondary" className="font-medium">
-            {event.category}
-          </Badge>
+        {/* Show categories as badges */}
+        <div className="absolute top-4 left-4 z-10 flex gap-2">
+          {event.categories && event.categories.length > 0 ? (
+            event.categories.map(category => (
+              <Badge key={category.id} variant="secondary" className="font-medium">
+                {category.name}
+              </Badge>
+            ))
+          ) : (
+            <Badge variant="secondary" className="font-medium">
+              Uncategorized
+            </Badge>
+          )}
         </div>
         {event.featured && !featured && (
           <div className="absolute top-4 right-4 z-10">
@@ -61,7 +90,7 @@ const EventCard = ({ event, featured = false }) => {
             </div>
             <div className="flex items-center mr-4">
               <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
-              <span>{event.location.split(',')[0]}</span>
+              <span>{event.location}</span>
             </div>
             <div className="flex items-center">
               <DollarSign className="h-4 w-4 mr-1 text-muted-foreground" />
@@ -69,24 +98,29 @@ const EventCard = ({ event, featured = false }) => {
             </div>
           </div>
           
-          {featured && (
+          {featured && event.description && (
             <p className="text-sm line-clamp-2">{event.description}</p>
           )}
           
           <div className={`flex items-center justify-between ${featured ? 'mt-2' : ''}`}>
             <div className="flex items-center">
-              <img 
-                src={event.organizer.image} 
-                alt={event.organizer.name}
-                className="w-6 h-6 rounded-full mr-2"
-              />
-              <span className="text-sm text-muted-foreground">{event.organizer.name}</span>
+              {event.organizer && (
+                <>
+                  <img 
+                    src={event.organizer.image || '/default-organizer-image.jpg'} 
+                    alt={event.organizer.name}
+                    className="w-6 h-6 rounded-full mr-2"
+                  />
+                  <span className="text-sm text-muted-foreground">{event.organizer.name}</span>
+                </>
+              )}
             </div>
-            {event.tickets_available < 50 && (
+            {/* TODO: Don't show tickets available */}
+            {/* {ticketsAvailable < 50 && (
               <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
-                Only {event.tickets_available} left
+                Only {ticketsAvailable} left
               </Badge>
-            )}
+            )} */}
           </div>
         </div>
       </div>

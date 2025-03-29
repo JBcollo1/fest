@@ -10,33 +10,67 @@ import {
   Star, 
   ChevronLeft,
   Plus,
-  Minus
+  Minus,
+  Link as LinkIcon,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Mail
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import AnimatedSection from '@/components/AnimatedSection';
-import { eventsData } from '@/utils/data';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from '@/contexts/AuthContext';
+import GoogleMapEmbed from '@/components/GoogleMapEmbed';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const EventDetail = () => {
   const { id } = useParams();
+  const { fetchEventById } = useAuth();
   const [event, setEvent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedTickets, setSelectedTickets] = useState(1);
+  const [copySuccess, setCopySuccess] = useState(false);
   
+  const scrollToTickets = () => {
+    const ticketsSection = document.getElementById('tickets-section');
+    if (ticketsSection) {
+      const yOffset = -100; // Offset to account for fixed header
+      const y = ticketsSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({
+        top: y,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   useEffect(() => {
-    // Simulate API fetch with timeout
-    const timer = setTimeout(() => {
-      const foundEvent = eventsData.find(e => e.id === id);
-      setEvent(foundEvent || null);
-      setIsLoading(false);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [id]);
+    const loadEvent = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const eventData = await fetchEventById(id);
+        setEvent(eventData);
+      } catch (err) {
+        console.error('Error loading event:', err);
+        setError('Failed to load event details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEvent();
+  }, [id, fetchEventById]);
   
   const increaseTickets = () => {
-    if (event && selectedTickets < event.tickets_available) {
+    if (event && selectedTickets < event.total_tickets - event.tickets_sold) {
       setSelectedTickets(prev => prev + 1);
     }
   };
@@ -47,12 +81,55 @@ const EventDetail = () => {
     }
   };
   
-  const formattedDate = event ? new Date(event.date).toLocaleDateString('en-US', {
+  const formattedDate = event ? new Date(event.start_datetime).toLocaleDateString('en-US', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric'
   }) : '';
+
+  const formattedTime = event ? new Date(event.start_datetime).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }) : '';
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
+  const handleShare = (platform) => {
+    const url = encodeURIComponent(window.location.href);
+    const title = encodeURIComponent(event.title);
+    let shareUrl = '';
+
+    switch (platform) {
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+        break;
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?url=${url}&text=${title}`;
+        break;
+      case 'linkedin':
+        shareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${url}&title=${title}`;
+        break;
+      case 'email':
+        shareUrl = `mailto:?subject=${title}&body=Check out this event: ${url}`;
+        break;
+      default:
+        return;
+    }
+
+    // Open in new tab for social media, new window for email
+      window.open(shareUrl, '_blank');
+
+  };
 
   if (isLoading) {
     return (
@@ -61,6 +138,24 @@ const EventDetail = () => {
           <div className="w-32 h-32 mx-auto rounded-full bg-muted"></div>
           <div className="h-6 bg-muted rounded w-48 mx-auto mt-4"></div>
           <div className="h-4 bg-muted rounded w-64 mx-auto mt-2"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex flex-col items-center justify-center p-4">
+          <h1 className="text-2xl font-semibold mb-4">Error Loading Event</h1>
+          <p className="text-muted-foreground mb-6">{error}</p>
+          <Button asChild>
+            <Link to="/">
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back to Home
+            </Link>
+          </Button>
         </div>
       </div>
     );
@@ -93,14 +188,18 @@ const EventDetail = () => {
         <div 
           className="w-full h-[40vh] md:h-[50vh] bg-cover bg-center"
           style={{ 
-            backgroundImage: `url(${event.image})`,
+            backgroundImage: `url(${event.image || '/default-event-image.jpg'})`,
             filter: 'brightness(0.7)'
           }}
         />
         
         <div className="container mx-auto px-4 relative">
           <div className="glass rounded-xl p-8 max-w-4xl mx-auto -mt-24 relative z-10">
-            <Badge className="mb-4" variant="outline">{event.category}</Badge>
+            <div className="flex gap-2 mb-4">
+              {event.categories?.map(category => (
+                <Badge key={category.id} variant="outline">{category.name}</Badge>
+              ))}
+            </div>
             <h1 className="text-2xl md:text-4xl font-display font-bold mb-4">
               {event.title}
             </h1>
@@ -112,7 +211,7 @@ const EventDetail = () => {
               </div>
               <div className="flex items-center">
                 <Clock className="h-5 w-5 mr-2 text-primary" />
-                <span>{event.time}</span>
+                <span>{formattedTime}</span>
               </div>
               <div className="flex items-center">
                 <MapPin className="h-5 w-5 mr-2 text-primary" />
@@ -122,12 +221,12 @@ const EventDetail = () => {
             
             <div className="flex items-center mb-8">
               <img 
-                src={event.organizer.image} 
-                alt={event.organizer.name}
+                src={event.organizer?.image || '/default-organizer-image.jpg'} 
+                alt={event.organizer?.name}
                 className="w-10 h-10 rounded-full mr-3"
               />
               <div>
-                <p className="font-medium">{event.organizer.name}</p>
+                <p className="font-medium">{event.organizer?.name}</p>
                 <p className="text-sm text-muted-foreground">Event Organizer</p>
               </div>
             </div>
@@ -135,13 +234,39 @@ const EventDetail = () => {
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm text-muted-foreground">Price</p>
-                <p className="text-2xl font-semibold">{event.currency} {event.price.toLocaleString()}</p>
+                <p className="text-2xl font-semibold cursor-pointer hover:text-primary transition-colors" onClick={scrollToTickets}>{event.currency} {event.price.toLocaleString()}</p>
               </div>
               
-              <Button variant="outline" className="rounded-full">
-                <Share2 className="h-4 w-4 mr-2" />
-                Share Event
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="rounded-full">
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share Event
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={handleCopyLink} className="cursor-pointer">
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    {copySuccess ? 'Link Copied!' : 'Copy Link'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShare('facebook')} className="cursor-pointer">
+                    <Facebook className="h-4 w-4 mr-2" />
+                    Share on Facebook
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShare('twitter')} className="cursor-pointer">
+                    <Twitter className="h-4 w-4 mr-2" />
+                    Share on Twitter
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShare('linkedin')} className="cursor-pointer">
+                    <Linkedin className="h-4 w-4 mr-2" />
+                    Share on LinkedIn
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShare('email')} className="cursor-pointer">
+                    <Mail className="h-4 w-4 mr-2" />
+                    Share via Email
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -182,88 +307,13 @@ const EventDetail = () => {
                   </div>
                 </div>
               </AnimatedSection>
-              
-              <AnimatedSection delay={150}>
-                <div className="mt-10">
-                  <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">Reviews & Ratings</h2>
-                  
-                  <div className="space-y-6">
-                    <div className="flex items-start gap-4">
-                      <img 
-                        src="https://randomuser.me/api/portraits/women/44.jpg" 
-                        alt="Reviewer"
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <div className="flex-1">
-                        <div className="flex justify-between items-center mb-1">
-                          <h4 className="font-medium">Sarah M.</h4>
-                          <div className="flex">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star 
-                                key={star} 
-                                className={`h-4 w-4 ${star <= 5 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">Attended on Jan 15, 2023</p>
-                        <p className="text-sm">
-                          Absolutely amazing event! The organization was flawless and the experience exceeded my expectations. Would definitely attend again next year.
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-4">
-                      <img 
-                        src="https://randomuser.me/api/portraits/men/32.jpg" 
-                        alt="Reviewer"
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <div className="flex-1">
-                        <div className="flex justify-between items-center mb-1">
-                          <h4 className="font-medium">James K.</h4>
-                          <div className="flex">
-                            {[1, 2, 3, 4].map((star) => (
-                              <Star 
-                                key={star} 
-                                className={`h-4 w-4 ${star <= 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
-                              />
-                            ))}
-                            <Star className="h-4 w-4 text-gray-300" />
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">Attended on Dec 20, 2022</p>
-                        <p className="text-sm">
-                          Great event overall. The venue was perfect and the program was well-organized. My only suggestion would be to improve the sound system.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Button variant="outline" className="mt-6">
-                    View All Reviews
-                  </Button>
-                </div>
-              </AnimatedSection>
             </div>
             
             {/* Ticket Purchase Section */}
-            <div className="md:col-span-1">
+            <div className="md:col-span-1" id="tickets-section">
               <AnimatedSection>
                 <div className="glass rounded-xl p-6 sticky top-24">
                   <h2 className="text-xl font-semibold mb-4">Get Tickets</h2>
-                  
-                  <div className="mb-6">
-                    <p className="text-muted-foreground mb-1">Available Tickets</p>
-                    <p className="font-medium">{event.tickets_available} remaining</p>
-                    
-                    <div className="w-full bg-muted h-2 rounded-full mt-2">
-                      <div 
-                        className="bg-primary h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (1 - event.tickets_available / 300) * 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
                   
                   <div className="mb-6">
                     <p className="text-muted-foreground mb-2">Select Quantity</p>
@@ -282,7 +332,7 @@ const EventDetail = () => {
                         variant="outline"
                         size="icon"
                         onClick={increaseTickets}
-                        disabled={event && selectedTickets >= event.tickets_available}
+                        disabled={event && selectedTickets >= event.total_tickets - event.tickets_sold}
                         className="h-10 w-10 rounded-full"
                       >
                         <Plus className="h-4 w-4" />
