@@ -449,11 +449,7 @@ class CurrentUserResource(Resource):
 
 class DevAdminResource(Resource):
     def post(self):
-        """Development-only route to make a user admin by email"""
-        # Only allow in development
-        if os.getenv('FLASK_ENV') != 'development':
-            return error_response("This route is only available in development mode", 403)
-            
+
         try:
             data = request.get_json()
             email = data.get('email')
