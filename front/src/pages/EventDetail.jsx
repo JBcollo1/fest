@@ -171,14 +171,14 @@ const EventDetail = () => {
                 <div className="mt-10">
                   <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">Location</h2>
                   <div className="rounded-xl overflow-hidden h-[300px] bg-muted">
-                    {/* Placeholder for map - in a real app this would be a Google Maps component */}
-                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                      <div className="text-center">
-                        <MapPin className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="font-medium">{event.location}</p>
-                        <p className="text-sm text-muted-foreground mt-2">Map view would display here</p>
-                      </div>
-                    </div>
+                    <GoogleMapEmbed 
+                      location={event.location}
+                      className="w-full h-full"
+                    />
+                  </div>
+                  <div className="mt-4 flex items-center text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    <span>{event.location}</span>
                   </div>
                 </div>
               </AnimatedSection>
