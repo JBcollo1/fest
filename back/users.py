@@ -446,3 +446,39 @@ class CurrentUserResource(Resource):
         except Exception as e:
             print("Error in CurrentUserResource:", str(e))
             return error_response(str(e), 401)
+
+class DevAdminResource(Resource):
+    def post(self):
+        """Development-only route to make a user admin by email"""
+        # Only allow in development
+        if os.getenv('FLASK_ENV') != 'development':
+            return error_response("This route is only available in development mode", 403)
+            
+        try:
+            data = request.get_json()
+            email = data.get('email')
+            
+            if not email:
+                return error_response("Email is required")
+                
+            user = User.query.filter_by(email=email).first()
+            if not user:
+                return error_response("User not found", 404)
+                
+            # Get or create admin role
+            admin_role = Role.query.filter_by(name='admin').first()
+            if not admin_role:
+                admin_role = Role(name='admin', description='Administrator')
+                db.session.add(admin_role)
+                
+            # Add admin role if user doesn't have it
+            if admin_role not in user.roles:
+                user.roles.append(admin_role)
+                db.session.commit()
+                return success_response(message=f"User {email} is now an admin")
+            else:
+                return success_response(message=f"User {email} is already an admin")
+                
+        except Exception as e:
+            db.session.rollback()
+            return error_response(f"Error: {str(e)}")
