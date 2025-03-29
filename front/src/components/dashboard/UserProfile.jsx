@@ -313,195 +313,151 @@ const UserProfile = () => {
                   <div className="relative">
                     <Avatar className="h-24 w-24">
                       <AvatarImage src={formData.photo_img} alt="Profile" />
-                      <AvatarFallback>{getInitials()}</AvatarFallback>
+                      <AvatarFallback className="text-2xl font-bold bg-primary text-white">
+                        {getInitials()}
+                      </AvatarFallback>
                     </Avatar>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      ref={fileInputRef}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
+                    <Button 
+                      variant="outline" 
+                      className="absolute bottom-0 right-0 p-1"
+                      onClick={() => fileInputRef.current.click()}
                     >
-                      {isUploading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Image className="h-4 w-4" />
-                      )}
+                      <Image className="w-4 h-4" />
                     </Button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      onChange={handleImageUpload}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="username">Username</Label>
+                    <Input 
+                      id="username" 
+                      name="username" 
+                      value={formData.username} 
+                      onChange={handleInputChange} 
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="first_name">First Name</Label>
+                    <Input 
+                      id="first_name" 
+                      name="first_name" 
+                      value={formData.first_name} 
+                      onChange={handleInputChange} 
+                      className="w-full"
+                    />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">Profile Picture</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Upload a new profile picture
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
-                    <Input
-                      id="username"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleInputChange}
-                      placeholder="Username"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="Email"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first_name">First Name</Label>
-                    <Input
-                      id="first_name"
-                      name="first_name"
-                      value={formData.first_name}
-                      onChange={handleInputChange}
-                      placeholder="First Name"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="last_name">Last Name</Label>
-                    <Input
-                      id="last_name"
-                      name="last_name"
-                      value={formData.last_name}
-                      onChange={handleInputChange}
-                      placeholder="Last Name"
+                    <Input 
+                      id="last_name" 
+                      name="last_name" 
+                      value={formData.last_name} 
+                      onChange={handleInputChange} 
+                      className="w-full"
                     />
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="Phone Number"
-                  />
-                </div>
-
-                <Separator className="my-4" />
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="next_of_kin_name">Emergency Contact Name</Label>
-                    <Input
-                      id="next_of_kin_name"
-                      name="next_of_kin_name"
-                      value={formData.next_of_kin_name}
-                      onChange={handleInputChange}
-                      placeholder="Emergency Contact Name"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      name="email" 
+                      value={formData.email} 
+                      onChange={handleInputChange} 
+                      className="w-full"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="next_of_kin_contact">Emergency Contact Number</Label>
-                    <Input
-                      id="next_of_kin_contact"
-                      name="next_of_kin_contact"
-                      value={formData.next_of_kin_contact}
-                      onChange={handleInputChange}
-                      placeholder="Emergency Contact Number"
+                  <div>
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input 
+                      id="phone" 
+                      name="phone" 
+                      value={formData.phone} 
+                      onChange={handleInputChange} 
+                      className="w-full"
                     />
                   </div>
                 </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full mt-4 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700"
-                >
-                  <Check className="w-4 h-4 mr-2" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="next_of_kin_name">Next of Kin Name</Label>
+                    <Input 
+                      id="next_of_kin_name" 
+                      name="next_of_kin_name" 
+                      value={formData.next_of_kin_name} 
+                      onChange={handleInputChange} 
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="next_of_kin_contact">Next of Kin Contact</Label>
+                    <Input 
+                      id="next_of_kin_contact" 
+                      name="next_of_kin_contact" 
+                      value={formData.next_of_kin_contact} 
+                      onChange={handleInputChange} 
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full">
                   Save Changes
                 </Button>
-                
-                <SaveStatusAlert />
               </form>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={user?.photo_img} alt="Profile" />
-                    <AvatarFallback>{getInitials()}</AvatarFallback>
+                    <AvatarImage src={formData.photo_img} alt="Profile" />
+                    <AvatarFallback className="text-2xl font-bold bg-primary text-white">
+                      {getInitials()}
+                    </AvatarFallback>
                   </Avatar>
+                  <div className="flex-1">
+                    <h2 className="text-xl font-semibold">{formData.username}</h2>
+                    <p className="text-muted-foreground">{formData.email}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-lg font-semibold">
-                      {user?.first_name} {user?.last_name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                    <Label>First Name</Label>
+                    <p>{formData.first_name || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label>Last Name</Label>
+                    <p>{formData.last_name || "N/A"}</p>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Username</Label>
-                    <p className="font-medium">{user.username}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Phone</Label>
+                    <p>{formData.phone || "N/A"}</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Email</Label>
-                    <p className="font-medium">{user.email}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">First Name</Label>
-                    <p className="font-medium">{user.first_name || "Not provided"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Last Name</Label>
-                    <p className="font-medium">{user.last_name || "Not provided"}</p>
+                  <div>
+                    <Label>Next of Kin Name</Label>
+                    <p>{formData.next_of_kin_name || "N/A"}</p>
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Phone</Label>
-                  <p className="font-medium">{user.phone || "No phone number provided"}</p>
-                </div>
-                
-                <Separator className="my-4" />
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Emergency Contact</Label>
-                    <p className="font-medium">{user.next_of_kin_name || "Not provided"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Emergency Number</Label>
-                    <p className="font-medium">{user.next_of_kin_contact || "Not provided"}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Next of Kin Contact</Label>
+                    <p>{formData.next_of_kin_contact || "N/A"}</p>
                   </div>
                 </div>
-                
-                <SaveStatusAlert />
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+      <SaveStatusAlert />
       
       {/* Debug Section - Can be removed in production */}
       <Card className="mt-8 bg-gray-50 shadow-sm border-gray-200">
@@ -523,5 +479,7 @@ const UserProfile = () => {
     </div>
   );
 };
+
+
 
 export default UserProfile;
