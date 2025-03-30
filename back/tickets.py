@@ -155,12 +155,12 @@ class TicketVerificationResource(Resource):
             return error_response("Ticket has already been used", 400)
         
         # Check if the ticket is valid (additional validation could be added here)
-        if ticket.satus != 'valid':
+        if ticket.satus != 'purchased':
             return error_response(f"Invalid ticket status: {ticket.status}", 400)
         
         # Update the ticket to mark it as used
         try:
-            ticket.status = 'used'
+            ticket.satus = 'used'
             ticket.checked_in_at = datetime.utcnow()
             ticket.checked_in_by = current_user_id
             
