@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, MapPin, Calendar, QrCode, Users, Clock, ChevronDown, ChevronUp, Share2, Ticket } from "lucide-react";
+import { Download, MapPin, Calendar, QrCode,Users, Clock, ChevronDown, ChevronUp, Share2, Ticket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,DialogDescription } from "@/components/ui/dialog";
 import { AuthContext } from "@/contexts/AuthContext";
 import axios from "axios";
 import QRCode from "qrcode";
@@ -43,6 +43,8 @@ const PurchasedTickets = () => {
         { withCredentials: true }
       );
       setTickets(response.data.data);
+      console.log(tickets)
+
     } catch (error) {
       setError("Failed to load tickets. Please try again later.");
       console.error("Error fetching tickets:", error);
@@ -127,8 +129,26 @@ const PurchasedTickets = () => {
     }
   };
 
-  // Updated QR Dialog with previous styling
-  const QrDialog = () => (
+  const QrDialog = () => {
+    const [qrDataUrl, setQrDataUrl] = useState('');
+  
+    useEffect(() => {
+      if (!qrDialogOpen || !selectedTicket) return;
+  
+      QRCode.toDataURL(selectedTicket.id, {
+        width: 300,
+        margin: 0,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      })
+      .then(url => setQrDataUrl(url))
+      .catch(console.error);
+    }, [qrDialogOpen, selectedTicket]);
+  
+
+  return (
     <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
       <DialogContent className="w-full max-w-md p-6">
         <div className="relative bg-card rounded-2xl border border-accent/20 p-6">
@@ -136,12 +156,21 @@ const PurchasedTickets = () => {
             <DialogTitle className="text-3xl font-bold text-gradient">
               Quantum Access
             </DialogTitle>
+            <DialogDescription>
+              Scan the QR code below to validate your ticket entry.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="my-4 p-4 bg-background rounded-xl border border-border">
             <div className="flex justify-center">
-              <div className="w-[300px] h-[300px] bg-white rounded-lg flex items-center justify-center">
-                <QrCode className="w-full h-full text-black" />
+              <div className="w-[300px] h-[300px] bg-white rounded-lg flex items-center justify-center p-4">
+              {qrDataUrl && (
+                  <img 
+                    src={qrDataUrl} 
+                    alt="QR Code" 
+                    className="w-full h-full object-contain"
+                  />
+                )}
               </div>
             </div>
             <p className="text-center mt-3 text-sm text-muted-foreground">
@@ -178,6 +207,7 @@ const PurchasedTickets = () => {
       </DialogContent>
     </Dialog>
   );
+};
 
   if (authLoading || loading) {
     return <div>Loading...</div>;
