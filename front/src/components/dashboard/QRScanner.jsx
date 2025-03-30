@@ -20,15 +20,18 @@ const QRScanner = () => {
   const streamRef = useRef(null);
   const scannerIntervalRef = useRef(null);
 
-  // Start camera when scanning is enabled
   useEffect(() => {
+    console.log("QRScanner component mounted");
     if (scanning) {
+      console.log("Starting camera...");
       startCamera();
     } else {
+      console.log("Stopping camera...");
       stopCamera();
     }
 
     return () => {
+      console.log("Cleaning up...");
       stopCamera();
     };
   }, [scanning]);
@@ -44,15 +47,17 @@ const QRScanner = () => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        console.log("Camera stream set to video element");
       }
       
       setCameraPermission(true);
+      console.log("Camera started");
       
       // Load jsQR dynamically
       await loadJsQR();
       
       // Start scanning interval
-      scannerIntervalRef.current = setInterval(scanQRCode, 500);
+      scannerIntervalRef.current = setInterval(scanQRCode, 300);
     } catch (error) {
       console.error('Error accessing camera:', error);
       setCameraPermission(false);
@@ -71,8 +76,8 @@ const QRScanner = () => {
         const script = document.createElement('script');
         script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
         script.async = true;
-
-        const loadPromise = new Promise((resolve, reject) => {
+        document.body.appendChild(script);
+        await new Promise((resolve, reject) => {
           script.onload = () => {
             console.log("jsQR library loaded successfully.");
             resolve();
@@ -82,9 +87,6 @@ const QRScanner = () => {
             reject(new Error("Failed to load jsQR library."));
           };
         });
-
-        document.body.appendChild(script);
-        await loadPromise;
       } catch (error) {
         console.error('Error loading jsQR library:', error);
         toast({
@@ -114,14 +116,17 @@ const QRScanner = () => {
     
     const imageData = canvasContext.getImageData(0, 0, width, height);
     const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: "dontInvert",
+      inversionAttempts: "attemptBoth",
     });
     
     if (code && code.data) {
+      console.log("QR Code detected:", code.data);
       clearInterval(scannerIntervalRef.current);
       setScannedCode(code.data);
       verifyTicket(code.data);
       setScanning(false);
+    } else {
+      console.log("No QR code detected in this frame.");
     }
   };
 
@@ -154,6 +159,7 @@ const QRScanner = () => {
       );
       
       if (response.status === 200) {
+        console.log("Ticket verified successfully:", response.data);
         setVerification({
           status: 'success',
           message: response.data.message || 'Ticket verified successfully!',
@@ -174,6 +180,7 @@ const QRScanner = () => {
           variant: "default"
         });
       } else {
+        console.error("Ticket verification failed:", response.data);
         setVerification({
           status: 'error',
           message: response.data.message || 'Invalid ticket',
