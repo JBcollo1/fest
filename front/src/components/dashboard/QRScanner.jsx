@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BadgeCheck, X, RefreshCw, QrCode, Camera, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import axios from 'axios';
 
 const QRScanner = () => {
   const { toast } = useToast();
@@ -68,14 +69,20 @@ const QRScanner = () => {
     if (!window.jsQR) {
       try {
         const script = document.createElement('script');
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js";
+        script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
         script.async = true;
-        
+
         const loadPromise = new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = reject;
+          script.onload = () => {
+            console.log("jsQR library loaded successfully.");
+            resolve();
+          };
+          script.onerror = () => {
+            console.error("Failed to load jsQR library.");
+            reject(new Error("Failed to load jsQR library."));
+          };
         });
-        
+
         document.body.appendChild(script);
         await loadPromise;
       } catch (error) {
@@ -137,22 +144,20 @@ const QRScanner = () => {
     setVerification({ status: null, message: '', ticketData: null });
     
     try {
-      // This would be your actual API endpoint
-      const response = await fetch(`/api/tickets/${ticketId}/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/tickets/${ticketId}/verify`,
+        {},
+        {
+          withCredentials: true,
+          
         }
-      });
+      );
       
-      const data = await response.json();
-      
-      if (response.ok) {
+      if (response.status === 200) {
         setVerification({
           status: 'success',
-          message: data.message || 'Ticket verified successfully!',
-          ticketData: data.data
+          message: response.data.message || 'Ticket verified successfully!',
+          ticketData: response.data.data
         });
         
         // Add to history
@@ -160,7 +165,7 @@ const QRScanner = () => {
           id: ticketId,
           timestamp: new Date().toISOString(),
           status: 'success',
-          details: data.data
+          details: response.data.data
         }, ...prev.slice(0, 19)]);
         
         toast({
@@ -171,7 +176,7 @@ const QRScanner = () => {
       } else {
         setVerification({
           status: 'error',
-          message: data.message || 'Invalid ticket',
+          message: response.data.message || 'Invalid ticket',
           ticketData: null
         });
         
@@ -180,12 +185,12 @@ const QRScanner = () => {
           id: ticketId,
           timestamp: new Date().toISOString(),
           status: 'error',
-          details: { error: data.message }
+          details: { error: response.data.message }
         }, ...prev.slice(0, 19)]);
         
         toast({
           title: "Error",
-          description: data.message || 'Failed to verify ticket',
+          description: response.data.message || 'Failed to verify ticket',
           variant: "destructive"
         });
       }
