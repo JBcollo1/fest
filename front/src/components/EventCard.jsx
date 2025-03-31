@@ -94,8 +94,13 @@ const EventCard = ({
             </div>
             <div className="flex items-center">
               <DollarSign className="h-4 w-4 mr-1 text-muted-foreground" />
-              <span>{event.currency} {event.price.toLocaleString()}</span>
+              {event.price !== null && event.price !== undefined ? (
+                <span>{event.currency} {event.price.toLocaleString()}</span>
+              ) : (
+                <span>Free</span> // Or any placeholder for free events
+              )}
             </div>
+
           </div>
           
           {featured && event.description && (

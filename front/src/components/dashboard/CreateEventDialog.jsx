@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { uploadImage } from "@/utils/imageUpload";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
@@ -54,6 +53,8 @@ const CreateEventDialog = ({
   const formRef = useRef(null);
   const fileInputRef = useRef(null);
   const [ticketTypes, setTicketTypes] = useState([{ name: "", price: "", quantity: "", per_person_limit: "", valid_from: "", valid_to: "" }]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   // Reset form when dialog opens or closes
   useEffect(() => {
@@ -158,65 +159,70 @@ const CreateEventDialog = ({
     return true;
   };
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Preview the selected image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setSelectedFile(file);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) return;
-    
+  
     setIsSubmitting(true);
     setFormError("");
-    
-    const eventData = {
-      title,
-      description,
-      start_datetime: startDateTime,
-      end_datetime: endDateTime || null,
-      location,
-      total_tickets: ticketTypes.reduce((sum, tt) => sum + parseInt(tt.quantity), 0),
-      image,
-      ...(isadmin && organizerId && { organizer_id: organizerId }),
-      featured,
-      ticket_types: ticketTypes.map(tt => ({
-        name: tt.name,
-        price: parseFloat(tt.price),
-        quantity: parseInt(tt.quantity),
-      })),
-    };
-    
-    const result = await onSubmit(eventData);
-    
-    if (result === true) {
-      // Success, form will be reset when dialog closes
-    } else {
-      // Error
-      setFormError(result.error || "An error occurred");
-      setIsSubmitting(false);
-    }
-  };
+  
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("description", description);
+    formData.append("start_datetime", startDateTime);
+    formData.append("end_datetime", endDateTime || "");
+    formData.append("location", location);
+    formData.append("featured", featured);
+    formData.append("total_tickets", totalTickets);
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    // Append the image file directly if it exists
+    if (selectedFile) {
+      formData.append("file", selectedFile);
+    }
+
+    // Append ticket types as JSON string
+    formData.append("ticket_types", JSON.stringify(ticketTypes.map(tt => ({
+      name: tt.name,
+      price: parseFloat(tt.price),
+      quantity: parseInt(tt.quantity),
+      per_person_limit: tt.per_person_limit ? parseInt(tt.per_person_limit) : null,
+      valid_from: tt.valid_from || null,
+      valid_to: tt.valid_to || null,
+    }))));
+
+    // Append organizer_id if admin
+    if (isadmin && organizerId) {
+      formData.append("organizer_id", organizerId);
+    }
 
     try {
-      setIsUploading(true);
-      const result = await uploadImage(file, {
-        isPrivate: false, // Event images are public
-        target: 'event'
-      });
-      setImage(result.url);
-      toast({
-        title: "Success",
-        description: "Image uploaded successfully",
-      });
+      const result = await onSubmit(formData);
+      
+      if (result === true) {
+        // Success, form will be reset when dialog closes
+      } else {
+        // Error
+        setFormError(result.error || "An error occurred");
+        setIsSubmitting(false);
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload image",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
+      console.error("Error submitting form:", error);
+      setFormError("An error occurred while submitting the form");
+      setIsSubmitting(false);
     }
   };
 
@@ -361,55 +367,24 @@ const CreateEventDialog = ({
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="image" className="text-sm font-medium flex items-center">
-                        <Image className="h-4 w-4 mr-2" /> Event Image
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          id="image"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                          ref={fileInputRef}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading}
-                        >
-                          {isUploading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Uploading...
-                            </>
-                          ) : (
-                            <>
-                              <Image className="h-4 w-4 mr-2" />
-                              Choose Image
-                            </>
-                          )}
-                        </Button>
-                        {image && (
-                          <div className="relative w-20 h-20">
-                            <img
-                              src={image}
-                              alt="Preview"
-                              className="w-full h-full object-cover rounded-md"
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="icon"
-                              className="absolute -top-2 -right-2 h-6 w-6"
-                              onClick={() => setImage("")}
-                            >
-                              ×
-                            </Button>
-                          </div>
-                        )}
-                      </div>
+                      <Label htmlFor="image-upload" className="text-sm font-medium">Event Image</Label>
+                      <Input
+                        id="image-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        disabled={isUploading}
+                        className="focus-visible:ring-primary"
+                      />
+                      {previewUrl && (
+                        <div className="relative w-32 h-32 rounded-full overflow-hidden mt-2">
+                          <img 
+                            src={previewUrl} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

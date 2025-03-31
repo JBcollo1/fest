@@ -255,10 +255,20 @@ const EventDetail = () => {
             </div>
             
             <div className="flex justify-between items-center">
-              <div>
+            <div>
                 <p className="text-sm text-muted-foreground">Price</p>
-                <p className="text-2xl font-semibold cursor-pointer hover:text-primary transition-colors" onClick={scrollToTickets}>{event.currency} {event.price.toLocaleString()}</p>
+                <p 
+                  className="text-2xl font-semibold cursor-pointer hover:text-primary transition-colors" 
+                  onClick={scrollToTickets}
+                >
+                  {event.price !== null && event.price !== undefined ? (
+                    `${event.currency} ${event.price.toLocaleString()}`
+                  ) : (
+                    "Free"
+                  )}
+                </p>
               </div>
+
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -364,8 +374,13 @@ const EventDetail = () => {
                       </div>
                       <div className="flex justify-between mt-2">
                         <span>Price per ticket</span>
-                        <span>{event.currency} {ticketType.price.toLocaleString()}</span>
+                        {ticketType.price !== null && ticketType.price !== undefined ? (
+                          <span>{event.currency} {ticketType.price.toLocaleString()}</span>
+                        ) : (
+                          <span>Free</span> // Or any placeholder for free tickets
+                        )}
                       </div>
+
                     </div>
                   ))}
                   

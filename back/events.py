@@ -57,7 +57,17 @@ class EventListResource(Resource):
     def post(self):
         """Create a new event (admin or organizer only)"""
         current_user_id = get_jwt_identity()
-        data = request.get_json()
+        
+        # Ensure the request is processed as form data
+        data = request.form.to_dict()
+        
+        # Handle file upload if present
+        if 'file' in request.files:
+            file = request.files['file']
+            if file.filename != '' and allowed_file(file.filename):
+                # Upload to Cloudinary
+                upload_result = cloudinary.uploader.upload(file)
+                data['image'] = upload_result['secure_url']
         
         user = User.query.get(current_user_id)
         
@@ -99,6 +109,7 @@ class EventListResource(Resource):
             start_datetime=start_datetime,
             end_datetime=end_datetime,
             location=data['location'],
+            total_tickets=data.get('total_tickets', 0),
             currency=data.get('currency', 'KES'),
             image=data.get('image'),
             featured=data.get('featured', False)
@@ -124,12 +135,6 @@ class EventListResource(Resource):
                     ticket_type.valid_to = datetime.fromisoformat(ticket_type_data['valid_to'].replace('Z', '+00:00'))
                 
                 new_event.ticket_types.append(ticket_type)
-        
-        if 'image' in request.files:
-            file = request.files['image']
-            image_url = self.upload_event_image(file)
-            if image_url:
-                new_event.image = image_url
         
         try:
             db.session.add(new_event)
