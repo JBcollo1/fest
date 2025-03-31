@@ -21,21 +21,24 @@ class TicketPurchaseResource(Resource):
         if not event:
             return error_response("Event not found", 404)
 
-        # Get the ticket type from the request
-        ticket_type_id = request.json.get('ticket_type_id')
-        ticket_type = TicketType.query.get(ticket_type_id)
+        # Get ticket details and total amount from the request
+        ticket_details = request.json.get('ticket_details', [])
+        total_amount = request.json.get('total_amount', 0)
 
-        if not ticket_type or ticket_type.event_id != event_id:
-            return error_response("Invalid ticket type", 400)
+        # Validate and process each ticket type
+        for detail in ticket_details:
+            ticket_type_id = detail.get('ticket_type_id')
+            quantity = detail.get('quantity', 1)
 
-        # Check if the ticket type is available
-        quantity = request.json.get('quantity', 1)  # Default to 1 if not provided
-        if not ticket_type.is_available(quantity):
-            return error_response("Selected ticket type is not available", 400)
+            ticket_type = TicketType.query.get(ticket_type_id)
+            if not ticket_type or ticket_type.event_id != event_id:
+                return error_response("Invalid ticket type", 400)
 
-        # Check per person limit
-        if ticket_type.per_person_limit and quantity > ticket_type.per_person_limit:
-            return error_response(f"Cannot purchase more than {ticket_type.per_person_limit} tickets per person", 400)
+            if not ticket_type.is_available(quantity):
+                return error_response("Selected ticket type is not available", 400)
+
+            if ticket_type.per_person_limit and quantity > ticket_type.per_person_limit:
+                return error_response(f"Cannot purchase more than {ticket_type.per_person_limit} tickets per person", 400)
 
         # Create or get the attendee
         attendee = Attendee.query.filter_by(user_id=user.id).first()
@@ -48,12 +51,9 @@ class TicketPurchaseResource(Resource):
                 db.session.rollback()
                 return error_response(f"Error creating attendee: {str(e)}", 500)
 
-        # Calculate total price based on ticket type and quantity
-        total_price = ticket_type.price * quantity
-
         # Initiate M-Pesa Payment
         phone_number = user.phone
-        payment_result = initiate_mpesa_payment(total_price, phone_number)
+        payment_result = initiate_mpesa_payment(total_amount, phone_number)
 
         if not payment_result or payment_result.get('ResponseCode', '1') != '0':
             return error_response("Payment initiation failed", 400)
@@ -68,31 +68,32 @@ class TicketPurchaseResource(Resource):
             return error_response("Payment confirmation failed", 400)
 
         try:
-            # Create a new ticket
-            ticket = Ticket(
-                event_id=event.id,
-                attendee_id=attendee.id,
-                ticket_type_id=ticket_type.id,
-                price=total_price,
-                original_price=ticket_type.price,  # Store the original price per ticket
-                currency=ticket_type.currency,
-                status='confirmed',  # Assuming payment is verified
-                quantity=quantity  # Set the quantity for group tickets
-            )
-            db.session.add(ticket)
-            db.session.flush()  # Get the ticket ID
+            # Process each ticket type
+            for detail in ticket_details:
+                ticket_type_id = detail.get('ticket_type_id')
+                quantity = detail.get('quantity', 1)
+                ticket_type = TicketType.query.get(ticket_type_id)
 
-            # Ensure ticket ID is not null
-            if not ticket.id:
-                raise Exception("Failed to create ticket")
+                # Create a new ticket
+                ticket = Ticket(
+                    event_id=event.id,
+                    attendee_id=attendee.id,
+                    ticket_type_id=ticket_type.id,
+                    price=ticket_type.price * quantity,
+                    original_price=ticket_type.price,
+                    currency=ticket_type.currency,
+                    satus='confirmed',
+                    quantity=quantity
+                )
+                db.session.add(ticket)
 
             # Record the payment
             payment = Payment(
                 ticket_id=ticket.id,
                 payment_method='Mpesa',
-                payment_status='Confirmed',  # Assuming payment is verified
+                payment_status='Confirmed',
                 transaction_id=checkout_request_id,
-                amount=total_price,
+                amount=total_amount,
                 currency=ticket.currency
             )
             db.session.add(payment)

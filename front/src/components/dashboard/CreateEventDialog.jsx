@@ -25,7 +25,8 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { MultiSelect } from "@/components/ui/multi-select";
+// import { MultiSelect } from "@/components/ui/multi-select";
+// import Select from 'react-select';
 
 const CreateEventDialog = ({ 
   open, 
@@ -34,7 +35,7 @@ const CreateEventDialog = ({
   isadmin, 
   organizers, 
   fetchOrganizerById,
-  categories
+  categories = []
 }) => {
   // Form states
   const [title, setTitle] = useState("");
@@ -141,10 +142,10 @@ const CreateEventDialog = ({
       setFormError("Location is required");
       return false;
     }
-    if (!totalTickets || isNaN(parseInt(totalTickets)) || parseInt(totalTickets) <= 0) {
-      setFormError("Valid number of tickets is required");
-      return false;
-    }
+    // if (!totalTickets || isNaN(parseInt(totalTickets)) || parseInt(totalTickets) <= 0) {
+    //   setFormError("Valid number of tickets is required");
+    //   return false;
+    // }
     // For admins, require organizer selection
     if (isadmin && !organizerId) {
       setFormError("Please select an organizer");
@@ -174,6 +175,10 @@ const CreateEventDialog = ({
       reader.readAsDataURL(file);
       setSelectedFile(file);
     }
+  };
+
+  const handleCategoryChange = (selectedOptions) => {
+    setSelectedCategories(selectedOptions.map(option => option.value));
   };
 
   const handleSubmit = async (e) => {
@@ -396,14 +401,24 @@ const CreateEventDialog = ({
                     {/* Category Selection */}
                     <div className="space-y-2">
                       <Label htmlFor="categories" className="text-sm font-medium">Categories</Label>
-                      <MultiSelect
-                        id="categories"
-                        options={categories.map(category => ({ value: category.id, label: category.name }))}
+                      <Select
                         value={selectedCategories}
-                        onChange={setSelectedCategories}
+                        onValueChange={handleCategoryChange}
+                        isMulti
                         placeholder="Select categories"
                         className="focus-visible:ring-primary"
-                      />
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map(category => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>

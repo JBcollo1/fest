@@ -149,9 +149,39 @@ const EventDetail = () => {
 
   };
 
-  const handlePurchase = () => {
-    // Implement purchase logic here
-    console.log("Purchasing tickets:", selectedTickets);
+  const handlePurchase = async () => {
+    try {
+      const ticketDetails = Object.keys(selectedTickets).map(ticketTypeId => ({
+        ticket_type_id: ticketTypeId,
+        quantity: selectedTickets[ticketTypeId]
+      }));
+
+      const totalAmount = Object.keys(selectedTickets).reduce((total, ticketTypeId) => {
+        const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
+        return total + (ticketType.price * selectedTickets[ticketTypeId]);
+      }, 0);
+
+      // Send the purchase request to the backend
+      const response = await fetch(`/api/tickets/purchase/${event.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${yourAuthToken}` // Replace with actual token
+        },
+        body: JSON.stringify({
+          ticket_details: ticketDetails,
+          total_amount: totalAmount
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to purchase tickets');
+      }
+
+      console.log("Tickets purchased successfully");
+    } catch (error) {
+      console.error("Error purchasing tickets:", error);
+    }
   };
 
   if (isLoading) {
@@ -350,7 +380,9 @@ const EventDetail = () => {
                   
                   {event.ticket_types.map(ticketType => (
                     <div key={ticketType.id} className="mb-6">
-                      <p className="text-muted-foreground mb-2">{ticketType.name}</p>
+                      <p className="text-muted-foreground mb-2">
+                        {ticketType.name} - Holds up to {ticketType.per_person_limit || 'unlimited'} people
+                      </p>
                       <div className="flex items-center">
                         <Button
                           variant="outline"
@@ -377,7 +409,7 @@ const EventDetail = () => {
                         {ticketType.price !== null && ticketType.price !== undefined ? (
                           <span>{event.currency} {ticketType.price.toLocaleString()}</span>
                         ) : (
-                          <span>Free</span> // Or any placeholder for free tickets
+                          <span>Free</span>
                         )}
                       </div>
                     </div>
