@@ -162,12 +162,12 @@ const EventDetail = () => {
       }, 0);
 
       // Send the purchase request to the backend
-      const response = await fetch(`/api/tickets/purchase/${event.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/events/${event.id}/purchase`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${yourAuthToken}` // Replace with actual token
+          'Content-Type': 'application/json'
         },
+        credentials: 'include', // Include cookies with the request
         body: JSON.stringify({
           ticket_details: ticketDetails,
           total_amount: totalAmount

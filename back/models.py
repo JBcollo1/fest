@@ -401,3 +401,6 @@ class TicketType(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }    
+
+    def is_available(self, quantity):
+        return self.quantity - self.tickets_sold >= quantity    

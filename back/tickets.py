@@ -34,7 +34,8 @@ class TicketPurchaseResource(Resource):
             if not ticket_type or ticket_type.event_id != event_id:
                 return error_response("Invalid ticket type", 400)
 
-            if not ticket_type.is_available(quantity):
+            # Directly check availability
+            if ticket_type.quantity - ticket_type.tickets_sold < quantity:
                 return error_response("Selected ticket type is not available", 400)
 
             if ticket_type.per_person_limit and quantity > ticket_type.per_person_limit:
