@@ -25,6 +25,7 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 const CreateEventDialog = ({ 
   open, 
@@ -32,7 +33,8 @@ const CreateEventDialog = ({
   onSubmit, 
   isadmin, 
   organizers, 
-  fetchOrganizerById 
+  fetchOrganizerById,
+  categories
 }) => {
   // Form states
   const [title, setTitle] = useState("");
@@ -55,6 +57,7 @@ const CreateEventDialog = ({
   const [ticketTypes, setTicketTypes] = useState([{ name: "", price: "", quantity: "", per_person_limit: "", valid_from: "", valid_to: "" }]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [selectedCategories, setSelectedCategories] = useState([]);
 
   // Reset form when dialog opens or closes
   useEffect(() => {
@@ -85,6 +88,7 @@ const CreateEventDialog = ({
     setIsSubmitting(false);
     setFeatured(false);
     setTicketTypes([{ name: "", price: "", quantity: "", per_person_limit: "", valid_from: "", valid_to: "" }]);
+    setSelectedCategories([]);
   };
 
   const handleOrganizerChange = async (value) => {
@@ -187,7 +191,6 @@ const CreateEventDialog = ({
     formData.append("end_datetime", endDateTime || "");
     formData.append("location", location);
     formData.append("featured", featured);
-    formData.append("total_tickets", totalTickets);
 
     // Append the image file directly if it exists
     if (selectedFile) {
@@ -203,6 +206,9 @@ const CreateEventDialog = ({
       valid_from: tt.valid_from || null,
       valid_to: tt.valid_to || null,
     }))));
+
+    // Append categories as JSON string
+    formData.append("categories", JSON.stringify(selectedCategories));
 
     // Append organizer_id if admin
     if (isadmin && organizerId) {
@@ -386,6 +392,19 @@ const CreateEventDialog = ({
                         </div>
                       )}
                     </div>
+
+                    {/* Category Selection */}
+                    <div className="space-y-2">
+                      <Label htmlFor="categories" className="text-sm font-medium">Categories</Label>
+                      <MultiSelect
+                        id="categories"
+                        options={categories.map(category => ({ value: category.id, label: category.name }))}
+                        value={selectedCategories}
+                        onChange={setSelectedCategories}
+                        placeholder="Select categories"
+                        className="focus-visible:ring-primary"
+                      />
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -397,23 +416,7 @@ const CreateEventDialog = ({
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Ticket Information</h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="total-tickets" className="text-sm font-medium flex items-center">
-                        <Users className="h-4 w-4 mr-2" /> Total Tickets *
-                      </Label>
-                      <Input
-                        id="total-tickets"
-                        type="number"
-                        min="1"
-                        value={totalTickets}
-                        onChange={(e) => setTotalTickets(e.target.value)}
-                        placeholder="100"
-                        required
-                        className="focus-visible:ring-primary"
-                      />
-                    </div>
-                  </div>
+                  {/* Remove total tickets input */}
                 </div>
               </CardContent>
             </Card>

@@ -7,6 +7,7 @@ from utils.response import success_response, error_response, paginate_response
 from utils.auth import organizer_required, admin_required
 from datetime import datetime
 import cloudinary.uploader
+import json
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -112,32 +113,44 @@ class EventListResource(Resource):
             start_datetime=start_datetime,
             end_datetime=end_datetime,
             location=data['location'],
-            total_tickets=data.get('total_tickets', 0),
             currency=data.get('currency', 'KES'),
             image=data.get('image'),
             featured=featured
         )
         
         # Add ticket types if provided
-        if 'ticket_types' in data and isinstance(data['ticket_types'], list):
-            for ticket_type_data in data['ticket_types']:
+        total_tickets = 0
+        if 'ticket_types' in data:
+            ticket_types = json.loads(data['ticket_types'])
+            for ticket_type_data in ticket_types:
                 ticket_type = TicketType(
                     event_id=new_event.id,
                     name=ticket_type_data['name'],
                     price=ticket_type_data['price'],
-                    quantity=ticket_type_data['quantity'],
+                    quantity=ticket_type_data.get('quantity', 0),  # Default to 0 if not provided
                     description=ticket_type_data.get('description'),
                     currency=data.get('currency', 'KES')
                 )
                 
                 # Optional valid_from and valid_to fields
-                if 'valid_from' in ticket_type_data:
+                if 'valid_from' in ticket_type_data and ticket_type_data['valid_from']:
                     ticket_type.valid_from = datetime.fromisoformat(ticket_type_data['valid_from'].replace('Z', '+00:00'))
                 
-                if 'valid_to' in ticket_type_data:
+                if 'valid_to' in ticket_type_data and ticket_type_data['valid_to']:
                     ticket_type.valid_to = datetime.fromisoformat(ticket_type_data['valid_to'].replace('Z', '+00:00'))
                 
                 new_event.ticket_types.append(ticket_type)
+                total_tickets += ticket_type.quantity
+        
+        new_event.total_tickets = total_tickets
+
+        # Add categories if provided
+        if 'categories' in data:
+            category_ids = json.loads(data['categories'])
+            for category_id in category_ids:
+                category = Category.query.get(category_id)
+                if category:
+                    new_event.categories.append(category)
         
         try:
             db.session.add(new_event)

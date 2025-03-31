@@ -380,7 +380,6 @@ const EventDetail = () => {
                           <span>Free</span> // Or any placeholder for free tickets
                         )}
                       </div>
-
                     </div>
                   ))}
                   
