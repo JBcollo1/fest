@@ -15,7 +15,8 @@ import {
   Facebook,
   Twitter,
   Linkedin,
-  Mail
+  Mail,
+  Loader2
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import AnimatedSection from '@/components/AnimatedSection';
@@ -38,6 +39,7 @@ const EventDetail = () => {
   const [error, setError] = useState(null);
   const [selectedTickets, setSelectedTickets] = useState({});
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
   
   const scrollToTickets = () => {
     const ticketsSection = document.getElementById('tickets-section');
@@ -151,6 +153,7 @@ const EventDetail = () => {
 
   const handlePurchase = async () => {
     try {
+      setIsPurchasing(true);
       const ticketDetails = Object.keys(selectedTickets).map(ticketTypeId => ({
         ticket_type_id: ticketTypeId,
         quantity: selectedTickets[ticketTypeId]
@@ -181,8 +184,16 @@ const EventDetail = () => {
       console.log("Tickets purchased successfully");
     } catch (error) {
       console.error("Error purchasing tickets:", error);
+    } finally {
+      setTimeout(() => setIsPurchasing(false), 40000);
     }
   };
+
+  // Calculate total price
+  const totalPrice = Object.keys(selectedTickets).reduce((total, ticketTypeId) => {
+    const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
+    return total + (ticketType.price * selectedTickets[ticketTypeId]);
+  }, 0);
 
   if (isLoading) {
     return (
@@ -418,16 +429,22 @@ const EventDetail = () => {
                   <div className="border-t border-border pt-4 mb-6">
                     <div className="flex justify-between font-semibold text-lg mt-4 pt-4 border-t border-border">
                       <span>Total</span>
-                      <span>{event.currency} {Object.keys(selectedTickets).reduce((total, ticketTypeId) => {
-                        const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
-                        return total + (ticketType.price * selectedTickets[ticketTypeId]);
-                      }, 0).toLocaleString()}</span>
+                      <span>{event.currency} {totalPrice.toLocaleString()}</span>
                     </div>
                   </div>
                   
-                  <Button className="w-full" size="lg" onClick={handlePurchase}>
-                    <Ticket className="h-4 w-4 mr-2" />
-                    Buy Tickets
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    onClick={handlePurchase} 
+                    disabled={isPurchasing || totalPrice < 1}
+                  >
+                    {isPurchasing ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Ticket className="h-4 w-4 mr-2" />
+                    )}
+                    {isPurchasing ? 'Processing...' : 'Buy Tickets'}
                   </Button>
                   
                   <p className="text-xs text-muted-foreground text-center mt-4">
