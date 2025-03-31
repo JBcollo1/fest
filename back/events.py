@@ -100,6 +100,9 @@ class EventListResource(Resource):
                 end_datetime = datetime.fromisoformat(data['end_datetime'].replace('Z', '+00:00'))
         except ValueError:
             return error_response("Invalid datetime format")
+        
+        # Convert 'featured' to a boolean
+        featured = data.get('featured', 'false').lower() in ['true', '1', 'yes']
             
         # Create new event
         new_event = Event(
@@ -112,7 +115,7 @@ class EventListResource(Resource):
             total_tickets=data.get('total_tickets', 0),
             currency=data.get('currency', 'KES'),
             image=data.get('image'),
-            featured=data.get('featured', False)
+            featured=featured
         )
         
         # Add ticket types if provided
