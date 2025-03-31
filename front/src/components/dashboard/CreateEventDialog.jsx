@@ -54,6 +54,7 @@ const CreateEventDialog = ({
   const submitButtonRef = useRef(null);
   const formRef = useRef(null);
   const fileInputRef = useRef(null);
+  const [ticketTypes, setTicketTypes] = useState([{ name: "", price: "", quantity: "" }]);
 
   // Reset form when dialog opens or closes
   useEffect(() => {
@@ -84,6 +85,7 @@ const CreateEventDialog = ({
     setSelectedOrganizerDetails(null);
     setIsSubmitting(false);
     setFeatured(false);
+    setTicketTypes([{ name: "", price: "", quantity: "" }]);
   };
 
   const handleOrganizerChange = async (value) => {
@@ -106,6 +108,21 @@ const CreateEventDialog = ({
       console.error("Error fetching organizer details:", error);
       setSelectedOrganizerDetails(null);
     }
+  };
+
+  const handleTicketTypeChange = (index, field, value) => {
+    const updatedTicketTypes = [...ticketTypes];
+    updatedTicketTypes[index][field] = value;
+    setTicketTypes(updatedTicketTypes);
+  };
+
+  const addTicketType = () => {
+    setTicketTypes([...ticketTypes, { name: "", price: "", quantity: "" }]);
+  };
+
+  const removeTicketType = (index) => {
+    const updatedTicketTypes = ticketTypes.filter((_, i) => i !== index);
+    setTicketTypes(updatedTicketTypes);
   };
 
   const validateForm = () => {
@@ -134,6 +151,20 @@ const CreateEventDialog = ({
       setFormError("Please select an organizer");
       return false;
     }
+    for (const ticketType of ticketTypes) {
+      if (!ticketType.name) {
+        setFormError("Ticket type name is required");
+        return false;
+      }
+      if (!ticketType.price || isNaN(parseFloat(ticketType.price)) || parseFloat(ticketType.price) < 0) {
+        setFormError("Valid ticket type price is required");
+        return false;
+      }
+      if (!ticketType.quantity || isNaN(parseInt(ticketType.quantity)) || parseInt(ticketType.quantity) <= 0) {
+        setFormError("Valid ticket type quantity is required");
+        return false;
+      }
+    }
     return true;
   };
 
@@ -156,6 +187,11 @@ const CreateEventDialog = ({
       image,
       ...(isadmin && organizerId && { organizer_id: organizerId }),
       featured,
+      ticket_types: ticketTypes.map(tt => ({
+        name: tt.name,
+        price: parseFloat(tt.price),
+        quantity: parseInt(tt.quantity),
+      })),
     };
     
     const result = await onSubmit(eventData);
@@ -431,6 +467,69 @@ const CreateEventDialog = ({
                       />
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Ticket Types */}
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Ticket Types</h3>
+                  {ticketTypes.map((ticketType, index) => (
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`ticket-type-name-${index}`} className="text-sm font-medium">Name *</Label>
+                        <Input
+                          id={`ticket-type-name-${index}`}
+                          value={ticketType.name}
+                          onChange={(e) => handleTicketTypeChange(index, 'name', e.target.value)}
+                          placeholder="Regular"
+                          required
+                          className="focus-visible:ring-primary"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`ticket-type-price-${index}`} className="text-sm font-medium">Price (KES) *</Label>
+                        <Input
+                          id={`ticket-type-price-${index}`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={ticketType.price}
+                          onChange={(e) => handleTicketTypeChange(index, 'price', e.target.value)}
+                          placeholder="999.99"
+                          required
+                          className="focus-visible:ring-primary"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`ticket-type-quantity-${index}`} className="text-sm font-medium">Quantity *</Label>
+                        <Input
+                          id={`ticket-type-quantity-${index}`}
+                          type="number"
+                          min="1"
+                          value={ticketType.quantity}
+                          onChange={(e) => handleTicketTypeChange(index, 'quantity', e.target.value)}
+                          placeholder="100"
+                          required
+                          className="focus-visible:ring-primary"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="mt-6"
+                        onClick={() => removeTicketType(index)}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" onClick={addTicketType}>
+                    Add Ticket Type
+                  </Button>
                 </div>
               </CardContent>
             </Card>

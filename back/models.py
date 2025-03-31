@@ -181,6 +181,7 @@ class Event(db.Model):
   categories = db.relationship('Category', secondary='event_categories', backref=db.backref('events', lazy='dynamic'))
   tickets = db.relationship('Ticket', backref='event', lazy='dynamic')
   discount_codes = db.relationship('DiscountCode', secondary='event_discount_codes', backref=db.backref('events', lazy='dynamic'))
+  ticket_types = db.relationship('TicketType', backref='event', lazy='dynamic')
   
   def to_dict(self, include_organizer=False):
     event_dict = {
@@ -200,13 +201,33 @@ class Event(db.Model):
       'available_tickets': self.total_tickets - self.tickets_sold,
       'created_at': self.created_at.isoformat() if self.created_at else None,
       'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-      'categories': [category.name for category in self.categories]
+      'categories': [category.name for category in self.categories],
+      'ticket_types': [ticket_type.to_dict() for ticket_type in self.ticket_types]
     }
     
     if include_organizer:
       event_dict['organizer'] = self.organizer.to_dict()
         
     return event_dict
+
+  def create_ticket_type(self, name, price, quantity, **kwargs):
+    ticket_type = TicketType(
+      event_id=self.id,
+      name=name,
+      price=price,
+      quantity=quantity,
+      currency=kwargs.get('currency', self.currency),
+      description=kwargs.get('description'),
+      valid_from=kwargs.get('valid_from'),
+      valid_to=kwargs.get('valid_to'),
+      min_quantity=kwargs.get('min_quantity'),
+      max_quantity=kwargs.get('max_quantity'),
+      per_person_limit=kwargs.get('per_person_limit'),
+      features=kwargs.get('features')
+    )
+    db.session.add(ticket_type)
+    db.session.commit()
+    return ticket_type
 
 
 class Category(db.Model):
@@ -239,14 +260,16 @@ class Ticket(db.Model):
   currency = db.Column(db.String(10), nullable=False, default='KES')
   satus = db.Column(db.String(20), default='valid')
   qr_code = db.Column(db.String(40), unique=True, default=lambda: str(uuid.uuid4()))
+  ticket_type_id = db.Column(db.String(36), db.ForeignKey('ticket_types.id'), nullable=True)
   
   payment = db.relationship('Payment', backref='ticket', uselist=False, cascade="all, delete")
   
-  def to_dict(self, include_event=False, include_attendee=True, include_payment=True):
+  def to_dict(self, include_event=False, include_attendee=True, include_payment=True, include_ticket_type=True):
     ticket_dict = {
       'id': self.id,
       'event_id': self.event_id,
       'attendee_id': self.attendee_id,
+      'ticket_type_id': self.ticket_type_id,
       'purchase_date': self.purchase_date.isoformat() if self.purchase_date else None,
       'price': float(self.price) if self.price else None,
       'status': self.satus,
@@ -262,6 +285,9 @@ class Ticket(db.Model):
         
     if include_payment and self.payment:
       ticket_dict['payment'] = self.payment.to_dict()
+        
+    if include_ticket_type:
+      ticket_dict['ticket_type'] = self.ticket_type.to_dict()
         
     return ticket_dict
 
@@ -330,4 +356,48 @@ class Payment(db.Model):
       payment_dict['ticket'] = self.ticket.to_dict()
         
     return payment_dict
+
+class TicketType(db.Model):
+    __tablename__ = 'ticket_types'
     
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    event_id = db.Column(db.String(36), db.ForeignKey('events.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)  # e.g., 'Regular', 'VIP', 'Early Bird', 'Group'
+    description = db.Column(db.Text, nullable=True)
+    price = db.Column(db.Numeric(10, 2), nullable=False)
+    currency = db.Column(db.String(10), nullable=False, default='KES')
+    quantity = db.Column(db.Integer, nullable=False)  # Number of tickets of this type available
+    tickets_sold = db.Column(db.Integer, nullable=False, default=0)
+    valid_from = db.Column(db.DateTime, nullable=True)
+    valid_to = db.Column(db.DateTime, nullable=True)
+    min_quantity = db.Column(db.Integer, nullable=True)
+    max_quantity = db.Column(db.Integer, nullable=True)
+    per_person_limit = db.Column(db.Integer, nullable=True)
+    features = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    tickets = db.relationship('Ticket', backref='ticket_type', lazy='dynamic')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'event_id': self.event_id,
+            'name': self.name,
+            'description': self.description,
+            'price': float(self.price) if self.price else None,
+            'currency': self.currency,
+            'quantity': self.quantity,
+            'tickets_sold': self.tickets_sold,
+            'available': self.quantity - self.tickets_sold,
+            'valid_from': self.valid_from.isoformat() if self.valid_from else None,
+            'valid_to': self.valid_to.isoformat() if self.valid_to else None,
+            'min_quantity': self.min_quantity,
+            'max_quantity': self.max_quantity,
+            'per_person_limit': self.per_person_limit,
+            'features': self.features,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }    

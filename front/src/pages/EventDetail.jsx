@@ -36,7 +36,7 @@ const EventDetail = () => {
   const [event, setEvent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedTickets, setSelectedTickets] = useState(1);
+  const [selectedTickets, setSelectedTickets] = useState({});
   const [copySuccess, setCopySuccess] = useState(false);
   
   const scrollToTickets = () => {
@@ -58,6 +58,15 @@ const EventDetail = () => {
         setError(null);
         const eventData = await fetchEventById(id);
         setEvent(eventData);
+
+        // Initialize selected tickets state
+        const initialSelectedTickets = {};
+        if (eventData && eventData.ticket_types) {
+          eventData.ticket_types.forEach(type => {
+            initialSelectedTickets[type.id] = 0;
+          });
+        }
+        setSelectedTickets(initialSelectedTickets);
       } catch (err) {
         console.error('Error loading event:', err);
         setError('Failed to load event details');
@@ -69,15 +78,24 @@ const EventDetail = () => {
     loadEvent();
   }, [id, fetchEventById]);
   
-  const increaseTickets = () => {
-    if (event && selectedTickets < event.total_tickets - event.tickets_sold) {
-      setSelectedTickets(prev => prev + 1);
+  const increaseTickets = (ticketTypeId) => {
+    if (event) {
+      const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
+      if (selectedTickets[ticketTypeId] < ticketType.quantity - ticketType.tickets_sold) {
+        setSelectedTickets(prev => ({
+          ...prev,
+          [ticketTypeId]: prev[ticketTypeId] + 1
+        }));
+      }
     }
   };
   
-  const decreaseTickets = () => {
-    if (selectedTickets > 1) {
-      setSelectedTickets(prev => prev - 1);
+  const decreaseTickets = (ticketTypeId) => {
+    if (selectedTickets[ticketTypeId] > 0) {
+      setSelectedTickets(prev => ({
+        ...prev,
+        [ticketTypeId]: prev[ticketTypeId] - 1
+      }));
     }
   };
   
@@ -129,6 +147,11 @@ const EventDetail = () => {
     // Open in new tab for social media, new window for email
       window.open(shareUrl, '_blank');
 
+  };
+
+  const handlePurchase = () => {
+    // Implement purchase logic here
+    console.log("Purchasing tickets:", selectedTickets);
   };
 
   if (isLoading) {
@@ -315,51 +338,48 @@ const EventDetail = () => {
                 <div className="glass rounded-xl p-6 sticky top-24">
                   <h2 className="text-xl font-semibold mb-4">Get Tickets</h2>
                   
-                  <div className="mb-6">
-                    <p className="text-muted-foreground mb-2">Select Quantity</p>
-                    <div className="flex items-center">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={decreaseTickets}
-                        disabled={selectedTickets <= 1}
-                        className="h-10 w-10 rounded-full"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <span className="mx-4 text-lg font-medium w-8 text-center">{selectedTickets}</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={increaseTickets}
-                        disabled={event && selectedTickets >= event.total_tickets - event.tickets_sold}
-                        className="h-10 w-10 rounded-full"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                  {event.ticket_types.map(ticketType => (
+                    <div key={ticketType.id} className="mb-6">
+                      <p className="text-muted-foreground mb-2">{ticketType.name}</p>
+                      <div className="flex items-center">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => decreaseTickets(ticketType.id)}
+                          disabled={selectedTickets[ticketType.id] <= 0}
+                          className="h-10 w-10 rounded-full"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="mx-4 text-lg font-medium w-8 text-center">{selectedTickets[ticketType.id]}</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => increaseTickets(ticketType.id)}
+                          disabled={selectedTickets[ticketType.id] >= ticketType.quantity - ticketType.tickets_sold}
+                          className="h-10 w-10 rounded-full"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex justify-between mt-2">
+                        <span>Price per ticket</span>
+                        <span>{event.currency} {ticketType.price.toLocaleString()}</span>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                   
                   <div className="border-t border-border pt-4 mb-6">
-                    <div className="flex justify-between mb-2">
-                      <span>Price per ticket</span>
-                      <span>{event.currency} {event.price.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between mb-2">
-                      <span>Quantity</span>
-                      <span>{selectedTickets}</span>
-                    </div>
-                    <div className="flex justify-between mb-2">
-                      <span>Service fee</span>
-                      <span>{event.currency} {(event.price * 0.05).toLocaleString()}</span>
-                    </div>
                     <div className="flex justify-between font-semibold text-lg mt-4 pt-4 border-t border-border">
                       <span>Total</span>
-                      <span>{event.currency} {((event.price + event.price * 0.05) * selectedTickets).toLocaleString()}</span>
+                      <span>{event.currency} {Object.keys(selectedTickets).reduce((total, ticketTypeId) => {
+                        const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
+                        return total + (ticketType.price * selectedTickets[ticketTypeId]);
+                      }, 0).toLocaleString()}</span>
                     </div>
                   </div>
                   
-                  <Button className="w-full" size="lg">
+                  <Button className="w-full" size="lg" onClick={handlePurchase}>
                     <Ticket className="h-4 w-4 mr-2" />
                     Buy Tickets
                   </Button>

@@ -3,12 +3,14 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask import jsonify, make_response, request
 
 from app import db
-from models import Ticket, Event, User, Attendee, Payment
+from models import Ticket, Event, User, Attendee, Payment, TicketType
 from utils.response import success_response, error_response
 from datetime import datetime, timedelta
 from cash import initiate_mpesa_payment, verify_mpesa_payment, wait_for_payment_confirmation
 
 import logging
+import uuid
+
 class TicketPurchaseResource(Resource):
     @jwt_required()
     def post(self, event_id):
@@ -18,12 +20,25 @@ class TicketPurchaseResource(Resource):
 
         if not event:
             return error_response("Event not found", 404)
-        if event.tickets_sold >= event.total_tickets:
+
+        # Check if the event has available tickets
+        available_tickets = event.get_available_tickets()
+        if available_tickets <= 0:
             return error_response("No more tickets available", 400)
 
-        # Clean up pending tickets and payments before proceeding
-        # cleanup_pending_tickets_and_payments()
+        # Get the ticket type from the request
+        ticket_type_id = request.json.get('ticket_type_id')
+        ticket_type = TicketType.query.get(ticket_type_id)
 
+        if not ticket_type or ticket_type.event_id != event_id:
+            return error_response("Invalid ticket type", 400)
+
+        # Check if the ticket type is available
+        quantity = request.json.get('quantity', 1)  # Default to 1 if not provided
+        if not ticket_type.is_available(quantity):
+            return error_response("Selected ticket type is not available", 400)
+
+        # Create or get the attendee
         attendee = Attendee.query.filter_by(user_id=user.id).first()
         if not attendee:
             try:
@@ -34,9 +49,11 @@ class TicketPurchaseResource(Resource):
                 db.session.rollback()
                 return error_response(f"Error creating attendee: {str(e)}", 500)
 
-        # Initiate Mpesa Payment
+        # Calculate total price based on ticket type and quantity
+        total_price = ticket_type.price * quantity
+
+        # Initiate M-Pesa Payment
         phone_number = user.phone
-        total_price = event.price
         payment_result = initiate_mpesa_payment(total_price, phone_number)
 
         if not payment_result or payment_result.get('ResponseCode', '1') != '0':
@@ -56,9 +73,12 @@ class TicketPurchaseResource(Resource):
             ticket = Ticket(
                 event_id=event.id,
                 attendee_id=attendee.id,
+                ticket_type_id=ticket_type.id,
                 price=total_price,
-                currency=event.currency,
-                satus='confirmed'  # Assuming payment is verified
+                original_price=ticket_type.price,  # Store the original price per ticket
+                currency=ticket_type.currency,
+                status='confirmed',  # Assuming payment is verified
+                quantity=quantity  # Set the quantity for group tickets
             )
             db.session.add(ticket)
             db.session.flush()  # Get the ticket ID
