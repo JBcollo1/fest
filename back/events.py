@@ -6,7 +6,13 @@ from models import Event, User, Category, EventCategory, Organizer, TicketType
 from utils.response import success_response, error_response, paginate_response
 from utils.auth import organizer_required, admin_required
 from datetime import datetime
+import cloudinary.uploader
 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 class EventListResource(Resource):
     def get(self):
         category = request.args.get('category')
@@ -119,6 +125,12 @@ class EventListResource(Resource):
                 
                 new_event.ticket_types.append(ticket_type)
         
+        if 'image' in request.files:
+            file = request.files['image']
+            image_url = self.upload_event_image(file)
+            if image_url:
+                new_event.image = image_url
+        
         try:
             db.session.add(new_event)
             db.session.commit()
@@ -131,6 +143,12 @@ class EventListResource(Resource):
         except Exception as e:
             db.session.rollback()
             return error_response(f"Error creating event: {str(e)}")
+
+    def upload_event_image(self, file):
+        if file and allowed_file(file.filename):
+            upload_result = cloudinary.uploader.upload(file)
+            return upload_result['secure_url']
+        return None
 
 class EventResource(Resource):
     def get(self, event_id):

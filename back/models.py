@@ -169,7 +169,7 @@ class Event(db.Model):
   start_datetime = db.Column(db.DateTime, nullable=False)
   end_datetime = db.Column(db.DateTime, nullable=True)
   location = db.Column(db.String(255), nullable=False)
-  price = db.Column(db.Numeric(10, 2), nullable=False)
+ 
   currency = db.Column(db.String(10), nullable=False, default='KES')
   image = db.Column(db.Text, nullable=True)
   featured = db.Column(db.Boolean, nullable=False, default=False)
@@ -192,7 +192,7 @@ class Event(db.Model):
       'start_datetime': self.start_datetime.isoformat() if self.start_datetime else None,
       'end_datetime': self.end_datetime.isoformat() if self.end_datetime else None,
       'location': self.location,
-      'price': float(self.price) if self.price else None,
+     
       'currency': self.currency,
       'image': self.image,
       'featured': self.featured,

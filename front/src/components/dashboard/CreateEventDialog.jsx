@@ -41,7 +41,6 @@ const CreateEventDialog = ({
   const [startDateTime, setStartDateTime] = useState("");
   const [endDateTime, setEndDateTime] = useState("");
   const [location, setLocation] = useState("");
-  const [price, setPrice] = useState("");
   const [totalTickets, setTotalTickets] = useState("");
   const [image, setImage] = useState("");
   const [organizerId, setOrganizerId] = useState("");
@@ -54,7 +53,7 @@ const CreateEventDialog = ({
   const submitButtonRef = useRef(null);
   const formRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [ticketTypes, setTicketTypes] = useState([{ name: "", price: "", quantity: "" }]);
+  const [ticketTypes, setTicketTypes] = useState([{ name: "", price: "", quantity: "", per_person_limit: "", valid_from: "", valid_to: "" }]);
 
   // Reset form when dialog opens or closes
   useEffect(() => {
@@ -77,7 +76,6 @@ const CreateEventDialog = ({
     setStartDateTime("");
     setEndDateTime("");
     setLocation("");
-    setPrice("");
     setTotalTickets("");
     setImage("");
     setOrganizerId("");
@@ -85,7 +83,7 @@ const CreateEventDialog = ({
     setSelectedOrganizerDetails(null);
     setIsSubmitting(false);
     setFeatured(false);
-    setTicketTypes([{ name: "", price: "", quantity: "" }]);
+    setTicketTypes([{ name: "", price: "", quantity: "", per_person_limit: "", valid_from: "", valid_to: "" }]);
   };
 
   const handleOrganizerChange = async (value) => {
@@ -117,7 +115,7 @@ const CreateEventDialog = ({
   };
 
   const addTicketType = () => {
-    setTicketTypes([...ticketTypes, { name: "", price: "", quantity: "" }]);
+    setTicketTypes([...ticketTypes, { name: "", price: "", quantity: "", per_person_limit: "", valid_from: "", valid_to: "" }]);
   };
 
   const removeTicketType = (index) => {
@@ -138,10 +136,6 @@ const CreateEventDialog = ({
       setFormError("Location is required");
       return false;
     }
-    if (!price || isNaN(parseFloat(price)) || parseFloat(price) < 0) {
-      setFormError("Valid price is required");
-      return false;
-    }
     if (!totalTickets || isNaN(parseInt(totalTickets)) || parseInt(totalTickets) <= 0) {
       setFormError("Valid number of tickets is required");
       return false;
@@ -154,10 +148,6 @@ const CreateEventDialog = ({
     for (const ticketType of ticketTypes) {
       if (!ticketType.name) {
         setFormError("Ticket type name is required");
-        return false;
-      }
-      if (!ticketType.price || isNaN(parseFloat(ticketType.price)) || parseFloat(ticketType.price) < 0) {
-        setFormError("Valid ticket type price is required");
         return false;
       }
       if (!ticketType.quantity || isNaN(parseInt(ticketType.quantity)) || parseInt(ticketType.quantity) <= 0) {
@@ -182,8 +172,7 @@ const CreateEventDialog = ({
       start_datetime: startDateTime,
       end_datetime: endDateTime || null,
       location,
-      price: parseFloat(price),
-      total_tickets: parseInt(totalTickets),
+      total_tickets: ticketTypes.reduce((sum, tt) => sum + parseInt(tt.quantity), 0),
       image,
       ...(isadmin && organizerId && { organizer_id: organizerId }),
       featured,
@@ -435,23 +424,6 @@ const CreateEventDialog = ({
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="price" className="text-sm font-medium flex items-center">
-                        <Tag className="h-4 w-4 mr-2" /> Price (KES) *
-                      </Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value)}
-                        placeholder="999.99"
-                        required
-                        className="focus-visible:ring-primary"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
                       <Label htmlFor="total-tickets" className="text-sm font-medium flex items-center">
                         <Users className="h-4 w-4 mr-2" /> Total Tickets *
                       </Label>
@@ -513,6 +485,38 @@ const CreateEventDialog = ({
                           onChange={(e) => handleTicketTypeChange(index, 'quantity', e.target.value)}
                           placeholder="100"
                           required
+                          className="focus-visible:ring-primary"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`ticket-type-per-person-limit-${index}`} className="text-sm font-medium">Per Person Limit</Label>
+                        <Input
+                          id={`ticket-type-per-person-limit-${index}`}
+                          type="number"
+                          min="1"
+                          value={ticketType.per_person_limit}
+                          onChange={(e) => handleTicketTypeChange(index, 'per_person_limit', e.target.value)}
+                          placeholder="5"
+                          className="focus-visible:ring-primary"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`ticket-type-valid-from-${index}`} className="text-sm font-medium">Valid From</Label>
+                        <Input
+                          id={`ticket-type-valid-from-${index}`}
+                          type="datetime-local"
+                          value={ticketType.valid_from}
+                          onChange={(e) => handleTicketTypeChange(index, 'valid_from', e.target.value)}
+                          className="focus-visible:ring-primary"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`ticket-type-valid-to-${index}`} className="text-sm font-medium">Valid To</Label>
+                        <Input
+                          id={`ticket-type-valid-to-${index}`}
+                          type="datetime-local"
+                          value={ticketType.valid_to}
+                          onChange={(e) => handleTicketTypeChange(index, 'valid_to', e.target.value)}
                           className="focus-visible:ring-primary"
                         />
                       </div>

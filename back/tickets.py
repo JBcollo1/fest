@@ -21,11 +21,6 @@ class TicketPurchaseResource(Resource):
         if not event:
             return error_response("Event not found", 404)
 
-        # Check if the event has available tickets
-        available_tickets = event.get_available_tickets()
-        if available_tickets <= 0:
-            return error_response("No more tickets available", 400)
-
         # Get the ticket type from the request
         ticket_type_id = request.json.get('ticket_type_id')
         ticket_type = TicketType.query.get(ticket_type_id)
@@ -37,6 +32,10 @@ class TicketPurchaseResource(Resource):
         quantity = request.json.get('quantity', 1)  # Default to 1 if not provided
         if not ticket_type.is_available(quantity):
             return error_response("Selected ticket type is not available", 400)
+
+        # Check per person limit
+        if ticket_type.per_person_limit and quantity > ticket_type.per_person_limit:
+            return error_response(f"Cannot purchase more than {ticket_type.per_person_limit} tickets per person", 400)
 
         # Create or get the attendee
         attendee = Attendee.query.filter_by(user_id=user.id).first()
