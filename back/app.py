@@ -9,6 +9,7 @@ from datetime import timedelta
 import os
 import cloudinary
 from cloudinary import uploader, utils
+from stats import StatsResource  
 
 app = Flask(__name__)
 
@@ -135,6 +136,8 @@ api.add_resource(LogoutResource, '/api/logout')
 api.add_resource(DevAdminResource, '/api/dev/make-admin')
 
 # Register the callback endpoint
+
+api.add_resource(StatsResource, '/api/stats')  
 
 if __name__ == '__main__':
     app.run(debug=Config.DEBUG)
