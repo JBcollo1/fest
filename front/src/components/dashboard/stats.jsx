@@ -34,12 +34,22 @@ const EventStatsPage = () => {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/stats`, {
           withCredentials: true
         });
-        const { items: events } = response.data.data;
-        setEventsData(events);
-        const tickets = events.flatMap(event => event.tickets || []);
-        setTicketsData(tickets);
+
+        // Adjust to the new response structure
+        if (response.data) {
+          const events = response.data.events || [];
+          const tickets = response.data.tickets || [];
+          setEventsData(events);
+          setTicketsData(tickets);
+        } else {
+          console.error("Unexpected response structure:", response.data);
+          setEventsData([]);
+          setTicketsData([]);
+        }
       } catch (error) {
         console.error("Error fetching stats data:", error);
+        setEventsData([]);
+        setTicketsData([]);
       }
     };
 
@@ -161,7 +171,7 @@ const EventStatsPage = () => {
                       formatter={(value) => [`$${value}`, 'Revenue']} 
                       labelFormatter={(label) => `Date: ${label}`}
                     />
-                    <Bar dataKey="payment.amount" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="payment.amount" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -206,7 +216,7 @@ const EventStatsPage = () => {
                       formatter={(value) => [`$${value}`, 'Revenue']} 
                       labelFormatter={(label) => `Event: ${label}`}
                     />
-                    <Bar dataKey="tickets_sold" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="tickets_sold" fill="#3b82f6" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -239,12 +249,16 @@ const EventStatsPage = () => {
               <tbody>
                 {ticketsData.map((ticket) => (
                   <tr key={ticket.id} className="border-b transition-colors hover:bg-gray-50">
-                    <td className="p-4 align-middle font-medium">{ticket.payment.transaction_id}</td>
+                    <td className="p-4 align-middle font-medium">
+                      {ticket.payment ? ticket.payment.transaction_id : 'N/A'}
+                    </td>
                     <td className="p-4 align-middle">{ticket.event_id}</td>
                     <td className="p-4 align-middle">{new Date(ticket.purchase_date).toLocaleDateString()}</td>
                     <td className="p-4 align-middle">{ticket.attendee.user_id}</td>
                     <td className="p-4 align-middle">1</td>
-                    <td className="p-4 align-middle text-right">{formatCurrency(ticket.payment.amount)}</td>
+                    <td className="p-4 align-middle text-right">
+                      {ticket.payment ? formatCurrency(ticket.payment.amount) : 'N/A'}
+                    </td>
                   </tr>
                 ))}
               </tbody>

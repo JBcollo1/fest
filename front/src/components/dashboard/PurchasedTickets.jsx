@@ -22,8 +22,8 @@ const PurchasedTickets = () => {
 
   // Define colors consistent with the app's theme
   const colors = {
-    darkestBlue: '#000814',
-    darkBlue: '#001D3D',
+    darkestBlue: '#001D3D',
+    darkBlue: '#003566',
     midBlue: '#003566',
     yellow: '#FFC300',
     brightYellow: '#FFD60A'
@@ -267,143 +267,149 @@ const PurchasedTickets = () => {
   
         {/* Quantum Ticket Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {(activeTab === 'upcoming' ? upcomingTickets : pastTickets).map((ticket) => (
-            <div 
-              key={ticket.id}
-              className="group relative bg-card rounded-3xl border border-border hover:border-accent/30 transition-all shadow-md hover:shadow-xl"
-            >
-              {/* Holographic Ticket Badge */}
-              <div className="absolute -top-3 -right-3 bg-accent text-accent-foreground px-3 py-1 rounded-full text-sm font-bold shadow-md">
-                #{ticket.id.slice(0,6).toUpperCase()}
-              </div>
-  
-              <div className="p-6">
-                {/* Event Image with Hover Effect */}
-                <div className="relative h-48 mb-6 rounded-2xl overflow-hidden border border-border group-hover:border-accent/30 transition-colors">
-                  <img
-                    src={ticket.event.image}
-                    alt={ticket.event.title}
-                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-                </div>
-  
-                {/* Event Details */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h2 className="text-2xl font-bold text-gradient">
-                      {ticket.event.title}
-                    </h2>
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      ticket.status === 'purchased' 
-                        ? 'bg-accent/20 text-accent' 
-                        : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {ticket.status}
-                    </span>
-                  </div>
-  
-                  {/* Meta Grid */}
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-accent/80">
-                      <Calendar className="w-5 h-5 flex-shrink-0" />
-                      <div>
-                        <p className="text-muted-foreground">Date</p>
-                        <p>{new Date(ticket.event.start_datetime).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-accent/80">
-                      <Clock className="w-5 h-5 flex-shrink-0" />
-                      <div>
-                        <p className="text-muted-foreground">Time</p>
-                        <p>{formatTime(ticket.event.start_datetime)}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-accent/80">
-                      <MapPin className="w-5 h-5 flex-shrink-0" />
-                      <div>
-                        <p className="text-muted-foreground">Location</p>
-                        <p className="truncate">{ticket.event.location}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-accent/80">
-                      <Ticket className="w-5 h-5 flex-shrink-0" />
-                      <div>
-                        <p className="text-muted-foreground">Type</p>
-                        <p>{ticket.type}</p>
-                      </div>
-                    </div>
-                  </div>
-  
-                  {/* Interactive Actions */}
-                  <div className="flex justify-between items-center pt-4 border-t border-border">
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => showQrCode(ticket)}
-                        className="p-3 bg-muted rounded-xl hover:bg-muted/80 transition-all group"
-                      >
-                        <QrCode className="w-6 h-6 text-accent group-hover:scale-110 transition-transform" />
-                      </button>
-                      <button className="p-3 bg-muted rounded-xl hover:bg-muted/80 transition-all group">
-                        <Share2 className="w-6 h-6 text-accent group-hover:scale-110 transition-transform" />
-                      </button>
-                    </div>
-                    <button 
-                      className="flex items-center gap-2 text-accent hover:text-accent/80 transition-colors"
-                      onClick={() => toggleExpand(ticket.id)}
-                    >
-                      {expandedTicket === ticket.id ? 'Collapse' : 'Details'}
-                      {expandedTicket === ticket.id ? (
-                        <ChevronUp className="w-5 h-5" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5" />
-                      )}
-                    </button>
-                  </div>
-  
-                  {/* Expanded Details */}
-                  {expandedTicket === ticket.id && (
-                    <div className="pt-6 mt-6 border-t border-border space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-muted-foreground mb-1">Purchase Date</p>
-                          <p>{new Date(ticket.purchase_date).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground mb-1">Price</p>
-                          <p>{ticket.price} {ticket.currency}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground mb-1">Transaction ID</p>
-                          <p className="truncate">{ticket.transaction_id || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground mb-1">Ticket ID</p>
-                          <p className="truncate">#{ticket.id.slice(0,10).toUpperCase()}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          size="sm"
-                          className="w-full"
-                          onClick={() => showQrCode(ticket)}
-                        >
-                          Show QR Code
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                        >
-                          View Event Details
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+          {(activeTab === 'upcoming' ? upcomingTickets : pastTickets).length === 0 ? (
+            <div className="col-span-full text-center p-6 bg-muted rounded-xl">
+              No events present.
             </div>
-          ))}
+          ) : (
+            (activeTab === 'upcoming' ? upcomingTickets : pastTickets).map((ticket) => (
+              <div 
+                key={ticket.id}
+                className="group relative bg-card rounded-3xl border border-border hover:border-accent/30 transition-all shadow-md hover:shadow-xl"
+              >
+                {/* Holographic Ticket Badge */}
+                <div className="absolute -top-3 -right-3 bg-accent text-accent-foreground px-3 py-1 rounded-full text-sm font-bold shadow-md">
+                  #{ticket.id.slice(0,6).toUpperCase()}
+                </div>
+    
+                <div className="p-6">
+                  {/* Event Image with Hover Effect */}
+                  <div className="relative h-48 mb-6 rounded-2xl overflow-hidden border border-border group-hover:border-accent/30 transition-colors">
+                    <img
+                      src={ticket.event.image}
+                      alt={ticket.event.title}
+                      className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+                  </div>
+    
+                  {/* Event Details */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-start">
+                      <h2 className="text-2xl font-bold text-gradient">
+                        {ticket.event.title}
+                      </h2>
+                      <span className={`px-3 py-1 rounded-full text-sm ${
+                        ticket.status === 'purchased' 
+                          ? 'bg-accent/20 text-accent' 
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {ticket.status}
+                      </span>
+                    </div>
+    
+                    {/* Meta Grid */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2 text-accent/80">
+                        <Calendar className="w-5 h-5 flex-shrink-0" />
+                        <div>
+                          <p className="text-muted-foreground">Date</p>
+                          <p>{new Date(ticket.event.start_datetime).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-accent/80">
+                        <Clock className="w-5 h-5 flex-shrink-0" />
+                        <div>
+                          <p className="text-muted-foreground">Time</p>
+                          <p>{formatTime(ticket.event.start_datetime)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-accent/80">
+                        <MapPin className="w-5 h-5 flex-shrink-0" />
+                        <div>
+                          <p className="text-muted-foreground">Location</p>
+                          <p className="truncate">{ticket.event.location}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-accent/80">
+                        <Ticket className="w-5 h-5 flex-shrink-0" />
+                        <div>
+                          <p className="text-muted-foreground">Type</p>
+                          <p>{ticket.type}</p>
+                        </div>
+                      </div>
+                    </div>
+    
+                    {/* Interactive Actions */}
+                    <div className="flex justify-between items-center pt-4 border-t border-border">
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => showQrCode(ticket)}
+                          className="p-3 bg-muted rounded-xl hover:bg-muted/80 transition-all group"
+                        >
+                          <QrCode className="w-6 h-6 text-accent group-hover:scale-110 transition-transform" />
+                        </button>
+                        <button className="p-3 bg-muted rounded-xl hover:bg-muted/80 transition-all group">
+                          <Share2 className="w-6 h-6 text-accent group-hover:scale-110 transition-transform" />
+                        </button>
+                      </div>
+                      <button 
+                        className="flex items-center gap-2 text-accent hover:text-accent/80 transition-colors"
+                        onClick={() => toggleExpand(ticket.id)}
+                      >
+                        {expandedTicket === ticket.id ? 'Collapse' : 'Details'}
+                        {expandedTicket === ticket.id ? (
+                          <ChevronUp className="w-5 h-5" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+    
+                    {/* Expanded Details */}
+                    {expandedTicket === ticket.id && (
+                      <div className="pt-6 mt-6 border-t border-border space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-muted-foreground mb-1">Purchase Date</p>
+                            <p>{new Date(ticket.purchase_date).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground mb-1">Price</p>
+                            <p>{ticket.price} {ticket.currency}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground mb-1">Transaction ID</p>
+                            <p className="truncate">{ticket.transaction_id || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground mb-1">Ticket ID</p>
+                            <p className="truncate">#{ticket.id.slice(0,10).toUpperCase()}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button
+                            size="sm"
+                            className="w-full"
+                            onClick={() => showQrCode(ticket)}
+                          >
+                            Show QR Code
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                          >
+                            View Event Details
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
   
         {/* Render QR Dialog */}
