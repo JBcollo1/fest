@@ -1,6 +1,6 @@
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app import db
+# from app import db
 from models import Event, User,Ticket
 from utils.response import success_response, error_response
 from utils.auth import organizer_required, admin_required
