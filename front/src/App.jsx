@@ -14,6 +14,8 @@ import Events from "./pages/Event";
 import Navbar from "./components/Navbar";
 import Footer from "./components/footer";
 import Dashboard from "./pages/Dashboard";
+import Safari from './pages/Safari';
+import CookieConsent from './components/CookieConsent';
 
 const queryClient = new QueryClient();
 
@@ -33,10 +35,12 @@ const App = () => (
             <Route path="/about" element={<About />} />
             <Route path="/events" element={<Events />} />
             <Route path="/d" element={<Dashboard />} />
+            <Route path="/safari" element={<Safari />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Footer/>
+          <CookieConsent />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

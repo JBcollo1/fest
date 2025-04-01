@@ -35,8 +35,8 @@ app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
 app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # For development, enable in production
-app.config['JWT_COOKIE_SECURE'] = os.getenv("JWT_COOKIE_SECURE", "False") == "True"
-app.config['JWT_COOKIE_SAMESITE'] = "None" 
+app.config['JWT_COOKIE_SECURE'] = True  # Ensure cookies are only sent over HTTPS
+app.config['JWT_COOKIE_SAMESITE'] = "None"  # Allow cross-site cookies
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 # Initialize JWT

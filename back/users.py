@@ -291,15 +291,15 @@ class UserLoginResource(Resource):
                     )
                 )
                 
-                    # Set the JWT as an HTTP-only cookie
+                # Set the JWT as an HTTP-only cookie
                 response.set_cookie(
-                        'access_token_cookie',
-                        access_token,
-                        httponly=True,
-                        secure=True,
-                        samesite='None',
-                        path='/'
-                    )
+                    'access_token_cookie',
+                    access_token,
+                    httponly=True,
+                    secure=True,  # Ensure cookies are only sent over HTTPS
+                    samesite='None',  # Allow cross-site cookies
+                    path='/'
+                )
 
                 print("Login attempt for:", email)
                 print("Response status:", response.status_code)

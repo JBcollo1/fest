@@ -46,7 +46,7 @@ const SafariSection = () => {
         <AnimatedSection>
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 px-4 py-1 text-amber-400 border-amber-400">Unforgettable Experiences</Badge>
-            <h2 className="text-3xl md:text-5xl font-display font-bold mb-6">Discover Wild Kenya</h2>
+            <h2 className="text-3xl md:text-5xl font-display font-bold mb-6">Discover Safari Kenya</h2>
             <p className="text-white/80 max-w-2xl mx-auto text-lg">
               Embark on extraordinary journeys through Kenya's diverse landscapes, from savannah plains to mountain peaks
             </p>
