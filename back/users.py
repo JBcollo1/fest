@@ -2,7 +2,7 @@ from flask import request, jsonify, make_response
 from flask_restful import Resource
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, verify_jwt_in_request
-from app import db
+from database import db
 from models import User, Role, UserRole
 from utils.response import success_response, error_response
 from utils.auth import admin_required, generate_tokens

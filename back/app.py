@@ -11,6 +11,8 @@ import cloudinary
 from cloudinary import uploader, utils
 from stats import StatsResource  
 
+from database import db
+
 app = Flask(__name__)
 
 # Database Configuration
@@ -20,7 +22,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize Database
-db = SQLAlchemy(app)
+# db = SQLAlchemy(app)
+db.init_app(app)
+
+# Initialize Flask-Migrate)
 migrate = Migrate(app, db)
 
 # JWT Configuration
@@ -66,7 +71,7 @@ api = Api(app)
 
 
 
-from models import User, Role, UserRole, Organizer, Attendee, Event, Category, EventCategory, Ticket, DiscountCode, EventDiscountCode, Payment
+# from models import User, Role, UserRole, Organizer, Attendee, Event, Category, EventCategory, Ticket, DiscountCode, EventDiscountCode, Payment
 
 from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource, CurrentUserResource, LogoutResource, DevAdminResource
 from events import EventResource, EventListResource, EventCategoriesResource, FeaturedEventsResource

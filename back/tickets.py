@@ -2,7 +2,7 @@ from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask import jsonify, make_response, request
 
-from app import db
+from database import db
 from models import Ticket, Event, User, Attendee, Payment, TicketType
 from utils.response import success_response, error_response
 from datetime import datetime, timedelta

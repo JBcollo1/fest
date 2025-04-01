@@ -4,7 +4,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 from models import Payment
 from flask import Flask, request
-from app import app, db
+from database import  db
+from app import app
 import base64
 from datetime import datetime
 import time
