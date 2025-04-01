@@ -287,7 +287,7 @@ class Ticket(db.Model):
       ticket_dict['payment'] = self.payment.to_dict()
         
     if include_ticket_type:
-      ticket_dict['ticket_type'] = self.ticket_type.to_dict()
+      ticket_dict['ticket_type'] = self.ticket_type.to_dict() if self.ticket_type else None
         
     return ticket_dict
 
