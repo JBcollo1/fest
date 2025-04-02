@@ -294,8 +294,6 @@ class UserTicketsResource(Resource):
 
 def process_mpesa_callback(data):
     """Process the M-Pesa callback data"""
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
     try:
         body = data.get('Body', {})
         stk_callback = body.get('stkCallback', {})
@@ -335,10 +333,6 @@ def process_mpesa_callback(data):
             event = Event.query.get(ticket.event_id)
             if event:
                 event.tickets_sold += ticket.quantity
-
-            # Retrieve the user associated with the ticket
-     
-          
 
         # Commit DB updates
         try:
