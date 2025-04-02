@@ -13,14 +13,7 @@ import uuid
 
 from email_service import EmailService  # Import the EmailService
 
-# Initialize the email service
-try:
-    email_service = EmailService()
-    logging.info("EmailService initialized successfully.")
-except Exception as e:
-    logging.error(f"Failed to initialize EmailService: {str(e)}")
-    email_service = None  # Set to None if initialization fails
-
+email_service = EmailService()  # Initialize the email service
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class TicketPurchaseResource(Resource):
@@ -88,9 +81,6 @@ class TicketPurchaseResource(Resource):
         ticket = None
 
         try:
-            # Track all created tickets to send emails later
-            created_tickets = []
-
             # Process each ticket type
             for detail in ticket_details:
                 ticket_type_id = detail.get('ticket_type_id')
@@ -108,31 +98,28 @@ class TicketPurchaseResource(Resource):
                     satus='pending'  # Initially set to pending
                 )
                 db.session.add(ticket)
-                db.session.flush()  # Ensure ticket ID is generated
-                created_tickets.append(ticket)  # Track the ticket
+                db.session.flush()  # Get the ticket ID
 
-            # Record the payment (link to first ticket for simplicity)
-            # NOTE: Adjust this if your payment logic ties to multiple tickets
-            payment = Payment(
-                ticket_id=created_tickets[0].id,  # Link to first ticket
-                payment_method='Mpesa',
-                payment_status='Pending',
-                transaction_id=checkout_request_id,
-                amount=total_amount,
-                currency=created_tickets[0].currency
-            )
-            db.session.add(payment)
-            db.session.commit()  # Final commit
+            # Record the payment
+            if ticket:  # Ensure ticket is not None
+                payment = Payment(
+                    ticket_id=ticket.id,
+                    payment_method='Mpesa',
+                    payment_status='Pending',  # Initially set to pending
+                    transaction_id=checkout_request_id,
+                    amount=total_amount,
+                    currency=ticket.currency
+                )
+                db.session.add(payment)
+                db.session.commit()  # Commit the payment record
 
-            # Send emails for all tickets after successful commit
-            for ticket in created_tickets:
-                send_ticket_email(user, event, ticket.id)  # Send email for each ticket
-
-            return success_response(
-                message="Payment initiated and ticket reserved successfully.",
-                data={"CheckoutRequestID": checkout_request_id},
-                status_code=200
-            )
+                return success_response(
+                    message="Payment initiated and ticket reserved successfully.",
+                    data={"CheckoutRequestID": checkout_request_id},
+                    status_code=200
+                )
+            else:
+                return error_response("Failed to create ticket", 500)
 
         except Exception as e:
             db.session.rollback()
@@ -419,34 +406,4 @@ def cleanup_pending_tickets_and_payments():
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error during cleanup of pending tickets and payments: {str(e)}")
-
-def send_ticket_email(user, event, ticket_id):
-    """Send an email with a QR code after payment is confirmed."""
-    if email_service is None:
-        logging.error("EmailService is not initialized. Cannot send email.")
-        return
-
-    try:
-        user_email = user.email
-        event_title = event.title
-        attendee_name = f"{user.first_name} {user.last_name}"
-
-        email_service.send_email_with_qr(
-            recipient=user_email,
-            subject=f"Your Ticket for {event_title}",
-            body=(
-                f"Hello {attendee_name},\n\n"
-                f"Thank you for purchasing a ticket for {event_title}.\n"
-                f"Event Details:\n"
-                f"Date: {event.start_datetime.strftime('%Y-%m-%d %H:%M')}\n"
-                f"Location: {event.location}\n\n"
-                f"Please find your QR code attached for entry.\n\n"
-                f"Best regards,\n"
-                f"The Event Team"
-            ),
-            qr_data=ticket_id
-        )
-        logging.info(f"Email with QR code sent successfully to {user_email}")
-    except Exception as e:
-        logging.error(f"Error sending email with QR code: {str(e)}")
 
