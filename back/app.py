@@ -15,7 +15,7 @@ from stats import StatsResource
 
 from database import db
 from email_con import  mail  
-from email_resource import EmailResource, EmailWithQRResource  # Import the EmailResource and EmailWithQRResource
+# from email_resource import EmailResource, EmailWithQRResource  # Import the EmailResource and EmailWithQRResource
 
 app = Flask(__name__)
 
@@ -163,8 +163,8 @@ api.add_resource(StatsResource, '/api/stats')
 # email_service = EmailService(app)
 
 # Register the email resources
-api.add_resource(EmailResource, '/api/send-email')
-api.add_resource(EmailWithQRResource, '/api/send-email-with-qr')
+# api.add_resource(EmailResource, '/api/send-email')
+# api.add_resource(EmailWithQRResource, '/api/send-email-with-qr')
 
 
 if __name__ == '__main__':
