@@ -297,13 +297,17 @@ def send_ticket_qr_email(user, ticket):
     Send a ticket confirmation email with QR code embedded in HTML
     """
     try:
-        # Generate QR code with ticket's unique UUID
+        if not ticket.event or not ticket.qr_code:
+            logging.error("Missing ticket event or QR code")
+            raise ValueError("Incomplete ticket data")
+        
+
         qr = qrcode.make(ticket.qr_code)
         img_io = BytesIO()
         qr.save(img_io, 'PNG')
         img_io.seek(0)
         qr_base64 = base64.b64encode(img_io.getvalue()).decode()
-
+        
         # Create HTML email content
         html_content = f"""<!DOCTYPE html>
         <html>
@@ -436,17 +440,16 @@ def process_mpesa_callback(data):
         user = User.query.get(attendee.user_id) if attendee else None
         
         if user:
-                try:
-                    send_ticket_qr_email(user, ticket)
-                except Exception as e:
-                    logging.error(f"QR email failed but payment processed: {e}")
-                return {'ResultCode': 0, 'ResultDesc': 'Payment processed successfully'}
+            try:
+                send_ticket_qr_email(user, ticket)
+            except Exception as e:
+                logging.error(f"QR email failed but payment processed: {e}")
+        return {'ResultCode': 0, 'ResultDesc': 'Payment processed successfully'}, 200
 
     except Exception as e:
-                db.session.rollback()
-                logging.error(f"Payment processing error: {str(e)}")
-    return {'ResultCode': 1, 'ResultDesc': 'Payment processing error'}, 500
-
+        db.session.rollback()
+        logging.error(f"Payment processing error: {str(e)}")
+        return {'ResultCode': 1, 'ResultDesc': 'Payment processing error'}, 500
 class TicketListResource(Resource):
     @jwt_required()
     def get(self, event_id):
