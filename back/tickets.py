@@ -11,9 +11,7 @@ from cash import initiate_mpesa_payment, verify_mpesa_payment, wait_for_payment_
 import logging
 import uuid
 
-from email_service import EmailService  # Import the EmailService
-
-email_service = EmailService()  # Initialize the email service
+from email_service import send_email_with_qr
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class TicketPurchaseResource(Resource):
@@ -291,6 +289,24 @@ class UserTicketsResource(Resource):
         
         return success_response(data=[ticket.to_dict(include_event=True) for ticket in tickets])
 
+def send_ticket_qr_email(user, ticket):
+    """
+    Send a QR code email to the user after payment is confirmed.
+    """
+    try:
+        # Prepare email details
+        recipient = user.email
+        subject = f"Your Ticket for {ticket.event.name}"
+        body = f"Dear {user.first_name},\n\nThank you for your purchase. Please find your ticket QR code attached."
+
+        # Generate QR data (could be ticket ID or any unique identifier)
+        qr_data = f"Ticket ID: {ticket.id}"
+
+        # Send the email with QR code
+        send_email_with_qr(recipient, subject, body, qr_data)
+        logging.info(f"QR code email sent to {recipient} for ticket ID {ticket.id}")
+    except Exception as e:
+        logging.error(f"Error sending QR code email: {str(e)}")
 
 def process_mpesa_callback(data):
     """Process the M-Pesa callback data"""
@@ -333,6 +349,12 @@ def process_mpesa_callback(data):
             event = Event.query.get(ticket.event_id)
             if event:
                 event.tickets_sold += ticket.quantity
+
+            # Send QR code email after ticket is marked as purchased
+            attendee = Attendee.query.get(ticket.attendee_id)
+            attendee_user = User.query.get(attendee.user_id) if attendee else None
+            if attendee_user:
+                send_ticket_qr_email(attendee_user, ticket)
 
         # Commit DB updates
         try:

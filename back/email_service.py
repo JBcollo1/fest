@@ -7,10 +7,10 @@ from io import BytesIO
 # Initialize Mail (but attach it to the Flask app later)
 
 
-class EmailService:
+
  
 
-    def send_email(self, recipient, subject, body, attachment_path=None):
+def send_email( recipient, subject, body, attachment_path=None):
         """Function to send an email with an optional attachment."""
         msg = Message(
             subject=subject,
@@ -40,7 +40,7 @@ class EmailService:
         except Exception as e:
             print(f"Error sending email: {e}")  # Handle mail errors 
 
-    def send_email_with_qr(self, recipient, subject, body, qr_data):
+def send_email_with_qr( recipient, subject, body, qr_data):
         """Function to send an email with a QR code attachment."""
         msg = Message(
             subject=subject,

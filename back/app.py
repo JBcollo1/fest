@@ -7,7 +7,7 @@ from flask_jwt_extended import JWTManager
 from config import Config
 from datetime import timedelta
 import os
-from flask_mail import Mail
+
 
 import cloudinary
 from cloudinary import uploader, utils
@@ -28,7 +28,7 @@ app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = 'jbcollins254@gmail.com'
 
 
-mail = Mail(app)
+mail.init_app(app)
 
 # Database Configuration
 DATABASE_URL = os.getenv("EXTERNAL_DATABASE_URL") or os.getenv("INTERNAL_DATABASE_URL") or \
@@ -159,12 +159,7 @@ api.add_resource(DevAdminResource, '/api/dev/make-admin')
 
 api.add_resource(StatsResource, '/api/stats')  
 
-# Initialize EmailService
-# email_service = EmailService(app)
 
-# Register the email resources
-# api.add_resource(EmailResource, '/api/send-email')
-# api.add_resource(EmailWithQRResource, '/api/send-email-with-qr')
 
 
 if __name__ == '__main__':
