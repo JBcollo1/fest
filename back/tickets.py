@@ -14,6 +14,7 @@ import uuid
 from email_service import EmailService  # Import the EmailService
 
 email_service = EmailService()  # Initialize the email service
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class TicketPurchaseResource(Resource):
     @jwt_required()
@@ -94,19 +95,17 @@ class TicketPurchaseResource(Resource):
                     price=ticket_type.price * quantity,
                     quantity=quantity,
                     currency=ticket_type.currency,
-                    satus='confirmed'
+                    satus='pending'  # Initially set to pending
                 )
                 db.session.add(ticket)
-                db.session.flush()
-                
-            # Commit the ticket to ensure it is saved before creating the payment
+                db.session.flush()  # Get the ticket ID
 
             # Record the payment
             if ticket:  # Ensure ticket is not None
                 payment = Payment(
                     ticket_id=ticket.id,
                     payment_method='Mpesa',
-                    payment_status='Completed',  
+                    payment_status='Pending',  # Initially set to pending
                     transaction_id=checkout_request_id,
                     amount=total_amount,
                     currency=ticket.currency
@@ -114,19 +113,8 @@ class TicketPurchaseResource(Resource):
                 db.session.add(payment)
                 db.session.commit()  # Commit the payment record
 
-                # Send email with QR code
-                try:
-                    email_service.send_email_with_qr(
-                        recipient=user.email,
-                        subject="Your Ticket Purchase Confirmation",
-                        body=f"Thank you for purchasing a ticket for {event.title}. Please find your QR code attached.",
-                        qr_data=ticket.id  # Use the ticket ID as the QR data
-                    )
-                except Exception as e:
-                    logging.error(f"Error sending email with QR code: {str(e)}")
-
                 return success_response(
-                    message="Payment verified and ticket purchased successfully.",
+                    message="Payment initiated and ticket reserved successfully.",
                     data={"CheckoutRequestID": checkout_request_id},
                     status_code=200
                 )
@@ -342,7 +330,7 @@ def process_mpesa_callback(data):
             # Update event ticket count
             event = Event.query.get(ticket.event_id)
             if event:
-                event.tickets_sold += 1
+                event.tickets_sold += ticket.quantity
 
         # Commit DB updates
         try:
