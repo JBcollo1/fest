@@ -92,10 +92,9 @@ class TicketPurchaseResource(Resource):
                     attendee_id=attendee.id,
                     ticket_type_id=ticket_type.id,
                     price=ticket_type.price * quantity,
-                
+                    quantity=quantity,
                     currency=ticket_type.currency,
-                    satus='confirmed',
-                    quantity=quantity
+                    satus='confirmed'
                 )
                 db.session.add(ticket)
 

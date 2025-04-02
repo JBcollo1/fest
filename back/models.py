@@ -260,6 +260,7 @@ class Ticket(db.Model):
   currency = db.Column(db.String(10), nullable=False, default='KES')
   satus = db.Column(db.String(20), default='valid')
   qr_code = db.Column(db.String(40), unique=True, default=lambda: str(uuid.uuid4()))
+  quantity = db.Column(db.Integer, nullable=True)
   ticket_type_id = db.Column(db.String(36), db.ForeignKey('ticket_types.id'), nullable=True)
   
   payment = db.relationship('Payment', backref='ticket', uselist=False, cascade="all, delete")
