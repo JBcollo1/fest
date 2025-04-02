@@ -350,11 +350,7 @@ def process_mpesa_callback(data):
             if event:
                 event.tickets_sold += ticket.quantity
 
-            # Send QR code email after ticket is marked as purchased
-            attendee = Attendee.query.get(ticket.attendee_id)
-            attendee_user = User.query.get(attendee.user_id) if attendee else None
-            if attendee_user:
-                send_ticket_qr_email(attendee_user, ticket)
+
 
         # Commit DB updates
         try:
@@ -364,6 +360,12 @@ def process_mpesa_callback(data):
             logging.error(f"Error committing to the database: {e}")
             db.session.rollback()  # Rollback in case of error
             return {'ResultCode': 1, 'ResultDesc': 'Database commit error'}, 500
+
+        # Send QR code email after ticket is marked as purchased
+        attendee = Attendee.query.get(ticket.attendee_id)
+        attendee_user = User.query.get(attendee.user_id) if attendee else None
+        if attendee_user:
+            send_ticket_qr_email(attendee_user, ticket)
 
         return {'ResultCode': 0, 'ResultDesc': 'Payment processed successfully'}
 
