@@ -128,6 +128,8 @@ class TicketPurchaseResource(Resource):
 class mpesaCallback(Resource):
     def post(self):
         """Handles Mpesa callback response"""
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
         try:
             raw_data = request.data
             logging.info(f"Raw request data: {raw_data}")
