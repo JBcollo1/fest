@@ -334,6 +334,18 @@ def process_mpesa_callback(data):
             if event:
                 event.tickets_sold += ticket.quantity
 
+            # Send email with QR code
+            try:
+                email_service.send_email_with_qr(
+                    recipient=User.query.get(ticket.attendee_id).email,  # Assuming attendee_id is linked to User
+                    subject="Your Ticket Purchase Confirmation",
+                    body=f"Thank you for purchasing a ticket for {event.title}. Please find your QR code attached.",
+                    qr_data=ticket.id  
+                )
+                logging.info(f"Email with QR code sent successfully to {User.query.get(ticket.attendee_id).email}")
+            except Exception as e:
+                logging.error(f"Error sending email with QR code: {str(e)}")
+
         # Commit DB updates
         try:
             db.session.commit()
