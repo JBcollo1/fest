@@ -8,6 +8,8 @@ from utils.response import success_response, error_response
 from datetime import datetime, timedelta
 from cash import initiate_mpesa_payment, verify_mpesa_payment, wait_for_payment_confirmation
 import qrcode
+from sqlalchemy.orm import joinedload
+
 import base64
 from io import BytesIO
 from config2 import Config
@@ -294,91 +296,131 @@ class UserTicketsResource(Resource):
 
 def send_ticket_qr_email(user, ticket):
     """
-    Send a ticket confirmation email with QR code embedded in HTML
+    Send a ticket confirmation email with properly formatted QR code
     """
     try:
-        if not ticket.event or not ticket.qr_code:
-            logging.error("Missing ticket event or QR code")
-            raise ValueError("Incomplete ticket data")
-        
+        # Validate required data
+        if not all([ticket, ticket.qr_code, user.email, ticket.event]):
+            logging.error("Missing required ticket or user data")
+            raise ValueError("Incomplete ticket or user information")
 
-        qr = qrcode.make(ticket.qr_code)
+        # Generate QR code with proper configuration
+        qr = qrcode.QRCode(
+            version=3,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(f"{Config.BASE_URL}/verify-ticket/{ticket.qr_code}")
+        qr.make(fit=True)
+        
+        # Create QR image with better contrast
+        img = qr.make_image(fill_color="#000000", back_color="#FFFFFF")
         img_io = BytesIO()
-        qr.save(img_io, 'PNG')
+        img.save(img_io, 'PNG', quality=100)
         img_io.seek(0)
         qr_base64 = base64.b64encode(img_io.getvalue()).decode()
-        
-        # Create HTML email content
+
+        # Format event date safely
+        event_date = ticket.event.start_datetime.strftime('%B %d, %Y %H:%M') if ticket.event.start_datetime else "Date to be announced"
+
+        # Create HTML email with improved styling
         html_content = f"""<!DOCTYPE html>
         <html>
         <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
                 .email-container {{
-                    font-family: Arial, sans-serif;
-                    padding: 20px;
-                    background-color: #f4f4f4;
-                    border-radius: 10px;
                     max-width: 600px;
+                    margin: 20px auto;
+                    background: #ffffff;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    background: {Config.BRAND_COLOR};
+                    padding: 25px;
+                    text-align: center;
+                }}
+                .qr-section {{
+                    padding: 30px;
+                    text-align: center;
+                    background: #f8f9fa;
+                }}
+                .qr-code-img {{
+                    width: 240px;
+                    height: 240px;
                     margin: 0 auto;
-                }}
-                .email-header {{
-                    background-color: #4CAF50;
-                    color: white;
-                    padding: 10px;
-                    text-align: center;
-                    border-radius: 10px 10px 0 0;
-                }}
-                .email-body {{
-                    padding: 20px;
-                    background-color: white;
-                    border-radius: 0 0 10px 10px;
-                }}
-                .qr-code {{
-                    text-align: center;
-                    margin: 20px 0;
+                    padding: 12px;
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
                 }}
                 .details {{
-                    margin: 15px 0;
+                    padding: 25px;
+                    line-height: 1.6;
+                    color: #333333;
                 }}
             </style>
         </head>
         <body>
             <div class="email-container">
-                <div class="email-header">
-                    <h1>Your Ticket for {ticket.event.title}</h1>
+                <div class="header">
+                    <h2 style="color: white; margin: 0;">Your Digital Ticket</h2>
                 </div>
-                <div class="email-body">
-                    <p>Hi {user.first_name} {user.last_name},</p>
-                    <div class="details">
-                        <p><strong>Event:</strong> {ticket.event.title}</p>
-                        <p><strong>Date:</strong> {ticket.event.start_datetime.strftime('%B %d, %Y %H:%M')}</p>
-                        <p><strong>Location:</strong> {ticket.event.location}</p>
-                        <p><strong>Tickets:</strong> {ticket.quantity}</p>
+                
+                <div class="details">
+                    <p>Hello {user.first_name},</p>
+                    <h3>{ticket.event.title}</h3>
+                    <p>📅 {event_date}</p>
+                    <p>📍 {ticket.event.location}</p>
+                    <p>🎟 {ticket.quantity} {'ticket' if ticket.quantity == 1 else 'tickets'}</p>
+                </div>
+
+                <div class="qr-section">
+                    <div class="qr-code-img">
+                        <img src="data:image/png;base64,{qr_base64}" 
+                             alt="Ticket QR Code" 
+                             style="width: 100%; height: auto;">
                     </div>
-                    <div class="qr-code">
-                        <img src="data:image/png;base64,{qr_base64}" alt="Ticket QR Code">
-                        <p>Scan this QR code at the event entrance</p>
-                    </div>
-                    <p>Best regards,<br>The Event Team</p>
+                    <p style="margin-top: 15px; color: #666;">
+                        Scan this QR code at the event entrance
+                    </p>
                 </div>
             </div>
         </body>
         </html>"""
 
-        # Create and send message
+        # Create and send message with proper encoding
         msg = Message(
-            subject=f"Your Ticket for {ticket.event.title}",
+            subject=f"🎟 Your Ticket for {ticket.event.title}",
             recipients=[user.email],
-            sender=Config.MAIL_DEFAULT_SENDER
-        )
+            sender=(Config.EMAIL_SENDER_NAME, Config.MAIL_DEFAULT_SENDER))
         msg.html = html_content
         
-        mail.send(msg)
-        logging.info(f"QR email sent to {user.email}")
+        # Add alternative text version
+        msg.body = f"""Hi {user.first_name},
+        
+Your ticket for {ticket.event.title} is attached.
+Event Date: {event_date}
+Location: {ticket.event.location}
+Tickets: {ticket.quantity}
+
+Scan the QR code at the event entrance.
+"""
+
+        try:
+            mail.send(msg)
+            logging.info(f"QR email successfully sent to {user.email}")
+        except Exception as e:
+            logging.error(f"Email sending failed: {str(e)}")
+            # Consider adding retry logic here
 
     except Exception as e:
-        logging.error(f"Error sending QR email: {str(e)}")
-        raise  # Re-raise if you want to handle it in the caller
+        logging.error(f"QR email processing failed: {str(e)}")
+        # Don't re-raise to prevent breaking payment flow
 
 def process_mpesa_callback(data):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -415,7 +457,10 @@ def process_mpesa_callback(data):
         payment.payment_date = datetime.now()
 
         # Update ticket status
-        ticket = Ticket.query.filter_by(id=payment.ticket_id).first()
+        ticket = (Ticket.query
+          .options(joinedload(Ticket.event))
+          .filter_by(id=payment.ticket_id)
+          .first())
         if ticket:
             ticket.satus = 'purchased'
 
