@@ -96,13 +96,13 @@ class TicketPurchaseResource(Resource):
             payment = Payment(
                 ticket_id=ticket.id,
                 payment_method='Mpesa',
-                payment_status='Confirmed',
+                payment_status='Pending',  # Initially set to pending
                 transaction_id=checkout_request_id,
                 amount=total_amount,
                 currency=ticket.currency
             )
             db.session.add(payment)
-            db.session.commit()
+            db.session.commit()  # Commit the payment record
 
             # Send email with QR code
             try:
@@ -297,6 +297,8 @@ def process_mpesa_callback(data):
 
         result_code = stk_callback.get('ResultCode')
         checkout_request_id = stk_callback.get('CheckoutRequestID')
+
+        logging.info(f"Processing callback for CheckoutRequestID: {checkout_request_id}")
 
         # Payment failed scenario
         if result_code != 0:
