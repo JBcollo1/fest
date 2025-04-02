@@ -9,7 +9,9 @@ from datetime import datetime, timedelta
 from cash import initiate_mpesa_payment, verify_mpesa_payment, wait_for_payment_confirmation
 import qrcode
 from sqlalchemy.orm import joinedload
-
+import smtplib
+from smtplib import SMTPException
+import time
 import base64
 from io import BytesIO
 from config2 import Config
@@ -294,134 +296,109 @@ class UserTicketsResource(Resource):
         
         return success_response(data=[ticket.to_dict(include_event=True) for ticket in tickets])
 
-def send_ticket_qr_email(user, ticket):
-    """
-    Send a ticket confirmation email with properly formatted QR code
-    """
-    try:
-        # Validate required data
-        if not all([ticket, ticket.qr_code, user.email, ticket.event]):
-            logging.error("Missing required ticket or user data")
-            raise ValueError("Incomplete ticket or user information")
 
-        # Generate QR code with proper configuration
+def send_ticket_qr_email(user, ticket):
+    """Send ticket email with properly attached QR code"""
+    try:
+        # Validate essential data
+        if not all([ticket, ticket.qr_code, user.email, ticket.event]):
+            logging.error(f"Missing data - Ticket: {bool(ticket)}, QR: {bool(ticket.qr_code)}, User: {user}")
+            return
+
+        # Generate QR code as attachment
+        qr_filename, qr_data = generate_qr_attachment(ticket)
+        
+        # Create email message
+        msg = create_email_message(user, ticket, qr_filename, qr_data)
+        
+        # Send with retry logic
+        send_email_with_retry(msg, retries=2)
+        
+    except Exception as e:
+        logging.error(f"Ticket email failed: {str(e)}")
+
+def generate_qr_attachment(ticket):
+    """Generate QR code file and return attachment data"""
+    try:
+        verification_url = f"{Config.BASE_URL}/verify/{ticket.qr_code}"
+        
         qr = qrcode.QRCode(
-            version=3,
+            version=5,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=10,
-            border=4,
+            box_size=12,
+            border=6,
         )
-        qr.add_data(f"{Config.BASE_URL}/verify-ticket/{ticket.qr_code}")
+        qr.add_data(verification_url)
         qr.make(fit=True)
         
-        # Create QR image with better contrast
         img = qr.make_image(fill_color="#000000", back_color="#FFFFFF")
-        img_io = BytesIO()
-        img.save(img_io, 'PNG', quality=100)
-        img_io.seek(0)
-        qr_base64 = base64.b64encode(img_io.getvalue()).decode()
+        img_buffer = BytesIO()
+        img.save(img_buffer, format="PNG")
+        img_buffer.seek(0)
+        
+        return ("qr_ticket.png", img_buffer.getvalue())
+        
+    except Exception as e:
+        logging.error(f"QR generation failed: {str(e)}")
+        raise
 
-        # Format event date safely
-        event_date = ticket.event.start_datetime.strftime('%B %d, %Y %H:%M') if ticket.event.start_datetime else "Date to be announced"
+def create_email_message(user, ticket, qr_filename, qr_data):
+    """Create email message with proper structure"""
+    try:
+        event_date = ticket.event.start_datetime.strftime('%b %d, %Y %I:%M %p') if not ticket.event.start_datetime else "TBA"
+        
 
-        # Create HTML email with improved styling
-        html_content = f"""<!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                .email-container {{
-                    max-width: 600px;
-                    margin: 20px auto;
-                    background: #ffffff;
-                    border-radius: 12px;
-                    overflow: hidden;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                }}
-                .header {{
-                    background: {Config.BRAND_COLOR};
-                    padding: 25px;
-                    text-align: center;
-                }}
-                .qr-section {{
-                    padding: 30px;
-                    text-align: center;
-                    background: #f8f9fa;
-                }}
-                .qr-code-img {{
-                    width: 240px;
-                    height: 240px;
-                    margin: 0 auto;
-                    padding: 12px;
-                    background: white;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-                }}
-                .details {{
-                    padding: 25px;
-                    line-height: 1.6;
-                    color: #333333;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="email-container">
-                <div class="header">
-                    <h2 style="color: white; margin: 0;">Your Digital Ticket</h2>
-                </div>
-                
-                <div class="details">
-                    <p>Hello {user.first_name},</p>
-                    <h3>{ticket.event.title}</h3>
-                    <p>📅 {event_date}</p>
-                    <p>📍 {ticket.event.location}</p>
-                    <p>🎟 {ticket.quantity} {'ticket' if ticket.quantity == 1 else 'tickets'}</p>
-                </div>
-
-                <div class="qr-section">
-                    <div class="qr-code-img">
-                        <img src="data:image/png;base64,{qr_base64}" 
-                             alt="Ticket QR Code" 
-                             style="width: 100%; height: auto;">
-                    </div>
-                    <p style="margin-top: 15px; color: #666;">
-                        Scan this QR code at the event entrance
-                    </p>
-                </div>
-            </div>
-        </body>
-        </html>"""
-
-        # Create and send message with proper encoding
         msg = Message(
-            subject=f"🎟 Your Ticket for {ticket.event.title}",
+            subject=f"Your Ticket for {ticket.event.title}",
             recipients=[user.email],
-            sender=(Config.EMAIL_SENDER_NAME, Config.MAIL_DEFAULT_SENDER))
-        msg.html = html_content
+            sender=(Config.EMAIL_SENDER_NAME, Config.MAIL_USERNAME),
+            charset="utf-8"
+        )
         
-        # Add alternative text version
-        msg.body = f"""Hi {user.first_name},
+        # HTML version
+        msg.html = f"""<html>
+            <body>
+                <h1>Your Ticket</h1>
+                <p>Event: {ticket.event.title}</p>
+                <img src="cid:qr_code">
+            </body>
+        </html>"""
         
-Your ticket for {ticket.event.title} is attached.
-Event Date: {event_date}
-Location: {ticket.event.location}
-Tickets: {ticket.quantity}
-
-Scan the QR code at the event entrance.
-"""
-
-        try:
-            mail.send(msg)
-            logging.info(f"QR email successfully sent to {user.email}")
-        except Exception as e:
-            logging.error(f"Email sending failed: {str(e)}")
-            # Consider adding retry logic here
+        # Text version
+        msg.body = f"""Your ticket for {ticket.event.title}
+        Event Date: {event_date}
+        QR Code Attached"""
+        
+        # Attach QR code
+        msg.attach(
+            filename=qr_filename,
+            content_type="image/png",
+            data=qr_data,
+            headers=[("Content-ID", "<qr_code>")]
+        )
+        
+        return msg
 
     except Exception as e:
-        logging.error(f"QR email processing failed: {str(e)}")
-        # Don't re-raise to prevent breaking payment flow
+        logging.error(f"Email creation failed: {str(e)}")
+        raise
 
+def send_email_with_retry(msg, retries=2):
+    """Robust email sending with retries"""
+    for attempt in range(retries + 1):
+        try:
+            mail.send(msg)
+            logging.info(f"Email sent to {msg.recipients}")
+            return True
+        except SMTPException as e:
+            logging.warning(f"Email attempt {attempt+1} failed: {str(e)}")
+            if attempt < retries:
+                time.sleep(2 ** attempt)
+            else:
+                raise
+        except Exception as e:
+            logging.error(f"Non-SMTP error: {str(e)}")
+            raise
 def process_mpesa_callback(data):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
