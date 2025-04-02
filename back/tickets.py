@@ -309,6 +309,8 @@ def send_ticket_qr_email(user, ticket):
         logging.error(f"Error sending QR code email: {str(e)}")
 
 def process_mpesa_callback(data):
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
     """Process the M-Pesa callback data"""
     try:
         body = data.get('Body', {})
@@ -365,7 +367,10 @@ def process_mpesa_callback(data):
         attendee = Attendee.query.get(ticket.attendee_id)
         attendee_user = User.query.get(attendee.user_id) if attendee else None
         if attendee_user:
-            send_ticket_qr_email(attendee_user, ticket)
+            try:
+                send_ticket_qr_email(attendee_user, ticket)
+            except Exception as e:
+                logging.error(f"Failed to send QR email: {str(e)}")
 
         return {'ResultCode': 0, 'ResultDesc': 'Payment processed successfully'}
 
