@@ -8,26 +8,18 @@ from config import Config
 from datetime import timedelta
 import os
 
-
+from config2 import Config
 import cloudinary
 from cloudinary import uploader, utils
 from stats import StatsResource  
 
 from database import db
-from email_con import  mail  
+from email_service import  mail  
 # from email_resource import EmailResource, EmailWithQRResource  # Import the EmailResource and EmailWithQRResource
 
 app = Flask(__name__)
 
-
-app.config['MAIL_SERVER'] = 'smtp.example.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'jbcollins254@gmail.com'
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')  
-app.config['MAIL_DEFAULT_SENDER'] = 'jbcollins254@gmail.com'
-
-
+app.config.from_object(Config)
 mail.init_app(app)
 
 # Database Configuration

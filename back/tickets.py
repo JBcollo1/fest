@@ -7,13 +7,16 @@ from models import Ticket, Event, User, Attendee, Payment, TicketType
 from utils.response import success_response, error_response
 from datetime import datetime, timedelta
 from cash import initiate_mpesa_payment, verify_mpesa_payment, wait_for_payment_confirmation
-
+import qrcode
+import base64
+from io import BytesIO
+from config2 import Config
 import logging
 import uuid
-
-from email_service import send_email_with_qr
+from flask_mail import Message
+from email_service import send_email, mail
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
+# logger = logging.getLogger(__name__)
 class TicketPurchaseResource(Resource):
     @jwt_required()
     def post(self, event_id):
@@ -291,22 +294,87 @@ class UserTicketsResource(Resource):
 
 def send_ticket_qr_email(user, ticket):
     """
-    Send a QR code email to the user after payment is confirmed.
+    Send a ticket confirmation email with QR code embedded in HTML
     """
     try:
-        # Prepare email details
-        recipient = user.email
-        subject = f"Your Ticket for {ticket.event.name}"
-        body = f"Dear {user.first_name},\n\nThank you for your purchase. Please find your ticket QR code attached."
+        # Generate QR code with ticket's unique UUID
+        qr = qrcode.make(ticket.qr_code)
+        img_io = BytesIO()
+        qr.save(img_io, 'PNG')
+        img_io.seek(0)
+        qr_base64 = base64.b64encode(img_io.getvalue()).decode()
 
-        # Generate QR data (could be ticket ID or any unique identifier)
-        qr_data = f"Ticket ID: {ticket.id}"
+        # Create HTML email content
+        html_content = f"""<!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                .email-container {{
+                    font-family: Arial, sans-serif;
+                    padding: 20px;
+                    background-color: #f4f4f4;
+                    border-radius: 10px;
+                    max-width: 600px;
+                    margin: 0 auto;
+                }}
+                .email-header {{
+                    background-color: #4CAF50;
+                    color: white;
+                    padding: 10px;
+                    text-align: center;
+                    border-radius: 10px 10px 0 0;
+                }}
+                .email-body {{
+                    padding: 20px;
+                    background-color: white;
+                    border-radius: 0 0 10px 10px;
+                }}
+                .qr-code {{
+                    text-align: center;
+                    margin: 20px 0;
+                }}
+                .details {{
+                    margin: 15px 0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="email-container">
+                <div class="email-header">
+                    <h1>Your Ticket for {ticket.event.title}</h1>
+                </div>
+                <div class="email-body">
+                    <p>Hi {user.first_name} {user.last_name},</p>
+                    <div class="details">
+                        <p><strong>Event:</strong> {ticket.event.title}</p>
+                        <p><strong>Date:</strong> {ticket.event.start_datetime.strftime('%B %d, %Y %H:%M')}</p>
+                        <p><strong>Location:</strong> {ticket.event.location}</p>
+                        <p><strong>Tickets:</strong> {ticket.quantity}</p>
+                    </div>
+                    <div class="qr-code">
+                        <img src="data:image/png;base64,{qr_base64}" alt="Ticket QR Code">
+                        <p>Scan this QR code at the event entrance</p>
+                    </div>
+                    <p>Best regards,<br>The Event Team</p>
+                </div>
+            </div>
+        </body>
+        </html>"""
 
-        # Send the email with QR code
-        send_email_with_qr(recipient, subject, body, qr_data)
-        logging.info(f"QR code email sent to {recipient} for ticket ID {ticket.id}")
+        # Create and send message
+        msg = Message(
+            subject=f"Your Ticket for {ticket.event.title}",
+            recipients=[user.email],
+            sender=Config.MAIL_DEFAULT_SENDER
+        )
+        msg.html = html_content
+        
+        mail.send(msg)
+        logging.info(f"QR email sent to {user.email}")
+
     except Exception as e:
-        logging.error(f"Error sending QR code email: {str(e)}")
+        logging.error(f"Error sending QR email: {str(e)}")
+        raise  # Re-raise if you want to handle it in the caller
 
 def process_mpesa_callback(data):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -365,19 +433,19 @@ def process_mpesa_callback(data):
 
         # Send QR code email after ticket is marked as purchased
         attendee = Attendee.query.get(ticket.attendee_id)
-        attendee_user = User.query.get(attendee.user_id) if attendee else None
-        if attendee_user:
-            try:
-                send_ticket_qr_email(attendee_user, ticket)
-            except Exception as e:
-                logging.error(f"Failed to send QR email: {str(e)}")
-
-        return {'ResultCode': 0, 'ResultDesc': 'Payment processed successfully'}
+        user = User.query.get(attendee.user_id) if attendee else None
+        
+        if user:
+                try:
+                    send_ticket_qr_email(user, ticket)
+                except Exception as e:
+                    logging.error(f"QR email failed but payment processed: {e}")
+                return {'ResultCode': 0, 'ResultDesc': 'Payment processed successfully'}
 
     except Exception as e:
-        db.session.rollback()
-        logging.error(f"Payment processing error: {str(e)}")
-        return {'ResultCode': 1, 'ResultDesc': 'Payment processing error'}, 500
+                db.session.rollback()
+                logging.error(f"Payment processing error: {str(e)}")
+    return {'ResultCode': 1, 'ResultDesc': 'Payment processing error'}, 500
 
 class TicketListResource(Resource):
     @jwt_required()
