@@ -345,9 +345,13 @@ def process_mpesa_callback(data):
                 event.tickets_sold += 1
 
         # Commit DB updates
-        db.session.commit()
-
-        logging.info(f"Payment processed successfully: {payment.transaction_id}")
+        try:
+            db.session.commit()
+            logging.info(f"Payment processed successfully: {payment.transaction_id}")
+        except Exception as e:
+            logging.error(f"Error committing to the database: {e}")
+            db.session.rollback()  # Rollback in case of error
+            return {'ResultCode': 1, 'ResultDesc': 'Database commit error'}, 500
 
         return {'ResultCode': 0, 'ResultDesc': 'Payment processed successfully'}
 
