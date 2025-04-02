@@ -14,10 +14,21 @@ from cloudinary import uploader, utils
 from stats import StatsResource  
 
 from database import db
-from email_service import EmailService, mail  # Import the EmailService class
+from email_con import  mail  
 from email_resource import EmailResource, EmailWithQRResource  # Import the EmailResource and EmailWithQRResource
 
 app = Flask(__name__)
+
+
+app.config['MAIL_SERVER'] = 'smtp.example.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'jbcollins254@gmail.com'
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')  
+app.config['MAIL_DEFAULT_SENDER'] = 'jbcollins254@gmail.com'
+
+
+mail = Mail(app)
 
 # Database Configuration
 DATABASE_URL = os.getenv("EXTERNAL_DATABASE_URL") or os.getenv("INTERNAL_DATABASE_URL") or \
@@ -28,7 +39,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize Database
 # db = SQLAlchemy(app)
 db.init_app(app)
-mail.init_app(app)  # Attach Mail to the Flask app
 
 # Initialize Flask-Migrate)
 migrate = Migrate(app, db)

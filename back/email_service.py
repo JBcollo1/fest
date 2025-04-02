@@ -1,11 +1,11 @@
 import mimetypes
 from flask_mail import Mail, Message
-from email_con import Config
+from app import mail  # Import the mail instance from app.py
 import qrcode
 from io import BytesIO
 
 # Initialize Mail (but attach it to the Flask app later)
-mail = Mail()
+
 
 class EmailService:
  
@@ -16,7 +16,7 @@ class EmailService:
             subject=subject,
             recipients=[recipient],
             body=body,
-            sender=Config.MAIL_DEFAULT_SENDER,
+            sender=mail.app.config['MAIL_DEFAULT_SENDER'],
         )
 
         # Attach file if provided
@@ -46,7 +46,7 @@ class EmailService:
             subject=subject,
             recipients=[recipient],
             body=body,
-            sender=Config.MAIL_DEFAULT_SENDER,
+            sender=mail.app.config['MAIL_DEFAULT_SENDER'],
         )
 
         # Generate QR code
