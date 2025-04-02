@@ -343,32 +343,132 @@ def generate_qr_attachment(ticket):
         raise
 
 def create_email_message(user, ticket, qr_filename, qr_data):
-    """Create email message with proper structure"""
+    """Create email message with original QR box styling"""
     try:
-        event_date = ticket.event.start_datetime.strftime('%b %d, %Y %I:%M %p') if not ticket.event.start_datetime else "TBA"
+        event_date = ticket.event.start_datetime.strftime('%B %d, %Y %H:%M') if not ticket.event.start_datetime else "Date to be announced"
         
 
+        html_content = f"""<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                .email-container {{
+                    font-family: Arial, sans-serif;
+                    padding: 20px;
+                    background-color: #f4f4f4;
+                    border-radius: 10px;
+                    max-width: 600px;
+                    margin: 0 auto;
+                }}
+                .email-header {{
+                    background-color: {Config.BRAND_COLOR};
+                    color: white;
+                    padding: 20px;
+                    text-align: center;
+                    border-radius: 10px 10px 0 0;
+                }}
+                .email-body {{
+                    padding: 30px;
+                    background-color: white;
+                    border-radius: 0 0 10px 10px;
+                }}
+                .qr-box {{
+                    text-align: center;
+                    margin: 25px 0;
+                    padding: 20px;
+                    background: #ffffff;
+                    border: 2px solid #eeeeee;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                .qr-code-img {{
+                    width: 200px;
+                    height: 200px;
+                    margin: 0 auto;
+                    display: block;
+                }}
+                .details {{
+                    margin: 20px 0;
+                    line-height: 1.6;
+                    color: #333333;
+                }}
+                .detail-item {{
+                    margin: 15px 0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="email-container">
+                <div class="email-header">
+                    <h1>Your Ticket for {ticket.event.title}</h1>
+                </div>
+                
+                <div class="email-body">
+                    <div class="details">
+                        <p>Hello {user.first_name} {user.last_name},</p>
+                        
+                        <div class="detail-item">
+                            <h3>{ticket.event.title}</h3>
+                        </div>
+                        
+                        <div class="detail-item">
+                            📅 <strong>Date:</strong> {event_date}
+                        </div>
+                        
+                        <div class="detail-item">
+                            📍 <strong>Location:</strong> {ticket.event.location}
+                        </div>
+                        
+                        <div class="detail-item">
+                            🎟 <strong>Tickets:</strong> {ticket.quantity}
+                        </div>
+                    </div>
+
+                    <div class="qr-box">
+                        <img src="cid:qr_code" 
+                             class="qr-code-img"
+                             alt="Ticket QR Code">
+                        <p style="margin-top: 15px; color: #666;">
+                            Scan this QR code at the event entrance
+                        </p>
+                    </div>
+                    
+                    <p style="margin-top: 25px;">
+                        Best regards,<br>
+                        <strong>The {Config.EMAIL_SENDER_NAME}</strong>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>"""
+
         msg = Message(
-            subject=f"Your Ticket for {ticket.event.title}",
+            subject=f"🎟 Your Ticket for {ticket.event.title}",
             recipients=[user.email],
             sender=(Config.EMAIL_SENDER_NAME, Config.MAIL_USERNAME),
             charset="utf-8"
         )
         
         # HTML version
-        msg.html = f"""<html>
-            <body>
-                <h1>Your Ticket</h1>
-                <p>Event: {ticket.event.title}</p>
-                <img src="cid:qr_code">
-            </body>
-        </html>"""
+        msg.html = html_content
         
         # Text version
-        msg.body = f"""Your ticket for {ticket.event.title}
-        Event Date: {event_date}
-        QR Code Attached"""
-        
+        msg.body = f"""Hi {user.first_name},
+
+Your ticket details:
+
+Event: {ticket.event.title}
+Date: {event_date}
+Location: {ticket.event.location}
+Tickets: {ticket.quantity}
+
+Scan the attached QR code at the event entrance.
+
+Best regards,
+The {Config.EMAIL_SENDER_NAME}"""
+
         # Attach QR code
         msg.attach(
             filename=qr_filename,
