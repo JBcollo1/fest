@@ -92,7 +92,7 @@ class TicketPurchaseResource(Resource):
                     attendee_id=attendee.id,
                     ticket_type_id=ticket_type.id,
                     price=ticket_type.price * quantity,
-                    original_price=ticket_type.price,
+                
                     currency=ticket_type.currency,
                     satus='confirmed',
                     quantity=quantity
