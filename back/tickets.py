@@ -11,6 +11,10 @@ from cash import initiate_mpesa_payment, verify_mpesa_payment, wait_for_payment_
 import logging
 import uuid
 
+from email_service import EmailService  # Import the EmailService
+
+email_service = EmailService()  # Initialize the email service
+
 class TicketPurchaseResource(Resource):
     @jwt_required()
     def post(self, event_id):
@@ -99,6 +103,17 @@ class TicketPurchaseResource(Resource):
             )
             db.session.add(payment)
             db.session.commit()
+
+            # Send email with QR code
+            try:
+                email_service.send_email_with_qr(
+                    recipient=user.email,
+                    subject="Your Ticket Purchase Confirmation",
+                    body=f"Thank you for purchasing a ticket for {event.title}. Please find your QR code attached.",
+                    qr_data=ticket.id  # Use the ticket ID as the QR data
+                )
+            except Exception as e:
+                logging.error(f"Error sending email with QR code: {str(e)}")
 
             return success_response(
                 message="Payment verified and ticket purchased successfully.",

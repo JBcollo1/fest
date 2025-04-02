@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request, jsonify
 from flask_restful import Api
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -7,11 +7,15 @@ from flask_jwt_extended import JWTManager
 from config import Config
 from datetime import timedelta
 import os
+from flask_mail import Mail
+
 import cloudinary
 from cloudinary import uploader, utils
 from stats import StatsResource  
 
 from database import db
+from email_service import EmailService, mail  # Import the EmailService class
+from email_resource import EmailResource, EmailWithQRResource  # Import the EmailResource and EmailWithQRResource
 
 app = Flask(__name__)
 
@@ -24,6 +28,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize Database
 # db = SQLAlchemy(app)
 db.init_app(app)
+mail.init_app(app)  # Attach Mail to the Flask app
 
 # Initialize Flask-Migrate)
 migrate = Migrate(app, db)
@@ -143,6 +148,14 @@ api.add_resource(DevAdminResource, '/api/dev/make-admin')
 # Register the callback endpoint
 
 api.add_resource(StatsResource, '/api/stats')  
+
+# Initialize EmailService
+# email_service = EmailService(app)
+
+# Register the email resources
+api.add_resource(EmailResource, '/api/send-email')
+api.add_resource(EmailWithQRResource, '/api/send-email-with-qr')
+
 
 if __name__ == '__main__':
     app.run(debug=Config.DEBUG)

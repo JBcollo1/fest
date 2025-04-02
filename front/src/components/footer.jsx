@@ -10,7 +10,7 @@ const Footer = () =>{
     <div>
       <div className="flex items-center gap-2 mb-4">
         <Calendar className="h-6 w-6 text-primary" />
-        <span className="text-xl font-display font-semibold">EventHub</span>
+        <span className="text-xl font-display font-semibold">FikaEvents</span>
       </div>
       <p className="text-muted-foreground">
         Your premier platform for discovering and booking events across Kenya.
@@ -52,7 +52,7 @@ const Footer = () =>{
   </div>
   
   <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-    <p>&copy; {new Date().getFullYear()} EventHub Kenya. All rights reserved.</p>
+    <p>&copy; {new Date().getFullYear()} FikaEvents Kenya. All rights reserved.</p>
   </div>
 </div>
 </footer>
