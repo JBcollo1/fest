@@ -294,6 +294,8 @@ class UserTicketsResource(Resource):
 
 def process_mpesa_callback(data):
     """Process the M-Pesa callback data"""
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
     try:
         body = data.get('Body', {})
         stk_callback = body.get('stkCallback', {})
