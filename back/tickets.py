@@ -72,6 +72,13 @@ class TicketPurchaseResource(Resource):
         if payment_confirmation['status'] != 'confirmed':
             return error_response("Payment confirmation failed", 400)
 
+        # Ensure ticket_details is not empty
+        if not ticket_details:
+            return error_response("No ticket details provided", 400)
+
+        # Initialize the ticket variable
+        ticket = None
+
         try:
             # Process each ticket type
             for detail in ticket_details:
@@ -93,33 +100,37 @@ class TicketPurchaseResource(Resource):
                 db.session.add(ticket)
 
             # Record the payment
-            payment = Payment(
-                ticket_id=ticket.id,
-                payment_method='Mpesa',
-                payment_status='Pending',  # Initially set to pending
-                transaction_id=checkout_request_id,
-                amount=total_amount,
-                currency=ticket.currency
-            )
-            db.session.add(payment)
-            db.session.commit()  # Commit the payment record
-
-            # Send email with QR code
-            try:
-                email_service.send_email_with_qr(
-                    recipient=user.email,
-                    subject="Your Ticket Purchase Confirmation",
-                    body=f"Thank you for purchasing a ticket for {event.title}. Please find your QR code attached.",
-                    qr_data=ticket.id  # Use the ticket ID as the QR data
+            if ticket:  # Ensure ticket is not None
+                payment = Payment(
+                    ticket_id=ticket.id,
+                    payment_method='Mpesa',
+                    payment_status='Pending',  # Initially set to pending
+                    transaction_id=checkout_request_id,
+                    amount=total_amount,
+                    currency=ticket.currency
                 )
-            except Exception as e:
-                logging.error(f"Error sending email with QR code: {str(e)}")
+                db.session.add(payment)
+                db.session.commit()  # Commit the payment record
 
-            return success_response(
-                message="Payment verified and ticket purchased successfully.",
-                data={"CheckoutRequestID": checkout_request_id},
-                status_code=200
-            )
+                # Send email with QR code
+                try:
+                    email_service.send_email_with_qr(
+                        recipient=user.email,
+                        subject="Your Ticket Purchase Confirmation",
+                        body=f"Thank you for purchasing a ticket for {event.title}. Please find your QR code attached.",
+                        qr_data=ticket.id  # Use the ticket ID as the QR data
+                    )
+                except Exception as e:
+                    logging.error(f"Error sending email with QR code: {str(e)}")
+
+                return success_response(
+                    message="Payment verified and ticket purchased successfully.",
+                    data={"CheckoutRequestID": checkout_request_id},
+                    status_code=200
+                )
+            else:
+                return error_response("Failed to create ticket", 500)
+
         except Exception as e:
             db.session.rollback()
             return error_response(f"Error processing ticket purchase: {str(e)}", 500)
