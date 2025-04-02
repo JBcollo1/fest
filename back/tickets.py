@@ -97,6 +97,9 @@ class TicketPurchaseResource(Resource):
                     satus='confirmed'
                 )
                 db.session.add(ticket)
+            
+            # Commit the ticket to ensure it is saved before creating the payment
+            db.session.commit()
 
             # Record the payment
             if ticket:  # Ensure ticket is not None
