@@ -97,16 +97,16 @@ class TicketPurchaseResource(Resource):
                     satus='confirmed'
                 )
                 db.session.add(ticket)
-            
+                db.session.flush()
+                
             # Commit the ticket to ensure it is saved before creating the payment
-            db.session.commit()
 
             # Record the payment
             if ticket:  # Ensure ticket is not None
                 payment = Payment(
                     ticket_id=ticket.id,
                     payment_method='Mpesa',
-                    payment_status='Pending',  # Initially set to pending
+                    payment_status='Completed',  
                     transaction_id=checkout_request_id,
                     amount=total_amount,
                     currency=ticket.currency
