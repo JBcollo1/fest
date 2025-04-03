@@ -34,7 +34,7 @@ const HeroSlider = () => {
   }, []);
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden">
+    <div className="relative rounded-xl overflow-hidden w-full ">
       {/* Background Slides */}
       {slides.map((slide, index) => (
         <div
@@ -43,7 +43,7 @@ const HeroSlider = () => {
             index === currentSlide ? 'opacity-100' : 'opacity-0'
           }`}
           style={{
-            width: '100%',
+            // width: '100%',
             height: '566px',
             backgroundImage: `url(${slide.image})`,
             backgroundSize: 'cover',
@@ -54,7 +54,7 @@ const HeroSlider = () => {
       ))}
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col md:flex-row h-full min-h-[500px]">
+      <div className="relative z-10 flex flex-col md:flex-row h-full  w-full min-h-[500px]">
         <div className="flex-1 flex flex-col justify-end p-6 md:p-10">
           <div className="w-full max-w-3xl animate-fade-in">
             <AnimatedSection>

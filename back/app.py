@@ -4,22 +4,23 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
-from config import Config
+# from config import Config
 from datetime import timedelta
 import os
-
-from config2 import Config
+from redis_client import redis_client
+import sys
+from config2 import Config2
 import cloudinary
 from cloudinary import uploader, utils
 from stats import StatsResource  
-
 from database import db
 from email_service import  mail  
 # from email_resource import EmailResource, EmailWithQRResource  # Import the EmailResource and EmailWithQRResource
 
+
 app = Flask(__name__)
 
-app.config.from_object(Config)
+app.config.from_object(Config2)
 mail.init_app(app)
 
 # Database Configuration
@@ -76,7 +77,20 @@ CORS(
 )
 api = Api(app)
 
-
+# Add this new function above create_app()
+def is_migration_command():
+    import sys
+    return db in sys.argv or 'migrate' in sys.argv or 'upgrade' in sys.argv
+if not is_migration_command():
+    from redis_client import redis_client
+    try:
+        redis_client.ping()
+        app.redis_available = True
+    except Exception as e:
+        app.redis_available = False
+        print(f"Redis connection warning: {str(e)}")
+else:
+    app.redis_available = False
 
 # from models import User, Role, UserRole, Organizer, Attendee, Event, Category, EventCategory, Ticket, DiscountCode, EventDiscountCode, Payment
 
@@ -88,7 +102,8 @@ from tickets import (
     UserTicketsResource, 
     TicketVerificationResource, 
     TicketPurchaseResource,  # Import the new resource
-    mpesaCallback
+    mpesaCallback,
+    RedisHealth
 )
 from payments import PaymentResource, PaymentListResource
 from categories import CategoryResource, CategoryListResource
@@ -101,6 +116,7 @@ from organizer import OrganizerListResource, OrganizerResource, UserOrganizerRes
 
 api.add_resource(mpesaCallback, '/mpesa/callback')
 
+api.add_resource(RedisHealth, '/redis/health')
 
 
 api.add_resource(UserListResource, '/api/users')
@@ -155,4 +171,4 @@ api.add_resource(StatsResource, '/api/stats')
 
 
 if __name__ == '__main__':
-    app.run(debug=Config.DEBUG)
+    app.run(debug=Config2.DEBUG)

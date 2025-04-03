@@ -74,9 +74,8 @@ const Index = () => {
       
       {/* Hero Section */}
       <section className="pt-20 md:pt-24">
-        <div className="container mx-auto px-4">
-          <HeroSlider />
-        </div>
+        
+        <HeroSlider />
       </section>
       
       {/* Search Section */}

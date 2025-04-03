@@ -1,12 +1,13 @@
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask import jsonify, make_response, request
+from celery import current_task as self  
 
 from database import db
 from models import Ticket, Event, User, Attendee, Payment, TicketType
 from utils.response import success_response, error_response
 from datetime import datetime, timedelta
-from cash import initiate_mpesa_payment, verify_mpesa_payment, wait_for_payment_confirmation
+from cash import initiate_mpesa_payment, verify_mpesa_payment, generate_access_token
 import qrcode
 from sqlalchemy.orm import joinedload
 import smtplib
@@ -14,13 +15,67 @@ from smtplib import SMTPException
 import time
 import base64
 from io import BytesIO
-from config2 import Config
+from config2 import Config2
 import logging
 import uuid
 from flask_mail import Message
 from email_service import send_email, mail
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 # logger = logging.getLogger(__name__)
+
+from redis_client import redis_client
+from celery import shared_task,Celery
+
+from config3 import Config
+
+celery = Celery(__name__, broker=Config.CELERY_BROKER_URL)
+celery.conf.update(worker_max_memory_per_child=25000)
+
+celery.conf.update(
+    task_routes = {
+        'process_payment_callback': {'queue': 'payments'},
+        'cleanup_redis': {'queue': 'maintenance'}
+    },
+    task_default_priority=5,
+)
+
+@shared_task
+def cleanup_redis():
+    """Memory maintenance task for Render's Redis"""
+    try:
+        # Flush expired keys immediately
+        redis_client.memory_purge()
+        
+        # Clean Celery task metadata
+        redis_client.delete(
+            'celery', 
+            '_kombu.binding.celery',
+            '_kombu.binding.celery.pidbox'
+        )
+        
+        
+        redis_client.config_set('maxmemory', Config.REDIS_MAXMEMORY)
+        redis_client.config_set('maxmemory-policy', Config.REDIS_EVICTION_POLICY)
+        
+        return f"Memory used: {redis_client.info('memory')['used_memory_human']}"
+    except Exception as e:
+        return str(e)
+    
+
+class RedisHealth (Resource):
+    def get(self):
+        try:
+            info = redis_client.info('memory')
+            return jsonify({
+                'status': 'ok',
+                'memory_used': info['used_memory_human'],
+                'memory_limit': info['maxmemory_human'],
+                'keys': redis_client.dbsize()
+            })
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
 class TicketPurchaseResource(Resource):
     @jwt_required()
     def post(self, event_id):
@@ -74,9 +129,7 @@ class TicketPurchaseResource(Resource):
             return error_response("Invalid payment response", 400)
 
         # Wait for payment confirmation immediately after initiation
-        payment_confirmation = wait_for_payment_confirmation(checkout_request_id)
-        if payment_confirmation['status'] != 'confirmed':
-            return error_response("Payment confirmation failed", 400)
+        
 
         # Ensure ticket_details is not empty
         if not ticket_details:
@@ -320,7 +373,7 @@ def send_ticket_qr_email(user, ticket):
 def generate_qr_attachment(ticket):
     """Generate QR code file and return attachment data"""
     try:
-        verification_url = f"{Config.BASE_URL}/verify/{ticket.qr_code}"
+        verification_url = f"{Config2.BASE_URL}/verify/{ticket.qr_code}"
         
         qr = qrcode.QRCode(
             version=5,
@@ -363,7 +416,7 @@ def create_email_message(user, ticket, qr_filename, qr_data):
                     margin: 0 auto;
                 }}
                 .email-header {{
-                    background-color: {Config.BRAND_COLOR};
+                    background-color: {Config2.BRAND_COLOR};
                     color: white;
                     padding: 20px;
                     text-align: center;
@@ -437,7 +490,7 @@ def create_email_message(user, ticket, qr_filename, qr_data):
                     
                     <p style="margin-top: 25px;">
                         Best regards,<br>
-                        <strong>The {Config.EMAIL_SENDER_NAME}</strong>
+                        <strong>The {Config2.EMAIL_SENDER_NAME}</strong>
                     </p>
                 </div>
             </div>
@@ -447,7 +500,7 @@ def create_email_message(user, ticket, qr_filename, qr_data):
         msg = Message(
             subject=f"🎟 Your Ticket for {ticket.event.title}",
             recipients=[user.email],
-            sender=(Config.EMAIL_SENDER_NAME, Config.MAIL_USERNAME),
+            sender=(Config2.EMAIL_SENDER_NAME, Config2.MAIL_USERNAME),
             charset="utf-8"
         )
         
@@ -467,7 +520,7 @@ Tickets: {ticket.quantity}
 Scan the attached QR code at the event entrance.
 
 Best regards,
-The {Config.EMAIL_SENDER_NAME}"""
+The {Config2.EMAIL_SENDER_NAME}"""
 
         # Attach QR code
         msg.attach(
@@ -499,78 +552,108 @@ def send_email_with_retry(msg, retries=2):
         except Exception as e:
             logging.error(f"Non-SMTP error: {str(e)}")
             raise
-def process_mpesa_callback(data):
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
+
+@celery.task(autoretry_for=(Exception,), max_retries=3, retry_backoff=30)
+def process_payment_callback(checkout_request_id):
+    """Async payment verification with memory awareness"""
+    from app import db  # Local import for worker safety
+    
+    # Check if already processed
+    if redis_client.exists(f'processed:{checkout_request_id}'):
+        return "Already processed"
+
+    # Database-first verification
+    payment = Payment.query.filter_by(checkout_request_id=checkout_request_id).first()
+    if not payment:
+        redis_client.setex(f'missing:{checkout_request_id}', 3600, 1)
+        raise ValueError("Payment record not found")
+
+    if payment.status == 'completed':
+        return "Payment already completed"
+
+    # M-Pesa verification logic
+    try:
+        access_token = redis_client.compressed_get('mpesa_token')
+        if not access_token:
+            access_token = generate_access_token()
+            redis_client.compressed_set('mpesa_token', access_token, ex=3500)
+        
+        verification_result = verify_mpesa_payment(checkout_request_id, access_token)
+        
+        if verification_result.get('ResultCode') == '0':
+            # Process successful payment
+            payment.status = 'completed'
+            
+            # Update ticket counts in bulk - FIXED THIS SECTION
+            ticket_type_counts = {}
+            for ticket in payment.tickets:
+                ticket_type_id = ticket.ticket_type_id
+                if ticket_type_id in ticket_type_counts:
+                    ticket_type_counts[ticket_type_id] += ticket.quantity
+                else:
+                    ticket_type_counts[ticket_type_id] = ticket.quantity
+            
+            # Update each ticket type with the correct count
+            for ticket_type_id, count in ticket_type_counts.items():
+                ticket_type = TicketType.query.get(ticket_type_id)
+                ticket_type.tickets_sold += count
+            
+            db.session.commit()
+            redis_client.setex(f'processed:{checkout_request_id}', 86400, 1)
+
+            # Reload relationship to ensure it's up-to-date
+            payment = Payment.query.get(payment.id)
+            
+            if not payment.tickets:
+                raise ValueError("Payment has no associated tickets")
+                
+            user = payment.tickets[0].attendee.user
+            
+            send_ticket_qr_email.apply_async(
+                args=(user.id, payment.tickets[0].id),  # Pass IDs instead of objects
+                retry=True,
+                retry_policy={
+                    'max_retries': 3,
+                    'interval_start': 10
+                }
+            )
+            return "Success"
+            
+    except Exception as e:
+        db.session.rollback()
+        raise self.retry(exc=e)
+
+def process_mpesa_callback(data):
     """Process the M-Pesa callback data"""
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    
     try:
         body = data.get('Body', {})
         stk_callback = body.get('stkCallback', {})
-
+        
         result_code = stk_callback.get('ResultCode')
         checkout_request_id = stk_callback.get('CheckoutRequestID')
-
+        
         logging.info(f"Processing callback for CheckoutRequestID: {checkout_request_id}")
-
+        
         # Payment failed scenario
         if result_code != 0:
             logging.warning(f"Payment failed for {checkout_request_id}")
             return {'ResultCode': 1, 'ResultDesc': 'Payment Failed'}, 400
-
+        
         # Extract callback metadata
         callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
         payment_details = {item['Name']: item.get('Value') for item in callback_metadata if 'Value' in item}
-
-        # Retrieve payment record
-        payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
-        if not payment:
-            logging.error("Payment record not found")
-            return {'ResultCode': 1, 'ResultDesc': 'Payment record not found'}, 404
-
-        # Update payment details
-        payment.payment_status = 'Completed'
-        payment.transaction_id = payment_details.get('MpesaReceiptNumber')
-        payment.amount = float(payment_details.get('Amount', 0))
-        payment.payment_date = datetime.now()
-
-        # Update ticket status
-        ticket = (Ticket.query
-          .options(joinedload(Ticket.event))
-          .filter_by(id=payment.ticket_id)
-          .first())
-        if ticket:
-            ticket.satus = 'purchased'
-
-            # Update event ticket count
-            event = Event.query.get(ticket.event_id)
-            if event:
-                event.tickets_sold += ticket.quantity
-
-
-
-        # Commit DB updates
-        try:
-            db.session.commit()
-            logging.info(f"Payment processed successfully: {payment.transaction_id}")
-        except Exception as e:
-            logging.error(f"Error committing to the database: {e}")
-            db.session.rollback()  # Rollback in case of error
-            return {'ResultCode': 1, 'ResultDesc': 'Database commit error'}, 500
-
-        # Send QR code email after ticket is marked as purchased
-        attendee = Attendee.query.get(ticket.attendee_id)
-        user = User.query.get(attendee.user_id) if attendee else None
         
-        if user:
-            try:
-                send_ticket_qr_email(user, ticket)
-            except Exception as e:
-                logging.error(f"QR email failed but payment processed: {e}")
+        # Queue the async processing task
+        process_payment_callback.delay(checkout_request_id)
+        
         return {'ResultCode': 0, 'ResultDesc': 'Payment processed successfully'}, 200
-
+    
     except Exception as e:
-        db.session.rollback()
-        logging.error(f"Payment processing error: {str(e)}")
+        logging.error(f"Error processing M-Pesa callback: {str(e)}")
         return {'ResultCode': 1, 'ResultDesc': 'Payment processing error'}, 500
 class TicketListResource(Resource):
     @jwt_required()

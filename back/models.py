@@ -341,6 +341,9 @@ class Payment(db.Model):
   currency = db.Column(db.String(10), nullable=False, default='KES')
   payment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
   
+
+  tickets = db.relationship('Ticket', backref='payment', lazy=True)  # Add this
+
   def to_dict(self, include_ticket=False):
     payment_dict = {
       'id': self.id,
@@ -405,3 +408,6 @@ class TicketType(db.Model):
 
     def is_available(self, quantity):
         return self.quantity - self.tickets_sold >= quantity    
+    
+
+

@@ -1,6 +1,6 @@
 import os
 
-class Config:
+class Config2:
     
     MAIL_SERVER = 'smtp.gmail.com'
     MAIL_PORT = 587

@@ -1,6 +1,6 @@
 import mimetypes
 from flask_mail import Mail, Message
-from config2 import Config
+from config2 import Config2
 
 # Initialize Mail (but attach it to the Flask app later)
 mail = Mail()
@@ -11,7 +11,7 @@ def send_email(recipient, subject, body, attachment_path=None):
         subject=subject,
         recipients=[recipient],
         body=body,
-        sender=Config.MAIL_DEFAULT_SENDER,
+        sender=Config2.MAIL_DEFAULT_SENDER,
     )
 
     # Attach file if provided
