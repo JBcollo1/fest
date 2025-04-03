@@ -263,7 +263,7 @@ class Ticket(db.Model):
   quantity = db.Column(db.Integer, nullable=True)
   ticket_type_id = db.Column(db.String(36), db.ForeignKey('ticket_types.id'), nullable=True)
   
-  payment = db.relationship('Payment', backref='ticket', uselist=False, cascade="all, delete")
+  payment = db.relationship('Payment', backref='ticket_info', uselist=False, cascade="all, delete")
   
   def to_dict(self, include_event=False, include_attendee=True, include_payment=True, include_ticket_type=True):
     ticket_dict = {
