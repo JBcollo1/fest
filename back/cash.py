@@ -481,7 +481,7 @@ class PaymentStatusResource(Resource):
 def send_ticket_qr_email( ticket):
     """Send ticket email with properly attached QR code"""
     
-    ticket = Ticket.query.get(ticket)
+    
     user = User.query.get(ticket.attendee.user_id)
     
     try:
