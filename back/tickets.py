@@ -352,6 +352,9 @@ class UserTicketsResource(Resource):
 
 def send_ticket_qr_email(user, ticket):
     """Send ticket email with properly attached QR code"""
+    user = User.query.get(user)
+    ticket = Ticket.query.get(ticket)
+    
     try:
         # Validate essential data
         if not all([ticket, ticket.qr_code, user.email, ticket.event]):
@@ -585,11 +588,13 @@ def process_payment_callback(checkout_request_id):
         if verification_result.get('ResultCode') == '0':
             # Process successful payment
             payment.status = 'completed'
-            
+                
+      
             # Update ticket counts in bulk - FIXED THIS SECTION
             ticket_type_counts = {}
             for ticket in payment.tickets:
                 ticket_type_id = ticket.ticket_type_id
+                ticket.satus = 'completed'
                 if ticket_type_id in ticket_type_counts:
                     ticket_type_counts[ticket_type_id] += ticket.quantity
                 else:

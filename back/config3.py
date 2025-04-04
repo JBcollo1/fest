@@ -13,11 +13,11 @@ class Config:
     # Celery configuration
     CELERY_BROKER_URL = REDIS_URL or 'memory://'
     CELERY_RESULT_BACKEND = REDIS_URL or 'db+sqlite:///results.sqlite'
-    CELERY_TASK_SERIALIZER = 'msgpack'
-    CELERY_RESULT_SERIALIZER = 'msgpack'
+    CELERY_TASK_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'json'
     CELERY_ACCEPT_CONTENT = ['msgpack', 'json']
     CELERY_RESULT_EXPIRES = 300  # 5 minutes
-    CELERY_TASK_IGNORE_RESULT = True
+    CELERY_TASK_IGNORE_RESULT = False
     CELERYD_MAX_TASKS_PER_CHILD = 100
     CELERYD_MAX_MEMORY_PER_CHILD = 15000  # 15MB
     
