@@ -7,7 +7,7 @@ from flask_jwt_extended import JWTManager
 # from config import Config
 from datetime import timedelta
 import os
-from redis_client import redis_client
+# from redis_client import redis_client
 import sys
 from config2 import Config2
 import cloudinary
@@ -78,19 +78,19 @@ CORS(
 api = Api(app)
 
 # Add this new function above create_app()
-def is_migration_command():
-    import sys
-    return db in sys.argv or 'migrate' in sys.argv or 'upgrade' in sys.argv
-if not is_migration_command():
-    from redis_client import redis_client
-    try:
-        redis_client.ping()
-        app.redis_available = True
-    except Exception as e:
-        app.redis_available = False
-        print(f"Redis connection warning: {str(e)}")
-else:
-    app.redis_available = False
+# def is_migration_command():
+#     import sys
+#     return db in sys.argv or 'migrate' in sys.argv or 'upgrade' in sys.argv
+# if not is_migration_command():
+#     from redis_client import redis_client
+#     try:
+#         redis_client.ping()
+#         app.redis_available = True
+#     except Exception as e:
+#         app.redis_available = False
+#         print(f"Redis connection warning: {str(e)}")
+# else:
+#     app.redis_available = False
 
 # from models import User, Role, UserRole, Organizer, Attendee, Event, Category, EventCategory, Ticket, DiscountCode, EventDiscountCode, Payment
 
@@ -100,24 +100,23 @@ from tickets import (
    
     TicketListResource, 
     UserTicketsResource, 
-    TicketVerificationResource, 
-    TicketPurchaseResource,  # Import the new resource
-    mpesaCallback,
-    RedisHealth
+    TicketVerificationResource
+   
+  
 )
 from payments import PaymentResource, PaymentListResource
 from categories import CategoryResource, CategoryListResource
 from discount_codes import DiscountCodeResource, DiscountCodeListResource, ValidateDiscountCodeResource
 from organizer import OrganizerListResource, OrganizerResource, UserOrganizerResource
 
+from cash import  TicketPurchaseResource, MpesaCallbackResource, PaymentStatusResource
+  
 
 
 
+api.add_resource(MpesaCallbackResource, '/mpesa/callback')
 
-api.add_resource(mpesaCallback, '/mpesa/callback')
-
-api.add_resource(RedisHealth, '/redis/health')
-
+api.add_resource(PaymentStatusResource, '/payments/<string:checkout_request_id>/status')
 
 api.add_resource(UserListResource, '/api/users')
 api.add_resource(UserResource, '/api/users/<string:user_id>')
