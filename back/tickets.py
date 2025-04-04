@@ -20,6 +20,7 @@ import logging
 import uuid
 from flask_mail import Message
 from email_service import send_email, mail
+from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 # logger = logging.getLogger(__name__)
@@ -63,24 +64,28 @@ def cleanup_redis():
         return str(e)
     
 
+
 class RedisHealth(Resource):
     def get(self):
         try:
-            if not redis_client.client:
-                return jsonify({'status': 'error', 'message': 'Redis not connected'}), 500
-                
             info = redis_client.info()
-            return jsonify({
-                'status': 'ok',
-                'memory_used': info['used_memory_human'],
-                'memory_limit': info.get('maxmemory_human', 'not configured'),
-                'keys': redis_client.dbsize(),
-                'connected_clients': info['connected_clients'],
-                'tasks_in_queue': redis_client.llen('celery')
-            })
+            queue_info = {
+            'payments': redis_client.llen('payments'),
+            'email': redis_client.llen('email'),
+            'celery': redis_client.llen('celery'),
+            "queues": queue_info
+        }
+            return {
+                "status": "ok",
+                "memory": info['used_memory_human'],
+                "connected_clients": info['connected_clients'],
+                "tasks_in_queue": redis_client.llen('celery'),
+                "celery_workers": celery.control.inspect().active() or []
+            }, 200
         except Exception as e:
-            logging.error(f"Redis health check failed: {str(e)}")
-            return jsonify({'status': 'error', 'message': str(e)}), 500
+            return {"status": "error", "message": str(e)}, 500
+
+
 class TicketPurchaseResource(Resource):
     @jwt_required()
     def post(self, event_id):
@@ -562,32 +567,43 @@ def send_email_with_retry(msg, retries=2):
             raise
 
 
-@celery.task(autoretry_for=(Exception,), max_retries=3, retry_backoff=30)
-def process_payment_callback(checkout_request_id):
-    """Async payment verification with memory awareness"""
-    from app import db  # Local import for worker safety
-    logger = logging.getLogger(__name__)
-
-    logger.info(f"Processing payment callback: {checkout_request_id}")
+@celery.task(bind=True, autoretry_for=(Exception,), max_retries=3, retry_backoff=30)
+def process_payment_callback(self, checkout_request_id):
+    """Async payment verification with detailed logging"""
+    logger = logging.getLogger(f"PaymentProcessor.{checkout_request_id}")
     
-    if redis_client.exists(f'processed:{checkout_request_id}'):
-        logger.info(f"Already processed: {checkout_request_id}")
-        return "Already processed"
-
-    payment = Payment.query.filter_by(checkout_request_id=checkout_request_id).first()
-    if not payment:
-        logger.error(f"Payment not found: {checkout_request_id}")
-        redis_client.setex(f'missing:{checkout_request_id}', 3600, 1)
-        raise ValueError("Payment record not found")
-
     try:
-        access_token = redis_client.get('mpesa_token')
-        if not access_token:
-            logger.info("Generating new MPESA token")
-            access_token = generate_access_token()
-            redis_client.set('mpesa_token', access_token, ex=3500)
+        logger.info(f"Starting processing for {checkout_request_id}")
+        
+        if redis_client.exists(f'processed:{checkout_request_id}'):
+            logger.warning("Already processed - aborting")
+            return "Duplicate request"
+
+        payment = Payment.query.filter_by(checkout_request_id=checkout_request_id).first()
+        if not payment:
+            logger.error("Payment record not found in DB")
+            redis_client.setex(f'missing:{checkout_request_id}', 3600, 1)
+            raise ValueError("Payment record missing")
+
+        logger.debug(f"Found payment: {payment.id} with status {payment.status}")
+
+        if payment.status == 'completed':
+            logger.info("Payment already completed")
+            return "Already completed"
+
+        logger.info("Initiating M-Pesa verification")
+        access_token = redis_client.get('mpesa_token') or generate_access_token()
         
         verification_result = verify_mpesa_payment(checkout_request_id, access_token)
+        logger.debug(f"Verification result: {verification_result}")
+
+        if verification_result.get('ResultCode') != '0':
+            logger.error(f"Payment failed: {verification_result.get('ResultDesc')}")
+            payment.status = 'failed'
+            db.session.commit()
+            return "Payment failed"
+
+        logger.info("Payment verification successful - updating records")
         
         if verification_result.get('ResultCode') == '0':
             logger.info(f"Payment verified: {checkout_request_id}")
@@ -596,7 +612,7 @@ def process_payment_callback(checkout_request_id):
             ticket_type_counts = defaultdict(int)
             for ticket in payment.tickets:
                 ticket_type_counts[ticket.ticket_type_id] += ticket.quantity
-                ticket.status = 'completed'
+                ticket.satus = 'completed'
 
             for ticket_type_id, count in ticket_type_counts.items():
                 ticket_type = TicketType.query.get(ticket_type_id)
@@ -640,7 +656,16 @@ def process_mpesa_callback(data):
         if result_code != 0:
             logging.warning(f"Payment failed for {checkout_request_id}")
             return {'ResultCode': 1, 'ResultDesc': 'Payment Failed'}, 400
-        
+        if result_code == 0:
+            logging.info(f"Successful payment detected for {checkout_request_id}")
+            process_payment_callback.apply_async(
+                args=(checkout_request_id,),
+                queue='payments'
+            )
+            return {'ResultCode': 0}, 200
+        elif result_code == 1032:
+            logging.warning(f"User cancelled payment {checkout_request_id}")
+            return {'ResultCode': 0}, 200
         # Extract callback metadata
         callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
         payment_details = {item['Name']: item.get('Value') for item in callback_metadata if 'Value' in item}

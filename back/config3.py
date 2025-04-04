@@ -40,7 +40,10 @@ class Config:
                 'password': redis_params.password,
                 'ssl': redis_params.scheme == 'rediss',
                 'decode_responses': False,
-                'max_connections': 20
+                'max_connections': 20,
+                'health_check_interval': 30,
+                'socket_keepalive': True,
+                'retry_on_timeout': True
             }
     else:
         REDIS_CONFIG = None
