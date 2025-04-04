@@ -341,7 +341,7 @@ class Payment(db.Model):
   payment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
   
 
-  ticket = db.relationship("Ticket", back_populates="payment")
+  ticket = db.relationship("Ticket", back_populates="payments")
   def to_dict(self, include_ticket=False):
     payment_dict = {
       'id': self.id,
