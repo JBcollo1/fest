@@ -25,10 +25,19 @@ const Index = () => {
       try {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured`);
         if (response.data?.data) {
-          // Sort events by start_datetime
-          const sortedEvents = response.data.data.sort((a, b) => 
-            new Date(a.start_datetime) - new Date(b.start_datetime)
+          const currentDate = new Date();
+          const upcomingEvents = response.data.data.filter(event => 
+            new Date(event.start_datetime) >= currentDate
           );
+          
+          const sortedEvents = upcomingEvents.sort((a, b) => {
+            // First prioritize featured events
+            if (a.is_featured && !b.is_featured) return -1;
+            if (!a.is_featured && b.is_featured) return 1;
+            
+            // Then sort by start_datetime (nearest first)
+            return new Date(a.start_datetime) - new Date(b.start_datetime);
+          });
           setFeaturedEvents(sortedEvents);
         }
       } catch (error) {

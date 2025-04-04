@@ -85,7 +85,17 @@ import {
             </div>
             <div className="flex items-center text-muted-foreground">
               <DollarSign className="h-4 w-4 mr-2 text-primary/70" />
-              <span className="font-medium">{event.price} {event.currency || 'KES'}</span>
+              <span className="font-medium">
+                {event.ticket_types && event.ticket_types.length > 0 ? (
+                  (() => {
+                    // Find the minimum price among ticket types
+                    const minPrice = Math.min(...event.ticket_types.map(type => type.price || 0));
+                    return minPrice > 0 ? `${minPrice} ${event.currency || 'KES'}` : 'Free';
+                  })()
+                ) : (
+                  'Free'
+                )}
+              </span>
             </div>
             <div className="flex items-center text-muted-foreground">
               <Ticket className="h-4 w-4 mr-2 text-primary/70" />

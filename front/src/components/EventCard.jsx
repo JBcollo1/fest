@@ -62,11 +62,7 @@ const EventCard = ({
                 {category.name}
               </Badge>
             ))
-          ) : (
-            <Badge variant="secondary" className="font-medium">
-              Uncategorized
-            </Badge>
-          )}
+          ) : null}
         </div>
         {event.featured && !featured && (
           <div className="absolute top-4 right-4 z-10">
@@ -94,8 +90,16 @@ const EventCard = ({
             </div>
             <div className="flex items-center">
               <DollarSign className="h-4 w-4 mr-1 text-muted-foreground" />
-              {event.price !== null && event.price !== undefined ? (
-                <span>{event.currency} {event.price.toLocaleString()}</span>
+              {event.ticket_types && event.ticket_types.length > 0 ? (
+                (() => {
+                  // Find the minimum price among ticket types
+                  const minPrice = Math.min(...event.ticket_types.map(type => type.price || 0));
+                  return minPrice > 0 ? (
+                    <span>{event.currency} {minPrice.toLocaleString()}</span>
+                  ) : (
+                    <span>Free</span>
+                  );
+                })()
               ) : (
                 <span>Free</span> // Or any placeholder for free events
               )}

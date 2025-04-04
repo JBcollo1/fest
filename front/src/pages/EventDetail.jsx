@@ -302,8 +302,12 @@ const EventDetail = () => {
                   className="text-2xl font-semibold cursor-pointer hover:text-primary transition-colors" 
                   onClick={scrollToTickets}
                 >
-                  {event.price !== null && event.price !== undefined ? (
-                    `${event.currency} ${event.price.toLocaleString()}`
+                  {event.ticket_types && event.ticket_types.length > 0 ? (
+                    (() => {
+                      // Find the minimum price among ticket types
+                      const minPrice = Math.min(...event.ticket_types.map(type => type.price || 0));
+                      return minPrice > 0 ? `${event.currency} ${minPrice.toLocaleString()}` : "Free";
+                    })()
                   ) : (
                     "Free"
                   )}
