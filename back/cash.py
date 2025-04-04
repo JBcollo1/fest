@@ -70,21 +70,12 @@ def generate_password(shortcode, passkey, timestamp):
     return base64.b64encode(data_to_encode.encode("utf-8")).decode("utf-8")
 
 def initiate_mpesa_payment(amount, phone_number):
-    """
-    Initiate M-Pesa STK push payment request
-    
-    Args:
-        amount (int/float): Payment amount
-        phone_number (str): Customer phone number
-        
-    Returns:
-        dict: Response from M-Pesa API
-    """
+
     try:
-        # Get access token
+        
         access_token = generate_access_token()
         
-        # Format phone number and prepare timestamp
+        
         phone_number = format_phone_number(phone_number)
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         
@@ -125,29 +116,21 @@ def initiate_mpesa_payment(amount, phone_number):
             headers=headers
         )
         
-        # Log response for debugging
+    
         logger.info(f"STK Push response: {response.status_code} - {response.text}")
         
         if response.status_code != 200:
             logger.error(f"STK Push failed: {response.text}")
             return {"error": "Payment request failed", "details": response.text}
         
-        # Return successful response
+        
         return response.json()
     except Exception as e:
         logger.error(f"Error during M-Pesa STK Push: {str(e)}")
         return {"error": f"Failed to initiate payment: {str(e)}"}
 
 def verify_mpesa_payment(checkout_request_id):
-    """
-    Query payment status for STK push request
-    
-    Args:
-        checkout_request_id (str): Checkout request ID from STK push
-        
-    Returns:
-        dict: Payment status
-    """
+
     try:
         # Get access token
         access_token = generate_access_token()
@@ -234,7 +217,15 @@ class MpesaCallbackResource(Resource):
             if result_code == 0:  # Success
                 # Extract payment details
                 callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
-                payment_details = {item['Name']: item.get('Value') for item in callback_metadata if 'Value' in item}
+                payment_details = {}
+                for item in callback_metadata:
+                    if 'Name' in item and 'Value' in item:
+                        payment_details[item['Name']] = item['Value']
+                    else:
+                        logger.warning(f"Malformed metadata item: {item}")
+                        
+                logger.debug(f"Extracted payment details: {payment_details}")
+                
                 
                 # Update payment status
                 payment.payment_status = 'Completed'

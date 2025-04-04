@@ -116,7 +116,7 @@ from cash import  TicketPurchaseResource, MpesaCallbackResource, PaymentStatusRe
 
 api.add_resource(MpesaCallbackResource, '/mpesa/callback')
 
-api.add_resource(PaymentStatusResource, '/payments/<string:checkout_request_id>/status')
+api.add_resource(PaymentStatusResource, '/payment/<string:checkout_request_id>/status')
 
 api.add_resource(UserListResource, '/api/users')
 api.add_resource(UserResource, '/api/users/<string:user_id>')
