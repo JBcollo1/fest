@@ -63,19 +63,24 @@ def cleanup_redis():
         return str(e)
     
 
-class RedisHealth (Resource):
+class RedisHealth(Resource):
     def get(self):
         try:
-            info = redis_client.info('memory')
+            if not redis_client.client:
+                return jsonify({'status': 'error', 'message': 'Redis not connected'}), 500
+                
+            info = redis_client.info()
             return jsonify({
                 'status': 'ok',
                 'memory_used': info['used_memory_human'],
-                'memory_limit': info['maxmemory_human'],
-                'keys': redis_client.dbsize()
+                'memory_limit': info.get('maxmemory_human', 'not configured'),
+                'keys': redis_client.dbsize(),
+                'connected_clients': info['connected_clients'],
+                'tasks_in_queue': redis_client.llen('celery')
             })
         except Exception as e:
+            logging.error(f"Redis health check failed: {str(e)}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
-
 class TicketPurchaseResource(Resource):
     @jwt_required()
     def post(self, event_id):
@@ -538,95 +543,83 @@ The {Config2.EMAIL_SENDER_NAME}"""
     except Exception as e:
         logging.error(f"Email creation failed: {str(e)}")
         raise
-
 def send_email_with_retry(msg, retries=2):
     """Robust email sending with retries"""
+    logger = logging.getLogger(__name__)
     for attempt in range(retries + 1):
         try:
             mail.send(msg)
-            logging.info(f"Email sent to {msg.recipients}")
+            logger.info(f"Email sent successfully to {msg.recipients}")
             return True
         except SMTPException as e:
-            logging.warning(f"Email attempt {attempt+1} failed: {str(e)}")
+            logger.warning(f"Email attempt {attempt+1} failed: {str(e)}")
             if attempt < retries:
-                time.sleep(2 ** attempt)
-            else:
-                raise
+                sleep_time = 2 ** attempt
+                logger.info(f"Retrying in {sleep_time} seconds")
+                time.sleep(sleep_time)
         except Exception as e:
-            logging.error(f"Non-SMTP error: {str(e)}")
+            logger.error(f"Non-SMTP error: {str(e)}")
             raise
-
 
 
 @celery.task(autoretry_for=(Exception,), max_retries=3, retry_backoff=30)
 def process_payment_callback(checkout_request_id):
     """Async payment verification with memory awareness"""
     from app import db  # Local import for worker safety
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"Processing payment callback: {checkout_request_id}")
     
-    # Check if already processed
     if redis_client.exists(f'processed:{checkout_request_id}'):
+        logger.info(f"Already processed: {checkout_request_id}")
         return "Already processed"
 
-    # Database-first verification
     payment = Payment.query.filter_by(checkout_request_id=checkout_request_id).first()
     if not payment:
+        logger.error(f"Payment not found: {checkout_request_id}")
         redis_client.setex(f'missing:{checkout_request_id}', 3600, 1)
         raise ValueError("Payment record not found")
 
-    if payment.status == 'completed':
-        return "Payment already completed"
-
-    # M-Pesa verification logic
     try:
-        access_token = redis_client.compressed_get('mpesa_token')
+        access_token = redis_client.get('mpesa_token')
         if not access_token:
+            logger.info("Generating new MPESA token")
             access_token = generate_access_token()
-            redis_client.compressed_set('mpesa_token', access_token, ex=3500)
+            redis_client.set('mpesa_token', access_token, ex=3500)
         
         verification_result = verify_mpesa_payment(checkout_request_id, access_token)
         
         if verification_result.get('ResultCode') == '0':
-            # Process successful payment
+            logger.info(f"Payment verified: {checkout_request_id}")
             payment.status = 'completed'
-                
-      
-            # Update ticket counts in bulk - FIXED THIS SECTION
-            ticket_type_counts = {}
-            for ticket in payment.tickets:
-                ticket_type_id = ticket.ticket_type_id
-                ticket.satus = 'completed'
-                if ticket_type_id in ticket_type_counts:
-                    ticket_type_counts[ticket_type_id] += ticket.quantity
-                else:
-                    ticket_type_counts[ticket_type_id] = ticket.quantity
             
-            # Update each ticket type with the correct count
+            ticket_type_counts = defaultdict(int)
+            for ticket in payment.tickets:
+                ticket_type_counts[ticket.ticket_type_id] += ticket.quantity
+                ticket.status = 'completed'
+
             for ticket_type_id, count in ticket_type_counts.items():
                 ticket_type = TicketType.query.get(ticket_type_id)
-                ticket_type.tickets_sold += count
-            
+                if ticket_type:
+                    ticket_type.tickets_sold += count
+                    logger.debug(f"Updated {ticket_type.name} sold count by {count}")
+
             db.session.commit()
             redis_client.setex(f'processed:{checkout_request_id}', 86400, 1)
+            logger.info(f"Payment completed: {checkout_request_id}")
 
-            # Reload relationship to ensure it's up-to-date
-            payment = Payment.query.get(payment.id)
-            
-            if not payment.tickets:
-                raise ValueError("Payment has no associated tickets")
-                
             user = payment.tickets[0].attendee.user
+            logger.info(f"Dispatching email for user {user.id}")
             
             send_ticket_qr_email.apply_async(
-                args=(user.id, payment.tickets[0].id),  # Pass IDs instead of objects
+                args=(user.id, payment.tickets[0].id),
                 retry=True,
-                retry_policy={
-                    'max_retries': 3,
-                    'interval_start': 10
-                }
+                retry_policy={'max_retries': 3, 'interval_start': 10}
             )
             return "Success"
             
     except Exception as e:
+        logger.error(f"Payment processing failed: {str(e)}")
         db.session.rollback()
         raise self.retry(exc=e)
 
