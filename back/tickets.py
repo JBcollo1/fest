@@ -580,7 +580,7 @@ def process_payment_callback(self, checkout_request_id):
             logger.warning("Already processed - aborting")
             return "Duplicate request"
 
-        payment = Payment.query.filter_by(checkout_request_id=checkout_request_id).first()
+        payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
         if not payment:
             logger.error("Payment record not found in DB")
             redis_client.setex(f'missing:{checkout_request_id}', 3600, 1)
