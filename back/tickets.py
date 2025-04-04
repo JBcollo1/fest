@@ -72,15 +72,16 @@ class RedisHealth(Resource):
             queue_info = {
             'payments': redis_client.llen('payments'),
             'email': redis_client.llen('email'),
-            'celery': redis_client.llen('celery'),
-            "queues": queue_info
+            'celery': redis_client.llen('celery')
         }
             return {
                 "status": "ok",
                 "memory": info['used_memory_human'],
                 "connected_clients": info['connected_clients'],
                 "tasks_in_queue": redis_client.llen('celery'),
-                "celery_workers": celery.control.inspect().active() or []
+                "celery_workers": celery.control.inspect().active() or [],
+     
+                "queue_info": queue_info
             }, 200
         except Exception as e:
             return {"status": "error", "message": str(e)}, 500
