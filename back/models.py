@@ -263,7 +263,7 @@ class Ticket(db.Model):
   quantity = db.Column(db.Integer, nullable=True)
   ticket_type_id = db.Column(db.String(36), db.ForeignKey('ticket_types.id'), nullable=True)
   
-  payment = db.relationship("Payment", back_populates="tickets")  
+  payments = db.relationship('Payment', back_populates='ticket', cascade="all, delete-orphan")
   def to_dict(self, include_event=False, include_attendee=True, include_payment=True, include_ticket_type=True):
     ticket_dict = {
       'id': self.id,
@@ -283,8 +283,8 @@ class Ticket(db.Model):
     if include_attendee:
       ticket_dict['attendee'] = self.attendee.to_dict()
         
-    if include_payment and self.payment:
-      ticket_dict['payment'] = self.payment.to_dict()
+    if include_payment and self.payments:
+            ticket_dict['payments'] = [p.to_dict() for p in self.payments]
         
     if include_ticket_type:
       ticket_dict['ticket_type'] = self.ticket_type.to_dict() if self.ticket_type else None
