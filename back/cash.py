@@ -79,14 +79,14 @@ def initiate_mpesa_payment(amount, phone_number):
         phone_number = format_phone_number(phone_number)
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         
-        # Generate password
+  
         password = generate_password(
             MPESA_BUSINESS_SHORT_CODE, 
             MPESA_PASSKEY, 
             timestamp
         )
         
-        # Prepare payload
+     
         payload = {
             "BusinessShortCode": MPESA_BUSINESS_SHORT_CODE,
             "Password": password,
@@ -101,7 +101,7 @@ def initiate_mpesa_payment(amount, phone_number):
             "TransactionDesc": MPESA_TRANSACTION_DESC
         }
         
-        # Set headers
+       
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {access_token}"
@@ -109,7 +109,7 @@ def initiate_mpesa_payment(amount, phone_number):
         
         logger.info(f"Initiating payment for {phone_number}, amount: {amount}")
         
-        # Make API request
+       
         response = requests.post(
             f"{MPESA_BASE_URL}/mpesa/stkpush/v1/processrequest", 
             json=payload, 
@@ -132,10 +132,10 @@ def initiate_mpesa_payment(amount, phone_number):
 def verify_mpesa_payment(checkout_request_id):
 
     try:
-        # Get access token
+    
         access_token = generate_access_token()
         
-        # Prepare timestamp and password
+       
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         password = generate_password(
             MPESA_BUSINESS_SHORT_CODE, 
@@ -143,7 +143,7 @@ def verify_mpesa_payment(checkout_request_id):
             timestamp
         )
         
-        # Prepare payload
+       
         payload = {
             "BusinessShortCode": MPESA_BUSINESS_SHORT_CODE,
             "Password": password,
@@ -151,13 +151,13 @@ def verify_mpesa_payment(checkout_request_id):
             "CheckoutRequestID": checkout_request_id
         }
         
-        # Set headers
+        
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {access_token}"
         }
         
-        # Make API request
+       
         response = requests.post(
             f"{MPESA_BASE_URL}/mpesa/stkpushquery/v1/query", 
             json=payload, 
@@ -192,11 +192,11 @@ class MpesaCallbackResource(Resource):
                 
             logger.info(f"Callback data: {callback_data}")
             
-            # Extract STK callback info
+            
             body = callback_data.get('Body', {})
             stk_callback = body.get('stkCallback', {})
             
-            # Get result code and checkout request ID
+           
             result_code = stk_callback.get('ResultCode')
             checkout_request_id = stk_callback.get('CheckoutRequestID')
             
@@ -206,16 +206,16 @@ class MpesaCallbackResource(Resource):
                 
             logger.info(f"Processing callback for CheckoutRequestID: {checkout_request_id}")
             
-            # Find the payment record
+          
             payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
             
             if not payment:
                 logger.error(f"Payment not found for CheckoutRequestID: {checkout_request_id}")
                 return {"ResultCode": 1, "ResultDesc": "Payment not found"}, 404
                 
-            # Handle payment result
-            if result_code == 0:  # Success
-                # Extract payment details
+          
+            if result_code == 0:  
+                
                 callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
                 payment_details = {}
                 for item in callback_metadata:
@@ -227,37 +227,37 @@ class MpesaCallbackResource(Resource):
                 logger.debug(f"Extracted payment details: {payment_details}")
                 
                 
-                # Update payment status
+                
                 payment.payment_status = 'Completed'
                 payment.transaction_id = payment_details.get('MpesaReceiptNumber')
                 payment.payment_date = datetime.now()
                 
-                # Update ticket status
+        
                 ticket = Ticket.query.get(payment.ticket_id)
                 if ticket:
                     ticket.satus = 'purchased'
                     
-                    # Update ticket type quantity
+                    
                     ticket_type = TicketType.query.get(ticket.ticket_type_id)
                     if ticket_type:
                         ticket_type.tickets_sold += ticket.quantity
                 
-                # Commit changes
+               
                 db.session.commit()
                 
                 logger.info(f"Payment completed for CheckoutRequestID: {checkout_request_id}")
                 
-                # Send ticket email (implement separately)
+            
                 try:
-                    # This should be implemented as a separate function or queued task
+                    
                     send_ticket_qr_email(ticket)
                 except Exception as email_error:
                     logger.error(f"Error sending ticket email: {str(email_error)}")
                 
                 return {"ResultCode": 0, "ResultDesc": "Success"}, 200
                 
-            else:  # Payment failed
-                # Update payment status to failed
+            else:  
+             
                 payment.payment_status = 'Failed'
                 payment.failure_reason = stk_callback.get('ResultDesc', 'Payment failed')
                 
@@ -490,7 +490,7 @@ def send_ticket_qr_email( ticket):
             logging.error(f"Missing data - Ticket: {bool(ticket)}, QR: {bool(ticket.qr_code)}, User: {user}")
             return
 
-        # Generate QR code as attachment
+        
         qr_filename, qr_data = generate_qr_attachment(ticket)
         
         # Create email message

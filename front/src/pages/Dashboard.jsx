@@ -13,7 +13,7 @@ import { User, Ticket, ShieldCheck, Calendar, QrCode } from "lucide-react";
 
 const Dashboard = () => {
   const [activeSection, setActiveSection] = useState("profile");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
   const { user } = useAuth();
   const [isadmin, setIsadmin] = useState(false);
   
@@ -23,64 +23,93 @@ const Dashboard = () => {
     }
   }, [user]);
   
-  return (
-    <div className="relative flex flex-col min-h-screen pt-8">
-      <main className="flex-1 p-4 sm:p-6 mt-8 transition-all duration-300 ease-in-out">
-       
-        
-        <Tabs defaultValue={activeSection} onValueChange={setActiveSection} className="w-full">
-          <TabsList className="flex flex-wrap justify-center mb-6">
-            <TabsTrigger value="profile" className="flex items-center gap-2">
+ return (
+  <div className="relative flex flex-col min-h-screen pt-8">
+
+      <Tabs defaultValue={activeSection} onValueChange={setActiveSection} className="flex-1 p-4 sm:p-6 mt-8 transition-all duration-300 ease-in-out">
+        <div className="flex justify-center mb-8 overflow-x-auto">
+          <TabsList className="bg-gray-100 flex flex-wrap sm:flex-nowrap">
+            <TabsTrigger 
+              value="profile" 
+              className="data-[state=active]:bg-secondary data-[state=active]:text-white px-4 sm:px-8 py-3 flex items-center gap-2"
+            >
               <User className="h-4 w-4" />
-              Profile
+              <span className=" sm:inline">Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="tickets" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="tickets" 
+              className="data-[state=active]:bg-ticketBlue data-[state=active]:text-white px-4 sm:px-8 py-3 flex items-center gap-2"
+            >
               <Ticket className="h-4 w-4" />
-              My Tickets
+              <span className=" sm:inline">My Tickets</span>
             </TabsTrigger>
             {isadmin && (
               <>
-                <TabsTrigger value="organizers" className="flex items-center gap-2">
+                <TabsTrigger 
+                  value="organizers" 
+                  className="data-[state=active]:bg-ticketBlue data-[state=active]:text-white px-4 sm:px-8 py-3 flex items-center gap-2"
+                >
                   <ShieldCheck className="h-4 w-4" />
-                  Manage Organizers
+                  <span className=" sm:inline">Manage Organizers</span>
                 </TabsTrigger>
-                <TabsTrigger value="organized" className="flex items-center gap-2">
+                <TabsTrigger 
+                  value="organized" 
+                  className="data-[state=active]:bg-ticketBlue data-[state=active]:text-white px-4 sm:px-8 py-3 flex items-center gap-2"
+                >
                   <Calendar className="h-4 w-4" />
-                  My Events
+                  <span className=" sm:inline">My Events</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="scanner" 
+                  className="data-[state=active]:bg-ticketBlue data-[state=active]:text-white px-4 sm:px-8 py-3 flex items-center gap-2"
+                >
+                  <QrCode className="h-4 w-4" />
+                  <span className=" sm:inline">QR Scanner</span>
                 </TabsTrigger>
               </>
             )}
-            <TabsTrigger value="scanner" className="flex items-center gap-2">
-              <QrCode className="h-4 w-4" />
-              QR Scanner
-            </TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="profile">
+        </div>
+        
+        <TabsContent value="profile" className="animate-fade-in">
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <h2 className="text-2xl font-bold text-ticketBlue mb-6">Your Profile</h2>
             <UserProfile />
-          </TabsContent>
-          
-          <TabsContent value="tickets">
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="tickets" className="animate-fade-in">
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <h2 className="text-2xl font-bold text-ticketBlue mb-6">Your Tickets</h2>
             <PurchasedTickets />
-          </TabsContent>
-          
-          {isadmin && (
-            <>
-              <TabsContent value="organizers">
+          </div>
+        </TabsContent>
+        
+        {isadmin && (
+          <>
+            <TabsContent value="organizers" className="animate-fade-in">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <h2 className="text-2xl font-bold text-ticketBlue mb-6">Manage Organizers</h2>
                 <OrganizerManagement />
-              </TabsContent>
-              
-              <TabsContent value="organized">
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="organized" className="animate-fade-in">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <h2 className="text-2xl font-bold text-ticketBlue mb-6">My Events</h2>
                 <OrganizedEvents />
-              </TabsContent>
-            </>
-          )}
-          
-          <TabsContent value="scanner">
-            <QRScanner />
-          </TabsContent>
-        </Tabs>
-      </main>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="scanner" className="animate-fade-in">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <h2 className="text-2xl font-bold text-ticketBlue mb-6">QR Scanner</h2>
+                <QRScanner />
+              </div>
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
     </div>
   );
 };

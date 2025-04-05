@@ -31,8 +31,14 @@ import {
   Loader2,
   Calendar,
   Shield,
-  Camera
+  MapPin, 
+  Globe, 
+  
+  CreditCard, 
+  Camera,
+  Bell
 } from "lucide-react";
+import { Switch} from "@/components/ui/switch";
 import { useAuth } from "../../contexts/AuthContext";
 import { uploadImage } from "@/utils/imageUpload";
 import { useToast } from "@/components/ui/use-toast";
@@ -258,8 +264,9 @@ const UserProfile = () => {
     );
   };
 
+
   return (
-    <div className="container mx-auto py-12 px-4 animate-fade-in">
+    <div className="container mx-auto py-12 px-4 animate-fade-in ">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-foreground mb-3 flex items-center gap-3 font-display">
           <UserCircle className="h-8 w-8 text-primary" />
@@ -267,10 +274,11 @@ const UserProfile = () => {
         </h1>
         <p className="text-muted-foreground mb-10 text-lg font-sans">Manage your account information and preferences</p>
         
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 w-full">
+
           {/* Left Column - User Card */}
-          <div className="lg:col-span-1">
-            <Card className="shadow-glass border border-border/40 overflow-hidden bg-white/90 h-full">
+          <div className="lg:col-span-3">
+           <Card className="shadow-glass border border-border/40 overflow-hidden bg-muted w-[400px]">
               <div className="bg-gradient-radial from-primary/20 to-primary/5 h-32 relative" />
               <div className="flex justify-center">
                 <div className="relative">
@@ -304,7 +312,7 @@ const UserProfile = () => {
                   <h2 className="text-xl font-semibold font-display">
                     {getFullName()}
                   </h2>
-                  <p className="text-muted-foreground text-sm font-sans">{user.email}</p>
+                  <p className="text-muted-foreground text-sm font-sans">{formData.email}</p>
                 </div>
                 
                 <div className="flex justify-center mt-2">
@@ -319,11 +327,12 @@ const UserProfile = () => {
                 <div className="text-sm space-y-4 font-sans">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{user.phone || "No phone number"}</span>
+                    <span>{formData.phone || "No phone number"}</span>
                   </div>
+                
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>Member since {new Date(user.created_at).toLocaleDateString()}</span>
+                    <span>Member since  {new Date(user.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
                 
@@ -333,11 +342,11 @@ const UserProfile = () => {
                 </Button>
               </CardContent>
             </Card>
-          </div>
+          </div> 
           
           {/* Right Column - Tabs and Content */}
-          <div className="lg:col-span-3">
-            <Card className="shadow-glass border border-border/40 bg-white/90">
+          <div className="lg:col-span-9">
+            <Card className="shadow-glass border border-border/40 bg-white/90 mb-6">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between mb-2">
                   <CardTitle className="font-display text-2xl">Account Information</CardTitle>
@@ -351,7 +360,7 @@ const UserProfile = () => {
                   </Button>
                 </div>
                 <CardDescription className="font-sans text-base">
-                  Update your personal details and emergency contacts
+                  Update your personal details and contact information
                 </CardDescription>
               </CardHeader>
               
@@ -419,6 +428,7 @@ const UserProfile = () => {
                               className="w-full font-sans"
                             />
                           </div>
+
                         </div>
                       </form>
                     ) : (
@@ -444,6 +454,7 @@ const UserProfile = () => {
                             <Label className="font-sans text-sm text-muted-foreground">Phone Number</Label>
                             <p className="font-medium font-sans">{formData.phone || "Not provided"}</p>
                           </div>
+ 
                         </div>
                       </div>
                     )}
@@ -514,6 +525,86 @@ const UserProfile = () => {
                 )}
               </Tabs>
             </Card>
+            
+            {/* Payment Methods Card with M-PESA */}
+            <Card className="shadow-glass border border-border/40 bg-white/90 mb-6">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between mb-2">
+                  <CardTitle className="font-display text-2xl">Payment Methods</CardTitle>
+                  {isEditing ? null : (
+                    <Button 
+                      onClick={handleEditToggle}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit Payment Methods
+                    </Button>
+                  )}
+                </div>
+                <CardDescription className="font-sans text-base">
+                  Manage your payment methods and billing information
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent className="pt-4">
+                <div className="space-y-4">
+
+                  {/* M-PESA Payment */}
+                  <div className="border border-green-100 rounded-lg p-4 flex items-start space-x-4 bg-green-50">
+                      <div className="bg-green-100 p-2 rounded-md">
+                        <Phone className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between">
+                          <div>
+                            <p className="font-medium flex items-center">
+                              <span className="text-green-700 font-bold mr-2">M-PESA</span>
+                            </p>
+                            {isEditing ? (
+                              <div className="mt-2">
+                                <Label htmlFor="mpesa_number" className="font-sans text-xs text-green-600 mb-1 block">M-PESA Number</Label>
+                                <Input 
+                                  id="mpesa_number" 
+                                  name="mpesa_number" 
+                                  value={formData.phone} // Use phone from formData instead of separate mpesa_number
+                                  onChange={handleInputChange} 
+                                  className="w-full font-sans text-sm border-green-200 focus:border-green-500"
+                                  placeholder="+254 7XX XXX XXX"
+                                />
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-700">{formData.phone || "No phone number"}</p>
+                            )}
+                          </div>
+                          {!isEditing && (
+                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">Default</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  {/* Credit Card Payment */}
+                  <div className="border border-gray-200 rounded-lg p-4 flex items-start space-x-4">
+                    <div className="bg-primary/10 p-2 rounded-md">
+                      <CreditCard className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between">
+                        <p className="font-medium">•••• •••• •••• 4242</p>
+                        <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-medium">Inactive</span>
+                      </div>
+                      <p className="text-sm text-gray-500">Not Yet Available</p>
+                    </div>
+                  </div>
+                  
+                  
+                </div>
+                
+                
+              </CardContent>
+            </Card>
+            
+
             
             <SaveStatusAlert />
           </div>
