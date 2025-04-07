@@ -77,7 +77,7 @@ const SafariSection = () => {
       <div className="container mx-auto px-4">
         <AnimatedSection>
           <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 px-4 py-1 text-amber-400 border-amber-400">
+            <Badge variant="outline" className="mb-4 px-4 py-1 text-secondary border-secondary">
               Explore Kenya's Wonders
             </Badge>
             <h2 className="text-3xl md:text-5xl font-display font-bold mb-6">

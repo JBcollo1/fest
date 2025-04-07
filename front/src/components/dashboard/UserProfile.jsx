@@ -278,7 +278,7 @@ const UserProfile = () => {
 
           {/* Left Column - User Card */}
           <div className="lg:col-span-3">
-           <Card className="shadow-glass border border-border/40 overflow-hidden bg-muted w-[400px]">
+           <Card className="shadow-glass border border-border/40 overflow-hidden bg-foreground w-[400px]">
               <div className="bg-gradient-radial from-primary/20 to-primary/5 h-32 relative" />
               <div className="flex justify-center">
                 <div className="relative">

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+
 from flask_restful import Api
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -16,9 +16,9 @@ from stats import StatsResource
 from database import db
 from email_service import  mail  
 # from email_resource import EmailResource, EmailWithQRResource  # Import the EmailResource and EmailWithQRResource
+from app2 import app
 
 
-app = Flask(__name__)
 
 app.config.from_object(Config2)
 mail.init_app(app)
@@ -109,14 +109,14 @@ from categories import CategoryResource, CategoryListResource
 from discount_codes import DiscountCodeResource, DiscountCodeListResource, ValidateDiscountCodeResource
 from organizer import OrganizerListResource, OrganizerResource, UserOrganizerResource
 
-from cash import  TicketPurchaseResource, MpesaCallbackResource, PaymentStatusResource
+from cash import  TicketPurchaseResource, MpesaCallbackResource
   
 
 
 
 api.add_resource(MpesaCallbackResource, '/mpesa/callback')
 
-api.add_resource(PaymentStatusResource, '/payment/<string:checkout_request_id>/status')
+# api.add_resource(PaymentStatusResource, '/payment/<string:checkout_request_id>/status')
 
 api.add_resource(UserListResource, '/api/users')
 api.add_resource(UserResource, '/api/users/<string:user_id>')
