@@ -211,7 +211,7 @@ def verify_mpesa_payment(checkout_request_id):
             return {'status': 'canceled', 'message': 'Transaction canceled by user', 'ResultCode': '1032'}
             
         # Handle known M-Pesa status codes
-        if result.get('errorCode') == '500.001.1001':
+        if result.get('errorCode') == '500.001.1001' or result.get('errorCode') == '500'  :
             return {'status': 'pending', 'message': 'Transaction processing'}
             
         return result
