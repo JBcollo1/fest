@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+
 from flask_restful import Api
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -16,9 +16,9 @@ from stats import StatsResource
 from database import db
 from email_service import  mail  
 # from email_resource import EmailResource, EmailWithQRResource  # Import the EmailResource and EmailWithQRResource
+from app2 import app
 
 
-app = Flask(__name__)
 
 app.config.from_object(Config2)
 mail.init_app(app)

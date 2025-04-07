@@ -410,13 +410,14 @@ class TicketPurchaseResource(Resource):
             def delayed_verification(checkout_id, attempt=1):
                 """Thread-safe verification with proper context management"""
                 try:
-                    # Create new application context
-                    with flask_app.app_context():
-                        # Create fresh session
+                    # Get fresh application instance
+                    from app2 import app  # Import your actual Flask app instance
+                    with app.app_context():
+                        # Create new session within context
                         from database import db
                         
                         try:
-                            payment = db.session.query(Payment).filter_by(
+                            payment = Payment.query.filter_by(
                                 transaction_id=checkout_id
                             ).first()
 
@@ -445,14 +446,12 @@ class TicketPurchaseResource(Resource):
                         except SQLAlchemyError as e:
                             logger.error(f"Database error: {str(e)}")
                             db.session.rollback()
+                        finally:
+                            # Proper session cleanup within context
+                            db.session.remove()
                             
                 except Exception as e:
                     logger.error(f"Thread error: {str(e)}")
-                finally:
-                    # Proper session cleanup
-                    if 'db' in locals():
-                        db.session.remove()
-
 
             
             # Schedule the verification with captured context
