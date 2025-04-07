@@ -136,12 +136,11 @@ def initiate_mpesa_payment(amount, phone_number):
         return {"error": f"Failed to initiate payment: {str(e)}"}
 
 def verify_mpesa_payment(checkout_request_id):
-
     try:
-    
+        # Generate a fresh access token for each verification
         access_token = generate_access_token()
         
-       
+        # Your timestamp and password generation
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         password = generate_password(
             MPESA_BUSINESS_SHORT_CODE, 
@@ -149,7 +148,7 @@ def verify_mpesa_payment(checkout_request_id):
             timestamp
         )
         
-       
+        # Payload remains the same
         payload = {
             "BusinessShortCode": MPESA_BUSINESS_SHORT_CODE,
             "Password": password,
@@ -157,14 +156,16 @@ def verify_mpesa_payment(checkout_request_id):
             "CheckoutRequestID": checkout_request_id
         }
         
-        
+        # Ensure headers use the fresh token
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {access_token}"
         }
         
+        # Log authentication details for debugging
+        logger.debug(f"Verifying payment with checkout ID: {checkout_request_id}")
+        logger.debug(f"Using access token: {access_token[:10]}...")
         
-       
         response = requests.post(
             f"{MPESA_BASE_URL}/mpesa/stkpushquery/v1/query",
             json=payload,
@@ -172,15 +173,43 @@ def verify_mpesa_payment(checkout_request_id):
             timeout=10
         )
 
+        # Log response status for debugging
+        logger.debug(f"M-Pesa API response status: {response.status_code}")
+        
         # Handle HTTP errors first
         response.raise_for_status()
 
         # Parse JSON response safely
         try:
             result = response.json()
+            logger.debug(f"M-Pesa API response: {result}")
         except JSONDecodeError:
             return {"error": "Invalid JSON response"}
 
+        # Handle authentication error specifically
+        if result.get('errorCode') == '404.001.04':
+            logger.error("Authentication error with M-Pesa API. Token may be invalid.")
+            # Try to regenerate token and try once more
+            access_token = generate_access_token(force_refresh=True)
+            headers["Authorization"] = f"Bearer {access_token}"
+            
+            # Try request again with new token
+            logger.debug(f"Retrying with fresh token: {access_token[:10]}...")
+            response = requests.post(
+                f"{MPESA_BASE_URL}/mpesa/stkpushquery/v1/query",
+                json=payload,
+                headers=headers,
+                timeout=10
+            )
+            
+            response.raise_for_status()
+            result = response.json()
+            logger.debug(f"M-Pesa API retry response: {result}")
+
+        # Handle canceled transaction specifically
+        if result.get('ResultCode') == '1032':
+            return {'status': 'canceled', 'message': 'Transaction canceled by user', 'ResultCode': '1032'}
+            
         # Handle known M-Pesa status codes
         if result.get('errorCode') == '500.001.1001':
             return {'status': 'pending', 'message': 'Transaction processing'}
