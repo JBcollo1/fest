@@ -163,6 +163,7 @@ def verify_mpesa_payment(checkout_request_id):
             "Authorization": f"Bearer {access_token}"
         }
         
+        
        
         response = requests.post(
             f"{MPESA_BASE_URL}/mpesa/stkpushquery/v1/query",
