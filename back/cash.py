@@ -472,7 +472,7 @@ class TicketPurchaseResource(Resource):
                                 # Handle errors (e.g., network issues)
                                 if 'error' in result:
                                     logger.error(f"Payment verification error: {result['error']}")
-                                    if attempt <= 2:
+                                    if attempt <= 3:
                                         delay = 5 * (2 ** (attempt - 1))
                                         logger.info(f"Scheduling retry {attempt + 1} in {delay}s")
                                         Timer(
@@ -496,7 +496,7 @@ class TicketPurchaseResource(Resource):
                                     
                                     # Update associated tickets
                                     ticket = payment.ticket  # Single ticket since one payment belongs to one ticket
-                                    ticket.satus = 'payment_canceled'
+                                    ticket.satus = 'canceled'
                                    
                                     
                                     db.session.commit()
@@ -509,7 +509,7 @@ class TicketPurchaseResource(Resource):
                                 
                                 elif result_code == '2001' or result.get('status') == 'pending':
                                     # Transaction pending, retry if attempts remain
-                                    if attempt <= 2:
+                                    if attempt <= 3:
                                         delay = 5 * (2 ** (attempt - 1))
                                         logger.info(f"Scheduling retry {attempt + 1} in {delay}s for pending transaction")
                                         Timer(
