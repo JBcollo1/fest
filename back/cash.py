@@ -168,13 +168,37 @@ def verify_mpesa_payment(checkout_request_id):
         
         if response.status_code != 200:
             logger.error(f"Verification failed: {response.text}")
-            return {"error": "Verification failed", "details": response.text}
+            return {"error": f"HTTP Error {response.status_code}", "details": response.text}
             
-        return response.json()
-    except Exception as e:
-        logger.error(f"Error verifying payment: {str(e)}")
-        return {"error": f"Payment verification failed: {str(e)}"}
+        # return response.json()
+   
+        response = requests.post()
+        response.raise_for_status()  # Raises HTTPError for bad status codes
+        # return response.json()
+        response = requests.post()
+        logger.info(f"Raw verification response: {response.text}")
 
+        
+           
+
+        response_data = response.json()
+        
+        # Special handling for processing status
+        if response_data.get('errorCode') == '500.001.1001':
+            return {
+                'status': 'pending',
+                'message': 'Transaction being processed'
+            }
+            
+        return response_data
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request failed: {str(e)}")
+        return {"error": "API request failed"}
+    except ValueError as e:
+        logger.error(f"Invalid JSON response: {str(e)}")
+        return {"error": "Invalid response from M-Pesa"}
+    
 class MpesaCallbackResource(Resource):
     """Handler for M-Pesa callback notifications"""
     
@@ -390,14 +414,21 @@ class TicketPurchaseResource(Resource):
             flask_app = current_app._get_current_object()
 
             # Create a closure for delayed verification
-            def delayed_verification():
+            def delayed_verification(checkout_request_id, attempt=1):
                 try:
-                    # Run within application context
                     with flask_app.app_context():
-                        get_verification_status(checkout_request_id, user)
+                        result = get_verification_status(checkout_request_id)
+                        
+                        if result.get('status') == 'pending' and attempt <= 3:
+                            # Exponential backoff: 5s -> 10s -> 20s
+                            delay = 5 * (2 ** (attempt-1))
+                            logger.info(f"Scheduling retry {attempt} in {delay}s")
+                            Timer(delay, delayed_verification, [checkout_request_id, attempt+1]).start()
+                            
                 except Exception as e:
-                    logger.error(f"Error in delayed verification: {str(e)}")
-
+                    logger.error(f"Error in verification attempt {attempt}: {str(e)}")
+                finally:
+                    db.session.remove()  
 
 
             verification_delay = 5
@@ -419,15 +450,13 @@ class TicketPurchaseResource(Resource):
 #     """Resource for checking payment status"""
     
 #     @jwt_required()
-def get_verification_status( checkout_request_id,user):
+def get_verification_status( checkout_request_id):
         """Check payment status for a given checkout request ID"""
         try:
             # Get current user
             # current_user_id = get_jwt_identity()
             # user = User.query.get(current_user_id)
-            
-            if not user:
-                return error_response("User not found", 404)
+   
                 
             # Find payment by checkout request ID
             payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
@@ -440,7 +469,8 @@ def get_verification_status( checkout_request_id,user):
             
             # if not ticket or ticket.attendee.user_id != current_user_id:
             #     return error_response("Unauthorized", 403)
-                
+            # attend = Attendee.query.get(ticket.attendee_id )
+            # user = User.query.get(attend.user_id)
             # If payment is already completed, return success
             if payment.payment_status == 'Completed':
                 return success_response(
@@ -455,7 +485,9 @@ def get_verification_status( checkout_request_id,user):
                 
             # Check status with M-Pesa
             verification_result = verify_mpesa_payment(checkout_request_id)
-            
+            if verification_result.get('status') == 'pending':
+                    logger.info("Payment still pending")
+                    return {'status': 'pending'}
             if "error" in verification_result:
                 return error_response(f"Verification failed: {verification_result.get('error')}", 400)
                 
