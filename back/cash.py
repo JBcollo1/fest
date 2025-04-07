@@ -20,7 +20,8 @@ from io import BytesIO
 import time
 import json
 from json.decoder import JSONDecodeError
-
+from flask import g
+import threading
 from sqlalchemy.exc import SQLAlchemyError
 
 from config import (
@@ -191,7 +192,18 @@ def verify_mpesa_payment(checkout_request_id):
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         return {"error": str(e)}
+
+
+# Create a lock for each transaction
+def get_transaction_lock(checkout_id):
+    """Get a thread lock for a specific transaction"""
+    if not hasattr(g, 'transaction_locks'):
+        g.transaction_locks = {}
     
+    if checkout_id not in g.transaction_locks:
+        g.transaction_locks[checkout_id] = threading.Lock()
+    
+    return g.transaction_locks[checkout_id]
 class MpesaCallbackResource(Resource):
     """Handler for M-Pesa callback notifications"""
     
@@ -223,71 +235,73 @@ class MpesaCallbackResource(Resource):
                 
             logger.info(f"Processing callback for CheckoutRequestID: {checkout_request_id}")
             
-          
-            payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
-            
-            if not payment:
-                logger.error(f"Payment not found for CheckoutRequestID: {checkout_request_id}")
-                return {"ResultCode": 1, "ResultDesc": "Payment not found"}, 404
-                
-          
-            if result_code == 0:  
-                
-                callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
-                payment_details = {}
-                for item in callback_metadata:
-                    if 'Name' in item and 'Value' in item:
-                        payment_details[item['Name']] = item['Value']
-                    else:
-                        logger.warning(f"Malformed metadata item: {item}")
+           
+            lock = get_transaction_lock(checkout_request_id)
+            with lock:
+                    payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
+                    
+                    if not payment:
+                        logger.error(f"Payment not found for CheckoutRequestID: {checkout_request_id}")
+                        return {"ResultCode": 1, "ResultDesc": "Payment not found"}, 404
                         
-                logger.debug(f"Extracted payment details: {payment_details}")
                 
+                    if result_code == 0:  
+                        
+                        callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
+                        payment_details = {}
+                        for item in callback_metadata:
+                            if 'Name' in item and 'Value' in item:
+                                payment_details[item['Name']] = item['Value']
+                            else:
+                                logger.warning(f"Malformed metadata item: {item}")
+                                
+                        logger.debug(f"Extracted payment details: {payment_details}")
+                        
+                        
+                        
+                        payment.payment_status = 'Completed'
+                        payment.transaction_id = payment_details.get('MpesaReceiptNumber')
+                        payment.payment_date = datetime.now()
+                        
                 
-                
-                payment.payment_status = 'Completed'
-                payment.transaction_id = payment_details.get('MpesaReceiptNumber')
-                payment.payment_date = datetime.now()
-                
-        
-                ticket = Ticket.query.get(payment.ticket_id)
-                if ticket:
-                    ticket.satus = 'purchased'
+                        ticket = Ticket.query.get(payment.ticket_id)
+                        if ticket:
+                            ticket.satus = 'purchased'
+                            
+                            
+                            ticket_type = TicketType.query.get(ticket.ticket_type_id)
+                            if ticket_type:
+                                ticket_type.tickets_sold += ticket.quantity
+                        
                     
+                        db.session.commit()
+                        
+                        logger.info(f"Payment completed for CheckoutRequestID: {checkout_request_id}")
+                        
                     
-                    ticket_type = TicketType.query.get(ticket.ticket_type_id)
-                    if ticket_type:
-                        ticket_type.tickets_sold += ticket.quantity
-                
-               
-                db.session.commit()
-                
-                logger.info(f"Payment completed for CheckoutRequestID: {checkout_request_id}")
-                
-            
-                try:
+                        try:
+                            
+                            send_ticket_qr_email(ticket)
+                        except Exception as email_error:
+                            logger.error(f"Error sending ticket email: {str(email_error)}")
+                        
+                        return {"ResultCode": 0, "ResultDesc": "Success"}, 200
+                        
+                    else:  
                     
-                    send_ticket_qr_email(ticket)
-                except Exception as email_error:
-                    logger.error(f"Error sending ticket email: {str(email_error)}")
-                
-                return {"ResultCode": 0, "ResultDesc": "Success"}, 200
-                
-            else:  
-             
-                payment.payment_status = 'Failed'
-                payment.failure_reason = stk_callback.get('ResultDesc', 'Payment failed')
-                
-                # Update ticket status
-                ticket = Ticket.query.get(payment.ticket_id)
-                if ticket:
-                    ticket.satus = 'payment_failed'
-                
-                # Commit changes
-                db.session.commit()
-                
-                logger.info(f"Payment failed for CheckoutRequestID: {checkout_request_id}")
-                return {"ResultCode": 0, "ResultDesc": "Payment failure recorded"}, 200
+                        payment.payment_status = 'Failed'
+                        payment.failure_reason = stk_callback.get('ResultDesc', 'Payment failed')
+                        
+                        # Update ticket status
+                        ticket = Ticket.query.get(payment.ticket_id)
+                        if ticket:
+                            ticket.satus = 'payment_failed'
+                        
+                        # Commit changes
+                        db.session.commit()
+                        
+                        logger.info(f"Payment failed for CheckoutRequestID: {checkout_request_id}")
+                        return {"ResultCode": 0, "ResultDesc": "Payment failure recorded"}, 200
                 
         except Exception as e:
             logger.error(f"Error processing callback: {str(e)}")
@@ -407,51 +421,68 @@ class TicketPurchaseResource(Resource):
             flask_app = current_app._get_current_object()
 
             # Create a closure for delayed verification
-            def delayed_verification(checkout_id, attempt=1):
-                """Thread-safe verification with proper context management"""
-                try:
-                    # Get fresh application instance
-                    from app2 import app  # Import your actual Flask app instance
-                    with app.app_context():
-                        # Create new session within context
-                        from database import db
-                        
-                        try:
-                            payment = Payment.query.filter_by(
-                                transaction_id=checkout_id
-                            ).first()
+            def delayed_verification(checkout_request_id, attempt=1):
+                    try:
+                        from app2 import app
+                        with app.app_context():
+                            from database import db
+                            lock = get_transaction_lock(checkout_request_id)
+                            with lock:
+                                    try:
+                                        payment = Payment.query.filter_by(
+                                            transaction_id=checkout_request_id
+                                        ).first()
 
-                            if not payment or payment.payment_status != 'Pending':
-                                return
+                                        if not payment or payment.payment_status != 'Pending':
+                                            return
 
-                            result = verify_mpesa_payment(checkout_id)
+                                        result = verify_mpesa_payment(checkout_request_id)
+                                        
+                                        # Check if the transaction was canceled or failed
+                                        if result.get('ResultCode') == '1032' or result.get('ResultCode') == '1':
+                                            # Transaction was canceled
+                                            payment.payment_status = 'Canceled'
+                                            payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
+                                            
+                                            # Update ticket status
+                                            ticket = Ticket.query.get(payment.ticket_id)
+                                            if ticket:
+                                                ticket.satus = 'payment_canceled'
+                                            
+                                            db.session.commit()
+                                            logger.info(f"Payment canceled for CheckoutRequestID: {checkout_request_id}")
+                                            return
+                                        
+                                        # Handle API response for pending state
+                                        elif result.get('status') == 'pending' and attempt <= 3:
+                                            delay = 5 * (2 ** (attempt-1))
+                                            logger.info(f"Scheduling attempt {attempt+1} in {delay}s")
+                                            Timer(
+                                                delay,
+                                                delayed_verification,
+                                                args=(checkout_request_id, attempt+1)
+                                            ).start()
+                                        elif 'error' in result:
+                                            logger.error(f"Final verification failed: {result['error']}")
+                                            payment.payment_status = 'Failed'
+                                            db.session.commit()
+                                        else:
+                                            # Only process successful verification if ResultCode is 0
+                                            if result.get('ResultCode') == '0':
+                                                get_verification_status(result, payment)
+                                            else:
+                                                payment.payment_status = 'Failed'
+                                                payment.failure_reason = result.get('ResultDesc', 'Payment failed')
+                                                db.session.commit()
 
-                            # Handle API response
-                            if result.get('status') == 'pending' and attempt <= 3:
-                                delay = 5 * (2 ** (attempt-1))
-                                logger.info(f"Scheduling attempt {attempt+1} in {delay}s")
-                                Timer(
-                                    delay,
-                                    delayed_verification,
-                                    args=(checkout_id, attempt+1)
-                                ).start()
-                            elif 'error' in result:
-                                logger.error(f"Final verification failed: {result['error']}")
-                                payment.payment_status = 'Failed'
-                                db.session.commit()
-                            else:
-                                # Process successful verification
-                                get_verification_status(result, payment)
-
-                        except SQLAlchemyError as e:
-                            logger.error(f"Database error: {str(e)}")
-                            db.session.rollback()
-                        finally:
-                            # Proper session cleanup within context
-                            db.session.remove()
-                            
-                except Exception as e:
-                    logger.error(f"Thread error: {str(e)}")
+                                    except SQLAlchemyError as e:
+                                        logger.error(f"Database error: {str(e)}")
+                                        db.session.rollback()
+                                    finally:
+                                        db.session.remove()
+                                
+                    except Exception as e:
+                        logger.error(f"Thread error: {str(e)}")
 
             
             # Schedule the verification with captured context
@@ -477,31 +508,42 @@ class TicketPurchaseResource(Resource):
 #     """Resource for checking payment status"""
     
 #     @jwt_required()
-def get_verification_status( result, payment):
-        """Check payment status for a given checkout request ID"""
-        try:
-                # Update payment status
-                payment.payment_status = 'Completed'
-                payment.mpesa_receipt_no = result.get('MpesaReceiptNumber')
-                payment.payment_date = datetime.now()
+def get_verification_status(result, payment):
+    """Check payment status for a given checkout request ID"""
+    try:
+        # First verify the payment is actually successful
+        if result.get('ResultCode') != '0':
+            payment.payment_status = 'Failed'
+            payment.failure_reason = result.get('ResultDesc', 'Payment verification failed')
+            db.session.commit()
+            logger.info(f"Payment verification failed for payment ID: {payment.id}")
+            return False
+        
+        # Update payment status for successful transaction
+        payment.payment_status = 'Completed'
+        payment.mpesa_receipt_no = result.get('MpesaReceiptNumber')
+        payment.payment_date = datetime.now()
 
-                # Update ticket status
-                ticket = payment.ticket
-                if ticket:
-                    ticket.status = 'purchased'  # Fixed typo from 'satus'
-                    ticket_type = ticket.ticket_type
-                    if ticket_type:
-                        ticket_type.tickets_sold += ticket.quantity
+        # Update ticket status
+        ticket = Ticket.query.get(payment.ticket_id)
+        if ticket:
+            ticket.satus = 'purchased'
+            ticket_type = TicketType.query.get(ticket.ticket_type_id)
+            if ticket_type:
+                ticket_type.tickets_sold += ticket.quantity
 
-                # Commit changes
-                db.session.commit()
+        # Commit changes
+        db.session.commit()
 
-                # Send confirmation email
-                send_ticket_qr_email(ticket)
+        # Send confirmation email only for completed payments
+        logger.info(f"Sending ticket email for payment ID: {payment.id}")
+        send_ticket_qr_email(ticket)
+        return True
 
-        except Exception as e:
-                logger.error(f"Payment processing failed: {str(e)}")
-                db.session.rollback()
+    except Exception as e:
+        logger.error(f"Payment processing failed: {str(e)}")
+        db.session.rollback()
+        return False
 
 def send_ticket_qr_email( ticket):
     """Send ticket email with properly attached QR code"""
