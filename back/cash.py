@@ -495,9 +495,9 @@ class TicketPurchaseResource(Resource):
                                     payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
                                     
                                     # Update associated tickets
-                                    tickets = Ticket.query.filter_by(payment_id=payment.id).all()
-                                    for ticket in tickets:
-                                        ticket.status = 'payment_canceled'
+                                    ticket = payment.ticket  # Single ticket since one payment belongs to one ticket
+                                    ticket.satus = 'payment_canceled'
+                                   
                                     
                                     db.session.commit()
                                     logger.info(f"Payment canceled: {checkout_request_id}")
