@@ -31,7 +31,7 @@ const EventManagement = () => {
     // Check user role
     const checkUserRole = async () => {
       try {
-        const response = await axios.get('/api/users/me', { withCredentials: true });
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users/me`, { withCredentials: true });
         const user = response.data;
         
         // Check if user has admin role
@@ -57,7 +57,10 @@ const EventManagement = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/events', { withCredentials: true });
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/events`,
+        { withCredentials: true }
+      );
       setEvents(response.data);
       setLoading(false);
     } catch (err) {
