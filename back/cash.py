@@ -454,7 +454,7 @@ class TicketPurchaseResource(Resource):
                         db.session.remove()
 
 
-            delayed_verification = 5
+            
             # Schedule the verification with captured context
                 # Schedule verification with proper arguments
             Timer(
