@@ -23,23 +23,36 @@ const Index = () => {
   useEffect(() => {
     const fetchFeaturedEvents = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured`);
-        if (response.data?.data) {
-          const currentDate = new Date();
-          const upcomingEvents = response.data.data.filter(event => 
-            new Date(event.start_datetime) >= currentDate
-          );
-          
-          const sortedEvents = upcomingEvents.sort((a, b) => {
-            // First prioritize featured events
+        // First fetch upcoming events
+        const currentDate = new Date().toISOString();
+        const upcomingResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured?start_date=${currentDate}`);
+        
+        let events = [];
+        if (upcomingResponse.data?.data) {
+          // Sort upcoming events (featured first, then by date)
+          events = upcomingResponse.data.data.sort((a, b) => {
             if (a.is_featured && !b.is_featured) return -1;
             if (!a.is_featured && b.is_featured) return 1;
-            
-            // Then sort by start_datetime (nearest first)
             return new Date(a.start_datetime) - new Date(b.start_datetime);
           });
-          setFeaturedEvents(sortedEvents);
+          
+          // If we have less than 3 upcoming events, fetch previous events
+          if (events.length < 3) {
+            const endDate = new Date().toISOString();
+            const previousResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured?end_date=${endDate}`);
+            
+            if (previousResponse.data?.data) {
+              // Sort previous events by date (most recent first)
+              const previousEvents = previousResponse.data.data
+                .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime))
+                .slice(0, 3 - events.length);
+              
+              events = [...events, ...previousEvents];
+            }
+          }
         }
+        
+        setFeaturedEvents(events);
       } catch (error) {
         console.error('Error fetching featured events:', error);
         setError('Failed to load featured events');
@@ -91,7 +104,7 @@ const Index = () => {
       {/* Search Section */}
       <section className="bg-background relative z-10">
         <div className="container mx-auto px-4 -mt-8">
-          <SearchBar />
+          <SearchBar showFilters={false} />
         </div>
       </section>
       
@@ -176,7 +189,7 @@ const Index = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatedSection delay={100}>
-              <Link to="/events?location=Nairobi" className="block">
+              <Link to="/events" state={{ location: 'Nairobi' }} className="block">
                 <div className="relative h-80 rounded-xl overflow-hidden card-hover">
                   <div 
                     className="absolute inset-0 bg-cover bg-center"
@@ -204,7 +217,7 @@ const Index = () => {
             </AnimatedSection>
             
             <AnimatedSection delay={150}>
-              <Link to="/events?location=Mombasa" className="block">
+              <Link to="/events" state={{ location: 'Mombasa' }} className="block">
                 <div className="relative h-80 rounded-xl overflow-hidden card-hover">
                   <div 
                     className="absolute inset-0 bg-cover bg-center"
@@ -232,7 +245,7 @@ const Index = () => {
             </AnimatedSection>
             
             <AnimatedSection delay={200}>
-              <Link to="/events?location=Kisumu" className="block">
+              <Link to="/events" state={{ location: 'Kisumu' }} className="block">
                 <div className="relative h-80 rounded-xl overflow-hidden card-hover">
                   <div 
                     className="absolute inset-0 bg-cover bg-center"
