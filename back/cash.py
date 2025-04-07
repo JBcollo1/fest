@@ -345,6 +345,7 @@ class TicketPurchaseResource(Resource):
             
             if not checkout_request_id:
                 return error_response("Missing checkout request ID in payment response", 400)
+            
             # Create ticket records for each ticket type
             tickets = []
             for detail in ticket_details:
@@ -380,7 +381,22 @@ class TicketPurchaseResource(Resource):
             
             db.session.add(payment)
             db.session.commit()
-            get_verification_status(checkout_request_id, user)
+
+            # Schedule verification after a delay using threading
+            from threading import Timer
+            
+            # Create a function that will run after the delay
+            def delayed_verification():
+                try:
+                    get_verification_status(checkout_request_id, user)
+                except Exception as e:
+                    logger.error(f"Error in delayed verification: {str(e)}")
+            
+            # Set delay time (in seconds) - adjust as needed
+            verification_delay = 10  # 30 seconds delay
+            
+            # Schedule the verification
+            Timer(verification_delay, delayed_verification).start()
             
             return success_response(
                 message="Payment initiated successfully. Please complete on your phone.",
@@ -460,6 +476,13 @@ def get_verification_status( checkout_request_id,user):
                 
                 # Commit changes
                 db.session.commit()
+                try:
+                    
+                    send_ticket_qr_email(ticket)
+                except Exception as email_error:
+                    logger.error(f"Error sending ticket email: {str(email_error)}")
+                
+                # return {"ResultCode": 0, "ResultDesc": "Success"}, 200
                 
                 return success_response(
                     message="Payment completed successfully",
