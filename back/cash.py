@@ -206,23 +206,17 @@ def verify_mpesa_payment(checkout_request_id):
             result = response.json()
             logger.debug(f"M-Pesa API retry response: {result}")
 
-        # Handle canceled transaction specifically
-            result_code = result.get('ResultCode')
+        # Safely extract result_code after any retries
+        result_code = result.get('ResultCode')
+
         if result_code == '0':
             return result  # Success
         elif result_code == '1032':
             return {'status': 'canceled', 'ResultCode': '1032', 'message': 'Transaction canceled by user'}
         elif result_code == '2001':
             return {'status': 'pending', 'ResultCode': '2001', 'message': 'Transaction pending processing'}
-        
         else:
             return {'error': result.get('ResultDesc', 'Unknown error')}
-         
-        # Handle known M-Pesa status codes
-        # if result.get('errorCode') == '500.001.1001' or result.get('errorCode') == '500'  :
-        #     return {'status': 'pending', 'message': 'Transaction processing'}
-            
-        # return result
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Request failed: {str(e)}")
@@ -230,7 +224,6 @@ def verify_mpesa_payment(checkout_request_id):
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         return {"error": str(e)}
-
 
 # Create a lock for each transaction
 def get_transaction_lock(checkout_id):
@@ -479,7 +472,7 @@ class TicketPurchaseResource(Resource):
                                 # Handle errors (e.g., network issues)
                                 if 'error' in result:
                                     logger.error(f"Payment verification error: {result['error']}")
-                                    if attempt <= 3:
+                                    if attempt <= 2:
                                         delay = 5 * (2 ** (attempt - 1))
                                         logger.info(f"Scheduling retry {attempt + 1} in {delay}s")
                                         Timer(
@@ -516,7 +509,7 @@ class TicketPurchaseResource(Resource):
                                 
                                 elif result_code == '2001' or result.get('status') == 'pending':
                                     # Transaction pending, retry if attempts remain
-                                    if attempt <= 3:
+                                    if attempt <= 2:
                                         delay = 5 * (2 ** (attempt - 1))
                                         logger.info(f"Scheduling retry {attempt + 1} in {delay}s for pending transaction")
                                         Timer(
@@ -562,10 +555,7 @@ class TicketPurchaseResource(Resource):
             logger.error(f"Error processing ticket purchase: {str(e)}")
             db.session.rollback()
             return error_response(f"Error: {str(e)}", 500)
-        except Exception as e:
-            logger.error(f"Error processing ticket purchase: {str(e)}")
-            db.session.rollback()
-            return error_response(f"Error: {str(e)}", 500)
+        
             
 # class PaymentStatusResource(Resource):
 #     """Resource for checking payment status"""
