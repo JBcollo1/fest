@@ -345,7 +345,6 @@ class TicketPurchaseResource(Resource):
             
             if not checkout_request_id:
                 return error_response("Missing checkout request ID in payment response", 400)
-            
             # Create ticket records for each ticket type
             tickets = []
             for detail in ticket_details:
@@ -381,6 +380,7 @@ class TicketPurchaseResource(Resource):
             
             db.session.add(payment)
             db.session.commit()
+            get_verification_status(checkout_request_id, user)
             
             return success_response(
                 message="Payment initiated successfully. Please complete on your phone.",
@@ -393,16 +393,16 @@ class TicketPurchaseResource(Resource):
             db.session.rollback()
             return error_response(f"Error: {str(e)}", 500)
             
-class PaymentStatusResource(Resource):
-    """Resource for checking payment status"""
+# class PaymentStatusResource(Resource):
+#     """Resource for checking payment status"""
     
-    @jwt_required()
-    def get(self, checkout_request_id):
+#     @jwt_required()
+def get_verification_status( checkout_request_id,user):
         """Check payment status for a given checkout request ID"""
         try:
             # Get current user
-            current_user_id = get_jwt_identity()
-            user = User.query.get(current_user_id)
+            # current_user_id = get_jwt_identity()
+            # user = User.query.get(current_user_id)
             
             if not user:
                 return error_response("User not found", 404)
@@ -416,8 +416,8 @@ class PaymentStatusResource(Resource):
             # Get ticket
             ticket = Ticket.query.get(payment.ticket_id)
             
-            if not ticket or ticket.attendee.user_id != current_user_id:
-                return error_response("Unauthorized", 403)
+            # if not ticket or ticket.attendee.user_id != current_user_id:
+            #     return error_response("Unauthorized", 403)
                 
             # If payment is already completed, return success
             if payment.payment_status == 'Completed':
