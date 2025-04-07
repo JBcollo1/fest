@@ -433,7 +433,11 @@ class TicketPurchaseResource(Resource):
 
             verification_delay = 5
             # Schedule the verification with captured context
-            Timer(verification_delay, delayed_verification).start()
+            Timer(
+                    verification_delay,
+                    delayed_verification,
+                    args=(checkout_request_id,)  # Pass as tuple
+                ).start()
 
             return success_response(
                 message="Payment initiated successfully. Please complete on your phone.",
