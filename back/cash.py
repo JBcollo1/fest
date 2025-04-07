@@ -207,14 +207,22 @@ def verify_mpesa_payment(checkout_request_id):
             logger.debug(f"M-Pesa API retry response: {result}")
 
         # Handle canceled transaction specifically
-        if result.get('ResultCode') == '1032':
-            return {'status': 'canceled', 'message': 'Transaction canceled by user', 'ResultCode': '1032'}
-            
+            result_code = result.get('ResultCode')
+        if result_code == '0':
+            return result  # Success
+        elif result_code == '1032':
+            return {'status': 'canceled', 'ResultCode': '1032', 'message': 'Transaction canceled by user'}
+        elif result_code == '2001':
+            return {'status': 'pending', 'ResultCode': '2001', 'message': 'Transaction pending processing'}
+        
+        else:
+            return {'error': result.get('ResultDesc', 'Unknown error')}
+         
         # Handle known M-Pesa status codes
-        if result.get('errorCode') == '500.001.1001' or result.get('errorCode') == '500'  :
-            return {'status': 'pending', 'message': 'Transaction processing'}
+        # if result.get('errorCode') == '500.001.1001' or result.get('errorCode') == '500'  :
+        #     return {'status': 'pending', 'message': 'Transaction processing'}
             
-        return result
+        # return result
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Request failed: {str(e)}")
@@ -452,83 +460,108 @@ class TicketPurchaseResource(Resource):
 
             # Create a closure for delayed verification
             def delayed_verification(checkout_request_id, attempt=1):
-                    try:
-                        from app2 import app
-                        with app.app_context():
-                            from database import db
-                            lock = get_transaction_lock(checkout_request_id)
-                            with lock:
-                                    try:
-                                        payment = Payment.query.filter_by(
-                                            transaction_id=checkout_request_id
-                                        ).first()
+                try:
+                    # Use the captured flask_app context
+                    with flask_app.app_context():
+                        from database import db
+                        lock = get_transaction_lock(checkout_request_id)
+                        with lock:
+                            try:
+                                payment = Payment.query.filter_by(
+                                    transaction_id=checkout_request_id
+                                ).first()
 
-                                        if not payment or payment.payment_status != 'Pending':
-                                            return
+                                if not payment or payment.payment_status != 'Pending':
+                                    return
 
-                                        result = verify_mpesa_payment(checkout_request_id)
-                                        
-                                        # Check if the transaction was canceled or failed
-                                        if result.get('ResultCode') == '1032' or result.get('ResultCode') == '1':
-                                            # Transaction was canceled
-                                            payment.payment_status = 'Canceled'
-                                            payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
-                                            
-                                            # Update ticket status
-                                            ticket = Ticket.query.get(payment.ticket_id)
-                                            if ticket:
-                                                ticket.satus = 'payment_canceled'
-                                            
-                                            db.session.commit()
-                                            logger.info(f"Payment canceled for CheckoutRequestID: {checkout_request_id}")
-                                            return
-                                        
-                                        # Handle API response for pending state
-                                        elif result.get('status') == 'pending' and attempt <= 3:
-                                            delay = 5 * (2 ** (attempt-1))
-                                            logger.info(f"Scheduling attempt {attempt+1} in {delay}s")
-                                            Timer(
-                                                delay,
-                                                delayed_verification,
-                                                args=(checkout_request_id, attempt+1)
-                                            ).start()
-                                        elif 'error' in result:
-                                            logger.error(f"Final verification failed: {result['error']}")
-                                            payment.payment_status = 'Failed'
-                                            db.session.commit()
-                                        else:
-                                            # Only process successful verification if ResultCode is 0
-                                            if result.get('ResultCode') == '0':
-                                                get_verification_status(result, payment)
-                                            else:
-                                                payment.payment_status = 'Failed'
-                                                payment.failure_reason = result.get('ResultDesc', 'Payment failed')
-                                                db.session.commit()
-
-                                    except SQLAlchemyError as e:
-                                        logger.error(f"Database error: {str(e)}")
-                                        db.session.rollback()
-                                    finally:
-                                        db.session.remove()
+                                result = verify_mpesa_payment(checkout_request_id)
                                 
-                    except Exception as e:
-                        logger.error(f"Thread error: {str(e)}")
+                                # Handle errors (e.g., network issues)
+                                if 'error' in result:
+                                    logger.error(f"Payment verification error: {result['error']}")
+                                    if attempt <= 3:
+                                        delay = 5 * (2 ** (attempt - 1))
+                                        logger.info(f"Scheduling retry {attempt + 1} in {delay}s")
+                                        Timer(
+                                            delay,
+                                            delayed_verification,
+                                            args=(checkout_request_id, attempt + 1)
+                                        ).start()
+                                        return
+                                    else:
+                                        payment.payment_status = 'Failed'
+                                        payment.failure_reason = result.get('error', 'Payment verification failed after retries')
+                                        db.session.commit()
+                                        return
 
-            
-            # Schedule the verification with captured context
-                # Schedule verification with proper arguments
+                                # Handle M-Pesa response codes
+                                result_code = result.get('ResultCode')
+                                if result_code == '1032' or result_code == '1':
+                                    # Transaction canceled by user
+                                    payment.payment_status = 'Canceled'
+                                    payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
+                                    
+                                    # Update associated tickets
+                                    tickets = Ticket.query.filter_by(payment_id=payment.id).all()
+                                    for ticket in tickets:
+                                        ticket.status = 'payment_canceled'
+                                    
+                                    db.session.commit()
+                                    logger.info(f"Payment canceled: {checkout_request_id}")
+                                    return
+                                
+                                elif result_code == '0':
+                                    # Successful payment
+                                    get_verification_status(result, payment)
+                                
+                                elif result_code == '2001' or result.get('status') == 'pending':
+                                    # Transaction pending, retry if attempts remain
+                                    if attempt <= 3:
+                                        delay = 5 * (2 ** (attempt - 1))
+                                        logger.info(f"Scheduling retry {attempt + 1} in {delay}s for pending transaction")
+                                        Timer(
+                                            delay,
+                                            delayed_verification,
+                                            args=(checkout_request_id, attempt + 1)
+                                        ).start()
+                                    else:
+                                        payment.payment_status = 'Failed'
+                                        payment.failure_reason = 'Payment pending but max retries reached'
+                                        db.session.commit()
+                                
+                                else:
+                                    # Other failure reasons
+                                    payment.payment_status = 'Failed'
+                                    payment.failure_reason = result.get('ResultDesc', 'Payment failed')
+                                    db.session.commit()
+
+                            except SQLAlchemyError as e:
+                                logger.error(f"Database error: {str(e)}")
+                                db.session.rollback()
+                            finally:
+                                db.session.remove()
+
+                except Exception as e:
+                    logger.error(f"Thread error: {str(e)}")
+
+            # Schedule initial verification
             Timer(
-                    5,  # Initial delay
-                    delayed_verification,  # Function reference
-                    args=(checkout_request_id,),  # Must include comma for single-arg tuple
-                    kwargs={'attempt': 1}  # Explicit start attempt
-                ).start()
+                5,  # Initial delay
+                delayed_verification,
+                args=(checkout_request_id,),
+                kwargs={'attempt': 1}
+            ).start()
+
             return success_response(
                 message="Payment initiated successfully. Please complete on your phone.",
                 data={"CheckoutRequestID": checkout_request_id},
                 status_code=200
             )
             
+        except Exception as e:
+            logger.error(f"Error processing ticket purchase: {str(e)}")
+            db.session.rollback()
+            return error_response(f"Error: {str(e)}", 500)
         except Exception as e:
             logger.error(f"Error processing ticket purchase: {str(e)}")
             db.session.rollback()
