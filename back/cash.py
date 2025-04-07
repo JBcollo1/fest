@@ -384,20 +384,26 @@ class TicketPurchaseResource(Resource):
 
             # Schedule verification after a delay using threading
             from threading import Timer
-            
-            # Create a function that will run after the delay
+            from flask import current_app
+
+            # Capture required variables and application context
+            flask_app = current_app._get_current_object()
+
+            # Create a closure for delayed verification
             def delayed_verification():
                 try:
-                    get_verification_status(checkout_request_id, user)
+                    # Run within application context
+                    with flask_app.app_context():
+                        get_verification_status(checkout_request_id, user)
                 except Exception as e:
                     logger.error(f"Error in delayed verification: {str(e)}")
-            
-            # Set delay time (in seconds) - adjust as needed
-            verification_delay = 10  # 30 seconds delay
-            
-            # Schedule the verification
+
+
+
+            verification_delay = 5
+            # Schedule the verification with captured context
             Timer(verification_delay, delayed_verification).start()
-            
+
             return success_response(
                 message="Payment initiated successfully. Please complete on your phone.",
                 data={"CheckoutRequestID": checkout_request_id},
