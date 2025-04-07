@@ -18,6 +18,11 @@ from smtplib import SMTPException
 from config2 import Config2
 from io import BytesIO
 import time
+import json
+from json.decoder import JSONDecodeError
+
+from sqlalchemy.exc import SQLAlchemyError
+
 from config import (
     MPESA_BASE_URL, 
     MPESA_CONSUMER_KEY, 
@@ -159,45 +164,33 @@ def verify_mpesa_payment(checkout_request_id):
         
        
         response = requests.post(
-            f"{MPESA_BASE_URL}/mpesa/stkpushquery/v1/query", 
-            json=payload, 
-            headers=headers
+            f"{MPESA_BASE_URL}/mpesa/stkpushquery/v1/query",
+            json=payload,
+            headers=headers,
+            timeout=10
         )
-        
-        logger.info(f"Verification response: {response.status_code} - {response.text}")
-        
-        if response.status_code != 200:
-            logger.error(f"Verification failed: {response.text}")
-            return {"error": f"HTTP Error {response.status_code}", "details": response.text}
-            
-        # return response.json()
-   
-        response = requests.post()
-        response.raise_for_status()  # Raises HTTPError for bad status codes
-        # return response.json()
-        response = requests.post()
-        logger.info(f"Raw verification response: {response.text}")
 
-        
-           
+        # Handle HTTP errors first
+        response.raise_for_status()
 
-        response_data = response.json()
-        
-        # Special handling for processing status
-        if response_data.get('errorCode') == '500.001.1001':
-            return {
-                'status': 'pending',
-                'message': 'Transaction being processed'
-            }
+        # Parse JSON response safely
+        try:
+            result = response.json()
+        except JSONDecodeError:
+            return {"error": "Invalid JSON response"}
+
+        # Handle known M-Pesa status codes
+        if result.get('errorCode') == '500.001.1001':
+            return {'status': 'pending', 'message': 'Transaction processing'}
             
-        return response_data
+        return result
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Request failed: {str(e)}")
-        return {"error": "API request failed"}
-    except ValueError as e:
-        logger.error(f"Invalid JSON response: {str(e)}")
-        return {"error": "Invalid response from M-Pesa"}
+        return {"error": "API communication failed"}
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return {"error": str(e)}
     
 class MpesaCallbackResource(Resource):
     """Handler for M-Pesa callback notifications"""
@@ -414,31 +407,62 @@ class TicketPurchaseResource(Resource):
             flask_app = current_app._get_current_object()
 
             # Create a closure for delayed verification
-            def delayed_verification(checkout_request_id, attempt=1):
+            def delayed_verification(checkout_id, attempt=1):
+                """Thread-safe verification with proper context management"""
                 try:
+                    # Create new application context
                     with flask_app.app_context():
-                        result = get_verification_status(checkout_request_id)
+                        # Create fresh session
+                        from database import db
                         
-                        if result.get('status') == 'pending' and attempt <= 3:
-                            # Exponential backoff: 5s -> 10s -> 20s
-                            delay = 5 * (2 ** (attempt-1))
-                            logger.info(f"Scheduling retry {attempt} in {delay}s")
-                            Timer(delay, delayed_verification, [checkout_request_id, attempt+1]).start()
+                        try:
+                            payment = db.session.query(Payment).filter_by(
+                                transaction_id=checkout_id
+                            ).first()
+
+                            if not payment or payment.payment_status != 'Pending':
+                                return
+
+                            result = verify_mpesa_payment(checkout_id)
+
+                            # Handle API response
+                            if result.get('status') == 'pending' and attempt <= 3:
+                                delay = 5 * (2 ** (attempt-1))
+                                logger.info(f"Scheduling attempt {attempt+1} in {delay}s")
+                                Timer(
+                                    delay,
+                                    delayed_verification,
+                                    args=(checkout_id, attempt+1)
+                                ).start()
+                            elif 'error' in result:
+                                logger.error(f"Final verification failed: {result['error']}")
+                                payment.payment_status = 'Failed'
+                                db.session.commit()
+                            else:
+                                # Process successful verification
+                                get_verification_status(result, payment)
+
+                        except SQLAlchemyError as e:
+                            logger.error(f"Database error: {str(e)}")
+                            db.session.rollback()
                             
                 except Exception as e:
-                    logger.error(f"Error in verification attempt {attempt}: {str(e)}")
+                    logger.error(f"Thread error: {str(e)}")
                 finally:
-                    db.session.remove()  
+                    # Proper session cleanup
+                    if 'db' in locals():
+                        db.session.remove()
 
 
-            verification_delay = 5
+            delayed_verification = 5
             # Schedule the verification with captured context
+                # Schedule verification with proper arguments
             Timer(
-                    verification_delay,
-                    delayed_verification,
-                    args=(checkout_request_id,)  # Pass as tuple
+                    5,  # Initial delay
+                    delayed_verification,  # Function reference
+                    args=(checkout_request_id,),  # Must include comma for single-arg tuple
+                    kwargs={'attempt': 1}  # Explicit start attempt
                 ).start()
-
             return success_response(
                 message="Payment initiated successfully. Please complete on your phone.",
                 data={"CheckoutRequestID": checkout_request_id},
@@ -454,94 +478,31 @@ class TicketPurchaseResource(Resource):
 #     """Resource for checking payment status"""
     
 #     @jwt_required()
-def get_verification_status( checkout_request_id):
+def get_verification_status( result, payment):
         """Check payment status for a given checkout request ID"""
         try:
-            # Get current user
-            # current_user_id = get_jwt_identity()
-            # user = User.query.get(current_user_id)
-   
-                
-            # Find payment by checkout request ID
-            payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
-            
-            if not payment:
-                return error_response("Payment not found", 404)
-                
-            # Get ticket
-            ticket = Ticket.query.get(payment.ticket_id)
-            
-            # if not ticket or ticket.attendee.user_id != current_user_id:
-            #     return error_response("Unauthorized", 403)
-            # attend = Attendee.query.get(ticket.attendee_id )
-            # user = User.query.get(attend.user_id)
-            # If payment is already completed, return success
-            if payment.payment_status == 'Completed':
-                return success_response(
-                    message="Payment completed successfully",
-                    data={"status": "completed", "receipt": payment.mpesa_receipt_no},
-                    status_code=200
-                )
-                
-            # If payment is already failed, return failure
-            if payment.payment_status == 'Failed':
-                return error_response("Payment failed", 400)
-                
-            # Check status with M-Pesa
-            verification_result = verify_mpesa_payment(checkout_request_id)
-            if verification_result.get('status') == 'pending':
-                    logger.info("Payment still pending")
-                    return {'status': 'pending'}
-            if "error" in verification_result:
-                return error_response(f"Verification failed: {verification_result.get('error')}", 400)
-                
-            # Process verification result
-            result_code = verification_result.get('ResultCode')
-            
-            if result_code == '0':  # Success
-                # Extract payment details
-                callback_metadata = verification_result.get('CallbackMetadata', {}).get('Item', [])
-                payment_details = {item['Name']: item.get('Value') for item in callback_metadata if 'Value' in item}
-                
                 # Update payment status
                 payment.payment_status = 'Completed'
-                payment.mpesa_receipt_no = payment_details.get('MpesaReceiptNumber')
+                payment.mpesa_receipt_no = result.get('MpesaReceiptNumber')
                 payment.payment_date = datetime.now()
-                
+
                 # Update ticket status
-                ticket.satus = 'purchased'
-                
-                # Update ticket type quantity
-                ticket_type = TicketType.query.get(ticket.ticket_type_id)
-                if ticket_type:
-                    ticket_type.tickets_sold += ticket.quantity
-                
+                ticket = payment.ticket
+                if ticket:
+                    ticket.status = 'purchased'  # Fixed typo from 'satus'
+                    ticket_type = ticket.ticket_type
+                    if ticket_type:
+                        ticket_type.tickets_sold += ticket.quantity
+
                 # Commit changes
                 db.session.commit()
-                try:
-                    
-                    send_ticket_qr_email(ticket)
-                except Exception as email_error:
-                    logger.error(f"Error sending ticket email: {str(email_error)}")
-                
-                # return {"ResultCode": 0, "ResultDesc": "Success"}, 200
-                
-                return success_response(
-                    message="Payment completed successfully",
-                    data={"status": "completed", "receipt": payment.mpesa_receipt_no},
-                    status_code=200
-                )
-            else:
-                return success_response(
-                    message="Payment is still pending",
-                    data={"status": "pending"},
-                    status_code=200
-                )
-                
-        except Exception as e:
-            logger.error(f"Error checking payment status: {str(e)}")
-            return error_response(f"Error: {str(e)}", 500)
 
+                # Send confirmation email
+                send_ticket_qr_email(ticket)
+
+        except Exception as e:
+                logger.error(f"Payment processing failed: {str(e)}")
+                db.session.rollback()
 
 def send_ticket_qr_email( ticket):
     """Send ticket email with properly attached QR code"""
