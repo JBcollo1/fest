@@ -8,12 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react";
 import { User, KeyRound, Mail, ArrowRight } from 'lucide-react';
+import { useTheme } from "@/contexts/ThemeContext";
 
 const SignIn = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
   const { toast } = useToast();
+  const { isDarkMode } = useTheme();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -82,18 +84,27 @@ const SignIn = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="glass rounded-xl p-8 max-w-md w-full">
-      <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+    <div className={`flex min-h-screen items-center justify-center ${
+      isDarkMode ? 'bg-slate-950 text-white' : 'bg-background'
+    } px-4`}>
+      <div className={`rounded-xl p-8 max-w-md w-full ${
+        isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'
+      }`}>
+        <div className={`w-16 h-16 ${
+          isDarkMode ? 'bg-primary/20' : 'bg-primary/10'
+        } text-primary rounded-full flex items-center justify-center mx-auto mb-6`}>
           <User className="h-8 w-8" />
         </div>
-          <h1 className="text-2xl font-display font-bold text-center mb-2">Welcome back</h1>
-          <p className="text-muted-foreground text-center mb-8">
-            Sign in to your account to continue
-          </p>
+        <h1 className={`text-2xl font-display font-bold text-center mb-2 ${
+          isDarkMode ? 'text-white' : ''
+        }`}>Welcome back</h1>
+        <p className={`text-center mb-8 ${
+          isDarkMode ? 'text-white/70' : 'text-muted-foreground'
+        }`}>
+          Sign in to your account to continue
+        </p>
         
-        
-        <Card>
+        <Card className={isDarkMode ? 'bg-slate-900 border-slate-800' : ''}>
           <form onSubmit={handleSubmit}>
             <CardContent className="pt-6 space-y-4">
               <div className="space-y-2">
@@ -168,7 +179,9 @@ const SignIn = () => {
         </Card>
         
         <div className="text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className={`text-sm ${
+            isDarkMode ? 'text-white/70' : 'text-muted-foreground'
+          }`}>
             Don't have an account?{" "}
             <Link to={returnUrl ? `/signup?returnUrl=${returnUrl}` : "/signup"} className="font-medium text-primary hover:underline">
               Sign up

@@ -42,6 +42,7 @@ import { Switch} from "@/components/ui/switch";
 import { useAuth } from "../../contexts/AuthContext";
 import { uploadImage } from "@/utils/imageUpload";
 import { useToast } from "@/components/ui/use-toast";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const UserProfile = () => {
   const { user, fetchUserData, updateUserData, logout } = useAuth();
@@ -53,6 +54,7 @@ const UserProfile = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState("personal");
+  const { isDarkMode } = useTheme();
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -266,7 +268,7 @@ const UserProfile = () => {
 
 
   return (
-    <div className="container mx-auto py-12 px-4 animate-fade-in ">
+    <div className="container mx-auto py-12 px-4 animate-fade-in">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-foreground mb-3 flex items-center gap-3 font-display">
           <UserCircle className="h-8 w-8 text-primary" />
@@ -278,11 +280,11 @@ const UserProfile = () => {
 
           {/* Left Column - User Card */}
           <div className="lg:col-span-3">
-           <Card className="shadow-glass border border-border/40 overflow-hidden bg-foreground w-[400px]">
-              <div className="bg-gradient-radial from-primary/20 to-primary/5 h-32 relative" />
+           <Card className={`shadow-glass overflow-hidden ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-foreground border border-border/40'} w-[400px]`}>
+              <div className={`${isDarkMode ? 'bg-gradient-radial from-primary/10 to-primary/5' : 'bg-gradient-radial from-primary/20 to-primary/5'} h-32 relative`} />
               <div className="flex justify-center">
                 <div className="relative">
-                  <Avatar className="h-28 w-28 border-4 border-white rounded-full -mt-14 shadow-lg">
+                  <Avatar className={`h-28 w-28 ${isDarkMode ? 'border-slate-800' : 'border-white'} border-4 rounded-full -mt-14 shadow-lg`}>
                     <AvatarImage src={formData.photo_img} alt="Profile" className="object-cover" />
                     <AvatarFallback className="text-3xl font-bold bg-primary text-white">
                       {getInitials()}
@@ -292,7 +294,7 @@ const UserProfile = () => {
                     <Button 
                       variant="outline" 
                       size="icon"
-                      className="absolute bottom-0 right-0 rounded-full bg-white shadow-md hover:bg-gray-100"
+                      className={`absolute bottom-0 right-0 rounded-full ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 border-slate-700' : 'bg-white hover:bg-gray-100'} shadow-md`}
                       onClick={() => fileInputRef.current.click()}
                     >
                       <Camera className="w-4 h-4" />
@@ -316,23 +318,23 @@ const UserProfile = () => {
                 </div>
                 
                 <div className="flex justify-center mt-2">
-                  <Badge variant="outline" className="px-3 py-1 mb-2 bg-primary/5 font-normal flex items-center gap-1">
+                  <Badge variant={isDarkMode ? "default" : "outline"} className={`px-3 py-1 mb-2 ${isDarkMode ? 'bg-primary/20' : 'bg-primary/5'} font-normal flex items-center gap-1`}>
                     <Shield className="h-3 w-3" />
                     {user.roles?.includes("admin") ? "Administrator" : "Member"}
                   </Badge>
                 </div>
                 
-                <Separator className="my-4" />
+                <Separator className={`my-4 ${isDarkMode ? 'bg-slate-700' : ''}`} />
                 
                 <div className="text-sm space-y-4 font-sans">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{formData.phone || "No phone number"}</span>
+                    <span className={isDarkMode ? 'text-white/90' : ''}>{formData.phone || "No phone number"}</span>
                   </div>
                 
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>Member since  {new Date(user.created_at).toLocaleDateString()}</span>
+                    <span className={isDarkMode ? 'text-white/90' : ''}>Member since {new Date(user.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
                 
@@ -346,14 +348,14 @@ const UserProfile = () => {
           
           {/* Right Column - Tabs and Content */}
           <div className="lg:col-span-9">
-            <Card className="shadow-glass border border-border/40 bg-white/90 mb-6">
+            <Card className={`shadow-glass border ${isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-border/40'} mb-6`}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between mb-2">
                   <CardTitle className="font-display text-2xl">Account Information</CardTitle>
                   <Button 
                     onClick={handleEditToggle} 
                     variant={isEditing ? "outline" : "default"}
-                    className="flex items-center gap-2"
+                    className={`flex items-center gap-2 ${isDarkMode && isEditing ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                   >
                     <Edit className="w-4 h-4" />
                     {isEditing ? "Cancel" : "Edit Profile"}
@@ -366,7 +368,7 @@ const UserProfile = () => {
               
               <Tabs defaultValue="personal" className="w-full" onValueChange={setActiveTab}>
                 <div className="px-6">
-                  <TabsList className="grid grid-cols-2 w-full max-w-md">
+                  <TabsList className={`grid grid-cols-2 w-full max-w-md ${isDarkMode ? 'bg-slate-800' : ''}`}>
                     <TabsTrigger value="personal" className="font-sans">Personal Info</TabsTrigger>
                     <TabsTrigger value="emergency" className="font-sans">Emergency Contacts</TabsTrigger>
                   </TabsList>
@@ -384,7 +386,7 @@ const UserProfile = () => {
                               name="username" 
                               value={formData.username} 
                               onChange={handleInputChange} 
-                              className="w-full font-sans"
+                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -395,7 +397,7 @@ const UserProfile = () => {
                               type="email"
                               value={formData.email} 
                               onChange={handleInputChange} 
-                              className="w-full font-sans"
+                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -405,7 +407,7 @@ const UserProfile = () => {
                               name="first_name" 
                               value={formData.first_name} 
                               onChange={handleInputChange} 
-                              className="w-full font-sans"
+                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -415,7 +417,7 @@ const UserProfile = () => {
                               name="last_name" 
                               value={formData.last_name} 
                               onChange={handleInputChange} 
-                              className="w-full font-sans"
+                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -425,7 +427,7 @@ const UserProfile = () => {
                               name="phone" 
                               value={formData.phone} 
                               onChange={handleInputChange} 
-                              className="w-full font-sans"
+                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
                             />
                           </div>
 
@@ -471,7 +473,7 @@ const UserProfile = () => {
                               name="next_of_kin_name" 
                               value={formData.next_of_kin_name} 
                               onChange={handleInputChange} 
-                              className="w-full font-sans"
+                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -481,7 +483,7 @@ const UserProfile = () => {
                               name="next_of_kin_contact" 
                               value={formData.next_of_kin_contact} 
                               onChange={handleInputChange} 
-                              className="w-full font-sans"
+                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
                             />
                           </div>
                         </div>
@@ -504,8 +506,13 @@ const UserProfile = () => {
                 </CardContent>
                 
                 {isEditing && (
-                  <CardFooter className="flex justify-end border-t border-border/40 pt-4 pb-6">
-                    <Button type="button" variant="outline" className="mr-2" onClick={handleEditToggle}>
+                  <CardFooter className={`flex justify-end border-t ${isDarkMode ? 'border-slate-700' : 'border-border/40'} pt-4 pb-6`}>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className={`mr-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`} 
+                      onClick={handleEditToggle}
+                    >
                       Cancel
                     </Button>
                     <Button type="button" onClick={handleFormSubmit} className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary">
@@ -527,7 +534,7 @@ const UserProfile = () => {
             </Card>
             
             {/* Payment Methods Card with M-PESA */}
-            <Card className="shadow-glass border border-border/40 bg-white/90 mb-6">
+            <Card className={`shadow-glass border ${isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-border/40'} mb-6`}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between mb-2">
                   <CardTitle className="font-display text-2xl">Payment Methods</CardTitle>
@@ -535,7 +542,7 @@ const UserProfile = () => {
                     <Button 
                       onClick={handleEditToggle}
                       variant="outline"
-                      className="flex items-center gap-2"
+                      className={`flex items-center gap-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                     >
                       <Edit className="w-4 h-4" />
                       Edit Payment Methods
@@ -551,61 +558,57 @@ const UserProfile = () => {
                 <div className="space-y-4">
 
                   {/* M-PESA Payment */}
-                  <div className="border border-green-100 rounded-lg p-4 flex items-start space-x-4 bg-green-50">
-                      <div className="bg-green-100 p-2 rounded-md">
-                        <Phone className="h-6 w-6 text-green-600" />
+                  <div className={`${isDarkMode ? 'border-green-900 bg-green-950' : 'border-green-100 bg-green-50'} border rounded-lg p-4 flex items-start space-x-4`}>
+                      <div className={isDarkMode ? 'bg-green-900 p-2 rounded-md' : 'bg-green-100 p-2 rounded-md'}>
+                        <Phone className={`h-6 w-6 ${isDarkMode ? 'text-green-500' : 'text-green-600'}`} />
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between">
                           <div>
                             <p className="font-medium flex items-center">
-                              <span className="text-green-700 font-bold mr-2">M-PESA</span>
+                              <span className={`${isDarkMode ? 'text-green-500' : 'text-green-700'} font-bold mr-2`}>M-PESA</span>
                             </p>
                             {isEditing ? (
                               <div className="mt-2">
-                                <Label htmlFor="mpesa_number" className="font-sans text-xs text-green-600 mb-1 block">M-PESA Number</Label>
+                                <Label htmlFor="mpesa_number" className={`font-sans text-xs ${isDarkMode ? 'text-green-500' : 'text-green-600'} mb-1 block`}>M-PESA Number</Label>
                                 <Input 
                                   id="mpesa_number" 
                                   name="mpesa_number" 
                                   value={formData.phone} // Use phone from formData instead of separate mpesa_number
                                   onChange={handleInputChange} 
-                                  className="w-full font-sans text-sm border-green-200 focus:border-green-500"
+                                  className={`w-full font-sans text-sm ${isDarkMode ? 'bg-green-900 border-green-800 text-white focus:border-green-700' : 'border-green-200 focus:border-green-500'}`}
                                   placeholder="+254 7XX XXX XXX"
                                 />
                               </div>
                             ) : (
-                              <p className="text-sm text-gray-700">{formData.phone || "No phone number"}</p>
+                              <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formData.phone || "No phone number"}</p>
                             )}
                           </div>
                           {!isEditing && (
-                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">Default</span>
+                            <span className={`${isDarkMode ? 'bg-green-900 text-green-500' : 'bg-green-100 text-green-800'} px-2 py-1 rounded text-xs font-medium`}>Default</span>
                           )}
                         </div>
                       </div>
                     </div>
                   {/* Credit Card Payment */}
-                  <div className="border border-gray-200 rounded-lg p-4 flex items-start space-x-4">
-                    <div className="bg-primary/10 p-2 rounded-md">
+                  <div className={`border ${isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-gray-200 bg-white'} rounded-lg p-4 flex items-start space-x-4`}>
+                    <div className={`${isDarkMode ? 'bg-primary/20' : 'bg-primary/10'} p-2 rounded-md`}>
                       <CreditCard className="h-6 w-6 text-primary" />
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between">
                         <p className="font-medium">•••• •••• •••• 4242</p>
-                        <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-medium">Inactive</span>
+                        <span className={`${isDarkMode ? 'bg-yellow-900 text-yellow-500' : 'bg-yellow-100 text-yellow-800'} px-2 py-1 rounded text-xs font-medium`}>Inactive</span>
                       </div>
                       <p className="text-sm text-gray-500">Not Yet Available</p>
                     </div>
                   </div>
                   
-                  
                 </div>
-                
                 
               </CardContent>
             </Card>
-            
 
-            
             <SaveStatusAlert />
           </div>
         </div>

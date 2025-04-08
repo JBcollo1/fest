@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Menu, X, User, Calendar, LogOut } from 'lucide-react';
+import { Menu, X, User, Calendar, LogOut, Moon, Sun } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -9,12 +9,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTheme } from '@/contexts/ThemeContext';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -39,16 +41,17 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     await logout();
+    location('/');
   };
 
   return (
     <header 
       className={`fixed top-0 w-full left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'glass bg-accent py-2' : 'bg-accent py-4'
+        isScrolled ? 'glass bg-accent py-2' : 'glass bg-accent py-4'
       }`}
     >
-      <div className="container  mx-auto px-4 md:px-6">
-        <div className="flex items-center  justify-between">
+      <div className="container mx-auto px-4 md:px-6">
+        <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <Calendar className="h-6 w-6 text-primary" />
             <span className="text-xl font-display font-semibold">FikaEvents</span>
@@ -66,18 +69,18 @@ const Navbar = () => {
             <a href="/#safari" className="font-medium hover:text-primary transition-colors">
               Safari
             </a>
-            <Link to="/d" className="font-medium hover:text-primary transition-colors">
-              Dashboard
-            </Link>
-            
-         
-            
           </nav>
 
           {/* Desktop Action Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="outline" size="sm" className="rounded-full">
-              <Search className="h-4 w-4 mr-1" /> Search
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+              onClick={toggleTheme}
+              aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
             
             {isAuthenticated ? (
@@ -102,14 +105,60 @@ const Navbar = () => {
               </DropdownMenu>
             ) : (
               <>
-                <Button asChild size="sm" variant="outline" className="rounded-full">
-                  <Link to="/signin">
-                    <User className="h-4 w-4 mr-1" /> Sign In
-                  </Link>
-                </Button>
-                <Button asChild size="sm" variant='outline'className="rounded-full">
-                  <Link to="/signup">Sign Up</Link>
-                </Button>
+                
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className={`rounded-full overflow-hidden p-0 h-8 w-8 ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                  >
+                    {user?.profile_image ? (
+                      <img 
+                        src={user.profile_image} 
+                        alt={user.name || "Profile"} 
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-4 w-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/d">Dashboard</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button 
+                  asChild 
+                  size="sm" 
+                  variant="outline" 
+                  className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                >
+                      <Link to="/signin">
+                        <User className="h-4 w-4 mr-1" /> Sign In
+                      </Link>
+                    </Button>
+                    <Button 
+                  asChild 
+                  size="sm" 
+                  variant='outline'
+                  className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                >
+                      <Link to="/signup">Sign Up</Link>
+                    </Button>
+              </>
+            )}
               </>
             )}
           </div>
@@ -131,7 +180,7 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden glass animate-slide-in-right">
+        <div className={`md:hidden animate-slide-in-right ${isDarkMode ? 'bg-slate-900/95' : 'glass'}`}>
           <div className="container mx-auto px-4 py-6 space-y-8">
             <nav className="flex flex-col space-y-6">
               <Link to="/" className="font-medium text-lg hover:text-primary transition-colors">
@@ -143,13 +192,28 @@ const Navbar = () => {
               <Link to="/about" className="font-medium text-lg hover:text-primary transition-colors">
                 About
               </Link>
-              <Link to="/d" className="font-medium text-lg hover:text-primary transition-colors">
-                Dashboard
-              </Link>
+              {isAuthenticated && (
+                <Link to="/d" className="font-medium text-lg hover:text-primary transition-colors">
+                  Dashboard
+                </Link>
+              )}
             </nav>
             <div className="flex flex-col space-y-4">
-              <Button variant="outline" className="justify-center">
-                <Search className="h-4 w-4 mr-2" /> Search Events
+              <Button 
+                variant="outline" 
+                className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                onClick={toggleTheme}
+                aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {isDarkMode ? (
+                  <>
+                    <Sun className="h-4 w-4 mr-2" /> Light Mode
+                  </>
+                ) : (
+                  <>
+                    <Moon className="h-4 w-4 mr-2" /> Dark Mode
+                  </>
+                )}
               </Button>
               
               {isAuthenticated ? (
@@ -174,14 +238,43 @@ const Navbar = () => {
                 </>
               ) : (
                 <>
-                  <Button asChild className="justify-center">
-                    <Link to="/signin">
-                      <User className="h-4 w-4 mr-2" /> Sign In
+                  {isAuthenticated ? (
+                <>
+                  <Button 
+                    asChild 
+                    className={`justify-center ${isDarkMode ? 'bg-primary/90' : ''}`}
+                  >
+                    <Link to="/profile">
+                      <User className="h-4 w-4 mr-2" /> Profile
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="justify-center">
-                    <Link to="/signup">Sign Up</Link>
+                  <Button 
+                    variant="outline" 
+                    className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                    onClick={handleLogout}
+                  >
+                    Logout
                   </Button>
+                </>
+              ) : (
+                <>
+                  <Button 
+                    asChild 
+                    className={`justify-center ${isDarkMode ? 'bg-primary/90' : ''}`}
+                  >
+                        <Link to="/signin">
+                          <User className="h-4 w-4 mr-2" /> Sign In
+                        </Link>
+                      </Button>
+                      <Button 
+                    asChild 
+                    variant="outline" 
+                    className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                  >
+                        <Link to="/signup">Sign Up</Link>
+                      </Button>
+                </>
+              )}
                 </>
               )}
             </div>

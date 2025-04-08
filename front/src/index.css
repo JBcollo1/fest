@@ -81,6 +81,13 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    background-image: linear-gradient(to right, #f0f4ff, #ffffff);
+    background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image: linear-gradient(to right, #0a192f, #1a1b4b);
+    background-attachment: fixed;
   }
 
   ::selection {
