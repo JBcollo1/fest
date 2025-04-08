@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { User, KeyRound, Mail, ArrowRight } from 'lucide-react';
 
 const SignIn = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const { toast } = useToast();
   
@@ -19,6 +20,10 @@ const SignIn = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  
+  // Get the return URL from query parameters
+  const queryParams = new URLSearchParams(location.search);
+  const returnUrl = queryParams.get('returnUrl');
 
   const validateForm = () => {
     const newErrors = {};
@@ -47,7 +52,16 @@ const SignIn = () => {
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
-        navigate("/");
+        
+        // Redirect to the return URL if it exists, otherwise go to home
+        if (returnUrl) {
+          const decodedUrl = decodeURIComponent(returnUrl);
+          // Remove any leading domain/protocol if present
+          const cleanPath = decodedUrl.replace(/^(?:\/\/|[^/]+)*/, '');
+          navigate(cleanPath);
+        } else {
+          navigate("/");
+        }
       } else {
         toast({
           variant: "destructive",
@@ -156,7 +170,7 @@ const SignIn = () => {
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link to="/signup" className="font-medium text-primary hover:underline">
+            <Link to={returnUrl ? `/signup?returnUrl=${returnUrl}` : "/signup"} className="font-medium text-primary hover:underline">
               Sign up
             </Link>
           </p>

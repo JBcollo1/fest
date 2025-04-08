@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Menu, X, User, Calendar } from 'lucide-react';
+import { Search, Menu, X, User, Calendar, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -27,6 +35,10 @@ const Navbar = () => {
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -67,14 +79,39 @@ const Navbar = () => {
             <Button variant="outline" size="sm" className="rounded-full">
               <Search className="h-4 w-4 mr-1" /> Search
             </Button>
-            <Button asChild size="sm" variant="outline" className="rounded-full">
-              <Link to="/signin">
-                <User className="h-4 w-4 mr-1" /> Sign In
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant='outline'className="rounded-full">
-              <Link to="/signup">Sign Up</Link>
-            </Button>
+            
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="rounded-full">
+                    <User className="h-4 w-4 mr-1" /> 
+                    {user?.first_name || 'Account'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/d">Dashboard</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/d/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button asChild size="sm" variant="outline" className="rounded-full">
+                  <Link to="/signin">
+                    <User className="h-4 w-4 mr-1" /> Sign In
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant='outline'className="rounded-full">
+                  <Link to="/signup">Sign Up</Link>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -114,14 +151,39 @@ const Navbar = () => {
               <Button variant="outline" className="justify-center">
                 <Search className="h-4 w-4 mr-2" /> Search Events
               </Button>
-              <Button asChild className="justify-center">
-                <Link to="/signin">
-                  <User className="h-4 w-4 mr-2" /> Sign In
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="justify-center">
-                <Link to="/signup">Sign Up</Link>
-              </Button>
+              
+              {isAuthenticated ? (
+                <>
+                  <Button asChild className="justify-center">
+                    <Link to="/d">
+                      <User className="h-4 w-4 mr-2" /> Dashboard
+                    </Link>
+                  </Button>
+                  <Button asChild className="justify-center">
+                    <Link to="/d/profile">
+                      <User className="h-4 w-4 mr-2" /> Profile
+                    </Link>
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    className="justify-center"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button asChild className="justify-center">
+                    <Link to="/signin">
+                      <User className="h-4 w-4 mr-2" /> Sign In
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="justify-center">
+                    <Link to="/signup">Sign Up</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

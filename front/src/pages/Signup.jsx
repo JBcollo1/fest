@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,12 @@ import { UserPlus, Mail, KeyRound, User, ArrowRight } from 'lucide-react';
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const { toast } = useToast();
+  
+  const queryParams = new URLSearchParams(location.search);
+  const returnUrl = queryParams.get('returnUrl');
   
   const [formData, setFormData] = useState({
     first_name: "",
@@ -31,6 +35,7 @@ const SignUp = () => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [termsAgreed, setTermsAgreed] = useState(false);
 
   // Add new state for file handling
   const [selectedFile, setSelectedFile] = useState(null);
@@ -47,7 +52,13 @@ const SignUp = () => {
       // Auto login after successful registration
       const loginResult = await login(formData.email, formData.password);
       if (loginResult.success) {
-        navigate("/signin");
+        if (returnUrl) {
+          const decodedUrl = decodeURIComponent(returnUrl);
+          const cleanPath = decodedUrl.replace(/^(?:\/\/|[^/]+)*/, '');
+          navigate(cleanPath);
+        } else {
+          navigate("/");
+        }
       } else {
         navigate("/signin");
       }
@@ -97,6 +108,8 @@ const SignUp = () => {
     if (!selectedFile) newErrors.photo_img = "Photo image is required";
     if (!formData.next_of_kin_name) newErrors.next_of_kin_name = "Next of kin name is required";
     if (!formData.next_of_kin_contact) newErrors.next_of_kin_contact = "Next of kin contact is required";
+    
+    if (!termsAgreed) newErrors.terms = "You must agree to the Terms of Service and Privacy Policy";
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -373,6 +386,21 @@ const SignUp = () => {
                   "Create account"
                 )}
               </Button>
+              <div className="flex items-center space-x-2">
+                <input 
+                  type="checkbox" 
+                  id="terms" 
+                  className="h-4 w-4" 
+                  checked={termsAgreed}
+                  onChange={(e) => setTermsAgreed(e.target.checked)}
+                />
+                <label htmlFor="terms" className="text-sm text-muted-foreground">
+                  I agree to the <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link> and <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+                </label>
+              </div>
+              {errors.terms && (
+                <p className="text-sm text-destructive mt-1">{errors.terms}</p>
+              )}
             </CardContent>
           </form>
         </Card>
@@ -380,7 +408,7 @@ const SignUp = () => {
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/signin" className="font-medium text-primary hover:underline">
+            <Link to={returnUrl ? `/signin?returnUrl=${returnUrl}` : "/signin"} className="font-medium text-primary hover:underline">
               Sign in
             </Link>
           </p>
