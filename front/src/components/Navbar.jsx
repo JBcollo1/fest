@@ -86,29 +86,6 @@ const Navbar = () => {
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="rounded-full">
-                    <User className="h-4 w-4 mr-1" /> 
-                    {user?.first_name || 'Account'}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link to="/d">Dashboard</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/d/profile">Profile</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <>
-                
-            {isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -157,8 +134,6 @@ const Navbar = () => {
                 >
                       <Link to="/signup">Sign Up</Link>
                     </Button>
-              </>
-            )}
               </>
             )}
           </div>
@@ -218,42 +193,28 @@ const Navbar = () => {
               
               {isAuthenticated ? (
                 <>
-                  <Button asChild className="justify-center">
+                  <Button 
+                    asChild 
+                    className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                  >
                     <Link to="/d">
                       <User className="h-4 w-4 mr-2" /> Dashboard
                     </Link>
                   </Button>
-                  <Button asChild className="justify-center">
-                    <Link to="/d/profile">
-                      <User className="h-4 w-4 mr-2" /> Profile
-                    </Link>
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    className="justify-center"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
-                  </Button>
-                </>
-              ) : (
-                <>
-                  {isAuthenticated ? (
-                <>
                   <Button 
                     asChild 
-                    className={`justify-center ${isDarkMode ? 'bg-primary/90' : ''}`}
+                    className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                   >
                     <Link to="/profile">
                       <User className="h-4 w-4 mr-2" /> Profile
                     </Link>
                   </Button>
                   <Button 
-                    variant="outline" 
+                    variant="destructive" 
                     className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                     onClick={handleLogout}
                   >
-                    Logout
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
                   </Button>
                 </>
               ) : (
@@ -273,8 +234,6 @@ const Navbar = () => {
                   >
                         <Link to="/signup">Sign Up</Link>
                       </Button>
-                </>
-              )}
                 </>
               )}
             </div>
