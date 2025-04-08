@@ -23,6 +23,7 @@ import AnimatedSection from '@/components/AnimatedSection';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import GoogleMapEmbed from '@/components/GoogleMapEmbed';
 import {
   DropdownMenu,
@@ -34,6 +35,7 @@ import {
 const EventDetail = () => {
   const { id } = useParams();
   const { fetchEventById } = useAuth();
+  const { isDarkMode } = useTheme();
   const [event, setEvent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -199,9 +201,9 @@ const EventDetail = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-center">
-          <div className="w-32 h-32 mx-auto rounded-full bg-muted"></div>
-          <div className="h-6 bg-muted rounded w-48 mx-auto mt-4"></div>
-          <div className="h-4 bg-muted rounded w-64 mx-auto mt-2"></div>
+          <div className={`w-32 h-32 mx-auto rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-muted'}`}></div>
+          <div className={`h-6 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-48 mx-auto mt-4`}></div>
+          <div className={`h-4 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-64 mx-auto mt-2`}></div>
         </div>
       </div>
     );
@@ -244,8 +246,10 @@ const EventDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
+    <div className={`pt-20 min-h-screen ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-background'}`}>
+      {isDarkMode && (
+        <div className="absolute top-0 left-0 w-1/4 h-full bg-gradient-to-r from-purple-900/20 to-transparent pointer-events-none" />
+      )}
       
       {/* Hero Section */}
       <section className="relative pt-20">
@@ -253,15 +257,15 @@ const EventDetail = () => {
           className="w-full h-[40vh] md:h-[50vh] bg-cover bg-center"
           style={{ 
             backgroundImage: `url(${event.image || '/default-event-image.jpg'})`,
-            filter: 'brightness(0.7)'
+            filter: isDarkMode ? 'brightness(0.4)' : 'brightness(0.7)'
           }}
         />
         
         <div className="container mx-auto px-4 relative">
-          <div className="glass rounded-xl p-8 max-w-4xl mx-auto -mt-24 relative z-10">
+          <div className={`${isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'} rounded-xl p-8 max-w-4xl mx-auto -mt-24 relative z-10`}>
             <div className="flex gap-2 mb-4">
               {event.categories?.map(category => (
-                <Badge key={category.id} variant="outline">{category.name}</Badge>
+                <Badge key={category.id} variant={isDarkMode ? "default" : "outline"}>{category.name}</Badge>
               ))}
             </div>
             <h1 className="text-2xl md:text-4xl font-display font-bold mb-4">
@@ -296,7 +300,7 @@ const EventDetail = () => {
             </div>
             
             <div className="flex justify-between items-center">
-            <div>
+              <div>
                 <p className="text-sm text-muted-foreground">Price</p>
                 <p 
                   className="text-2xl font-semibold cursor-pointer hover:text-primary transition-colors" 
@@ -317,7 +321,10 @@ const EventDetail = () => {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="rounded-full">
+                  <Button 
+                    variant="outline" 
+                    className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                  >
                     <Share2 className="h-4 w-4 mr-2" />
                     Share Event
                   </Button>
@@ -357,7 +364,7 @@ const EventDetail = () => {
             <div className="md:col-span-2">
               <AnimatedSection>
                 <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">About This Event</h2>
-                <div className="prose prose-slate max-w-none">
+                <div className="prose prose-slate max-w-none dark:prose-invert">
                   <p className="text-base/relaxed mb-4">
                     {event.description}
                   </p>
@@ -373,7 +380,7 @@ const EventDetail = () => {
               <AnimatedSection delay={100}>
                 <div className="mt-10">
                   <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">Location</h2>
-                  <div className="rounded-xl overflow-hidden h-[300px] bg-muted">
+                  <div className={`rounded-xl overflow-hidden h-[300px] ${isDarkMode ? 'bg-slate-800' : 'bg-muted'}`}>
                     <GoogleMapEmbed 
                       location={event.location}
                       className="w-full h-full"
@@ -390,7 +397,7 @@ const EventDetail = () => {
             {/* Ticket Purchase Section */}
             <div className="md:col-span-1" id="tickets-section">
               <AnimatedSection>
-                <div className="glass rounded-xl p-6 sticky top-24">
+                <div className={`${isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'} rounded-xl p-6 sticky top-24`}>
                   <h2 className="text-xl font-semibold mb-4">Get Tickets</h2>
                   
                   {event.ticket_types.map(ticketType => (
@@ -404,7 +411,7 @@ const EventDetail = () => {
                           size="icon"
                           onClick={() => decreaseTickets(ticketType.id)}
                           disabled={selectedTickets[ticketType.id] <= 0}
-                          className="h-10 w-10 rounded-full"
+                          className={`h-10 w-10 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -414,7 +421,7 @@ const EventDetail = () => {
                           size="icon"
                           onClick={() => increaseTickets(ticketType.id)}
                           disabled={selectedTickets[ticketType.id] >= ticketType.quantity - ticketType.tickets_sold}
-                          className="h-10 w-10 rounded-full"
+                          className={`h-10 w-10 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -430,8 +437,8 @@ const EventDetail = () => {
                     </div>
                   ))}
                   
-                  <div className="border-t border-border pt-4 mb-6">
-                    <div className="flex justify-between font-semibold text-lg mt-4 pt-4 border-t border-border">
+                  <div className={`border-t ${isDarkMode ? 'border-slate-700' : 'border-border'} pt-4 mb-6`}>
+                    <div className={`flex justify-between font-semibold text-lg mt-4 pt-4 border-t ${isDarkMode ? 'border-slate-700' : 'border-border'}`}>
                       <span>Total</span>
                       <span>{event.currency} {totalPrice.toLocaleString()}</span>
                     </div>

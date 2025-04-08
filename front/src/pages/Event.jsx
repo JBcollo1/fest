@@ -7,6 +7,10 @@ import AnimatedSection from '@/components/AnimatedSection';
 import { Button } from "@/components/ui/button";
 import { Filter, Calendar, MapPin, AlertCircle } from 'lucide-react';
 import axios from 'axios';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 
 const Events = () => {
   const [events, setEvents] = useState([]);
@@ -21,6 +25,13 @@ const Events = () => {
   const abortControllerRef = useRef(null);
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const { isDarkMode } = useTheme();
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    category: '',
+    date: '',
+    price: ''
+  });
   
   const eventsCache = useRef({
     all: [],
@@ -307,14 +318,18 @@ const Events = () => {
   };
 
   return (
-    <div className="pt-20 min-h-screen bg-background flex flex-col">
-      <section className="pt-24 pb-10 px-4 md:px-8 container mx-auto">
+    <div className={`pt-20 min-h-screen ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-background'}`}>
+      {isDarkMode && (
+        <div className="absolute top-0 left-0 w-1/4 h-full bg-gradient-to-r from-purple-900/20 to-transparent pointer-events-none" />
+      )}
+      
+      <section className="pt-24 pb-10 px-4 md:px-8 container mx-auto relative">
         <AnimatedSection>
           <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">
+            <h1 className={`text-3xl md:text-4xl font-display font-bold mb-3 ${isDarkMode ? 'text-white' : ''}`}>
               {selectedLocation ? `Events in ${selectedLocation}` : 'Discover Events'}
             </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className={`${isDarkMode ? 'text-white/80' : 'text-muted-foreground'} max-w-2xl mx-auto`}>
               {selectedLocation 
                 ? `Explore the best events happening in ${selectedLocation}. Find something that interests you and book with just a few clicks.`
                 : 'Explore the best events happening in your city and beyond. Find something that interests you and book with just a few clicks.'}
@@ -335,7 +350,7 @@ const Events = () => {
               variant={activeFilter === 'all' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleFilterClick('all')}
-              className="flex items-center gap-2"
+              className={`flex items-center gap-2 ${isDarkMode && activeFilter !== 'all' ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
             >
               <Filter className="w-4 h-4" />
               All Events
@@ -346,7 +361,7 @@ const Events = () => {
                 variant={activeFilter === category.name ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => handleFilterClick(category.name)}
-                className="flex items-center gap-2"
+                className={`flex items-center gap-2 ${isDarkMode && activeFilter !== category.name ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
               >
                 <Filter className="w-4 h-4" />
                 {category.name}
@@ -359,12 +374,12 @@ const Events = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
             {[1, 2, 3, 4, 5, 6].map((item) => (
               <div key={item} className="animate-pulse rounded-xl overflow-hidden">
-                <div className="h-48 bg-muted"></div>
+                <div className={`h-48 ${isDarkMode ? 'bg-slate-800' : 'bg-muted'}`}></div>
                 <div className="p-4 space-y-3">
-                  <div className="h-5 bg-muted rounded w-3/4"></div>
-                  <div className="h-4 bg-muted rounded w-1/2"></div>
-                  <div className="h-4 bg-muted rounded w-full"></div>
-                  <div className="h-8 bg-muted rounded w-1/3 mt-4"></div>
+                  <div className={`h-5 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-3/4`}></div>
+                  <div className={`h-4 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-1/2`}></div>
+                  <div className={`h-4 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-full`}></div>
+                  <div className={`h-8 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-1/3 mt-4`}></div>
                 </div>
               </div>
             ))}

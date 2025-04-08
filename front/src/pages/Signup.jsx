@@ -9,11 +9,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react";
 import { useMutate } from "@/hooks/useQuery";
 import { UserPlus, Mail, KeyRound, User, ArrowRight } from 'lucide-react';
+import { useTheme } from "@/contexts/ThemeContext";
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { toast } = useToast();
+  const { isDarkMode } = useTheme();
   
   const [formData, setFormData] = useState({
     first_name: "",
@@ -147,18 +149,27 @@ const SignUp = () => {
   };
 
   return (
-    <div className="pt-20 min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="glass rounded-xl p-8 max-w-md w-full">
-      <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+    <div className={`pt-20 min-h-screen flex items-center justify-center ${
+      isDarkMode ? 'bg-slate-950 text-white' : 'bg-background'
+    } p-4`}>
+      <div className={`rounded-xl p-8 max-w-md w-full ${
+        isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'
+      }`}>
+        <div className={`w-16 h-16 ${
+          isDarkMode ? 'bg-primary/20' : 'bg-primary/10'
+        } text-primary rounded-full flex items-center justify-center mx-auto mb-6`}>
           <UserPlus className="h-8 w-8" />
         </div>
-          <h1 className="text-2xl font-display font-bold text-center mb-2">Create an account</h1>
-          <p className="text-muted-foreground text-center mb-8">
-            Sign up to get started with our platform
-          </p>
+        <h1 className={`text-2xl font-display font-bold text-center mb-2 ${
+          isDarkMode ? 'text-white' : ''
+        }`}>Create an account</h1>
+        <p className={`text-center mb-8 ${
+          isDarkMode ? 'text-white/70' : 'text-muted-foreground'
+        }`}>
+          Sign up to get started with our platform
+        </p>
         
-        
-        <Card>
+        <Card className={isDarkMode ? 'bg-slate-900 border-slate-800' : ''}>
           <form onSubmit={handleSubmit}>
             <CardContent className="pt-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -378,7 +389,9 @@ const SignUp = () => {
         </Card>
         
         <div className="text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className={`text-sm ${
+            isDarkMode ? 'text-white/70' : 'text-muted-foreground'
+          }`}>
             Already have an account?{" "}
             <Link to="/signin" className="font-medium text-primary hover:underline">
               Sign in
