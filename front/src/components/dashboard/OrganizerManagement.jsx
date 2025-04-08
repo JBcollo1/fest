@@ -41,7 +41,7 @@ import { uploadImage } from "@/utils/imageUpload";
 
 const OrganizerManagement = () => {
   const { toast } = useToast();
-  const { user, fetchAllUsers, fetchAllOrganizers } = useAuth();
+  const { user, fetchAllUsers, fetchAllOrganizers, createOrganizer, updateOrganizer, deleteOrganizer } = useAuth();
   const [loading, setLoading] = useState(true);
   const [organizers, setOrganizers] = useState([]);
   const [users, setUsers] = useState([]);
@@ -61,6 +61,9 @@ const OrganizerManagement = () => {
   const [contactPerson, setContactPerson] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     console.log('Current users:', users);
@@ -156,30 +159,34 @@ const OrganizerManagement = () => {
     }
 
     try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/organizers`,
-        {
-          user_id: selectedUserId,
-          company_name: companyName,
-          company_image: companyImage,
-          contact_email: contactEmail,
-          contact_phone: contactPhone,
-          kra_pin: kraPin,
-          bank_details: bankDetails,
-          physical_address: physicalAddress,
-          contact_person: contactPerson
-        },
-        { withCredentials: true }
-      );
+      setIsUploading(true);
+      
+      const formData = new FormData();
+      
+      // Ensure user_id is a string
+      formData.append('user_id', String(selectedUserId));
+      formData.append('company_name', companyName);
+      
+      // Only append non-empty values
+      if (contactEmail) formData.append('contact_email', contactEmail);
+      if (contactPhone) formData.append('contact_phone', contactPhone);
+      if (kraPin) formData.append('kra_pin', kraPin);
+      if (bankDetails) formData.append('bank_details', bankDetails);
+      if (physicalAddress) formData.append('physical_address', physicalAddress);
+      if (contactPerson) formData.append('contact_person', contactPerson);
+      
+      // Handle file upload
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
 
-      // Assign organizer role to the user
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/users/${selectedUserId}/roles`,
-        {
-          role: "organizer"
-        },
-        { withCredentials: true }
-      );
+      console.log("Submitting organizer form with data:", {
+        user_id: selectedUserId,
+        company_name: companyName,
+        hasFile: !!selectedFile
+      });
+
+      await createOrganizer(formData);
 
       toast({
         title: "Success",
@@ -196,6 +203,8 @@ const OrganizerManagement = () => {
       setBankDetails("");
       setPhysicalAddress("");
       setContactPerson("");
+      setSelectedFile(null);
+      setPreviewUrl(null);
       setIsAddDialogOpen(false);
 
       // Refresh the organizers list
@@ -207,6 +216,8 @@ const OrganizerManagement = () => {
         description: error.response?.data?.message || "Failed to add organizer",
         variant: "destructive",
       });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -221,22 +232,23 @@ const OrganizerManagement = () => {
     }
 
     try {
-      const response = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/organizers/${selectedOrganizer.id}`,
-        {
-          company_name: companyName,
-          company_image: companyImage,
-          contact_email: contactEmail,
-          contact_phone: contactPhone,
-          kra_pin: kraPin,
-          bank_details: bankDetails,
-          physical_address: physicalAddress,
-          contact_person: contactPerson
-        },
-        {
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      setIsUploading(true);
+      
+      const formData = new FormData();
+      
+      formData.append('company_name', companyName);
+      formData.append('contact_email', contactEmail);
+      formData.append('contact_phone', contactPhone);
+      formData.append('kra_pin', kraPin);
+      formData.append('bank_details', bankDetails);
+      formData.append('physical_address', physicalAddress);
+      formData.append('contact_person', contactPerson);
+      
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
+
+      await updateOrganizer(selectedOrganizer.id, formData);
 
       toast({
         title: "Success",
@@ -253,6 +265,8 @@ const OrganizerManagement = () => {
       setBankDetails("");
       setPhysicalAddress("");
       setContactPerson("");
+      setSelectedFile(null);
+      setPreviewUrl(null);
       setIsEditDialogOpen(false);
 
       // Refresh organizers list
@@ -264,6 +278,8 @@ const OrganizerManagement = () => {
         description: error.response?.data?.message || "Failed to update organizer",
         variant: "destructive",
       });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -273,12 +289,7 @@ const OrganizerManagement = () => {
     }
 
     try {
-      await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/organizers/${organizerId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await deleteOrganizer(organizerId);
 
       toast({
         title: "Success",
@@ -307,6 +318,8 @@ const OrganizerManagement = () => {
     setBankDetails(organizer.bank_details || "");
     setPhysicalAddress(organizer.physical_address || "");
     setContactPerson(organizer.contact_person || "");
+    setSelectedFile(null);
+    setPreviewUrl(null);
     setIsEditDialogOpen(true);
   };
 
@@ -316,28 +329,16 @@ const OrganizerManagement = () => {
     }
 
     try {
-      // First remove the organizer record
-      await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/organizers/${organizerId}`,
-        { withCredentials: true }
-      );
-
-      // Then remove the organizer role from the user
-      const organizer = organizers.find(org => org.id === organizerId);
-      if (organizer?.user_id) {
-        await axios.delete(
-          `${import.meta.env.VITE_API_URL}/api/users/${organizer.user_id}/roles/organizer`,
-          { withCredentials: true }
-        );
-      }
+      await deleteOrganizer(organizerId);
 
       toast({
         title: "Success",
         description: "Organizer removed successfully",
       });
 
-      loadOrganizers();
+      setOrganizers(organizers.filter(org => org.id !== organizerId));
     } catch (error) {
+      console.error("Error removing organizer:", error);
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to remove organizer",
@@ -346,29 +347,22 @@ const OrganizerManagement = () => {
     }
   };
 
-  const handleImageUpload = async (e) => {
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      setIsUploading(true);
-      const result = await uploadImage(file, {
-        isPrivate: false,
-        target: 'organization'
-      });
-      setCompanyImage(result.url);
-      toast({
-        title: "Success",
-        description: "Company image uploaded successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload image",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
+    if (file) {
+      // Preview the selected image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+        console.log("Preview URL set:", reader.result); // Debug log
+      };
+      reader.readAsDataURL(file);
+      setSelectedFile(file);
+      
+      setErrors(prev => ({
+        ...prev,
+        company_image: undefined
+      }));
     }
   };
 
@@ -393,7 +387,7 @@ const OrganizerManagement = () => {
               <Plus className="mr-2 h-4 w-4" /> Add Organizer
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Organizer</DialogTitle>
               <DialogDescription>
@@ -455,51 +449,85 @@ const OrganizerManagement = () => {
                   <Label htmlFor="company-image" className="text-right">
                     Company Image
                   </Label>
-                  <div className="col-span-3 flex items-center gap-2">
-                    <Input
-                      id="company-image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      ref={fileInputRef}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
-                    >
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Image className="h-4 w-4 mr-2" />
-                          Choose Image
-                        </>
-                      )}
-                    </Button>
-                    {companyImage && (
-                      <div className="relative w-20 h-20">
-                        <img
-                          src={companyImage}
-                          alt="Company Preview"
-                          className="w-full h-full object-cover rounded-md"
+                  <div className="col-span-3 flex flex-col items-start gap-2">
+                    {previewUrl && (
+                      <div className="relative w-32 h-32 rounded-md overflow-hidden border mb-2">
+                        <img 
+                          src={previewUrl} 
+                          alt="Company Preview" 
+                          className="w-full h-full object-cover"
                         />
                         <Button
                           type="button"
                           variant="destructive"
                           size="icon"
                           className="absolute -top-2 -right-2 h-6 w-6"
-                          onClick={() => setCompanyImage("")}
+                          onClick={() => {
+                            setCompanyImage("");
+                            setPreviewUrl(null);
+                            setSelectedFile(null);
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = '';
+                            }
+                          }}
                         >
                           ×
                         </Button>
                       </div>
                     )}
+                    {!previewUrl && companyImage && (
+                      <div className="relative w-32 h-32 rounded-md overflow-hidden border mb-2">
+                        <img 
+                          src={companyImage} 
+                          alt="Company Preview" 
+                          className="w-full h-full object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={() => {
+                            setCompanyImage("");
+                            setPreviewUrl(null);
+                            setSelectedFile(null);
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = '';
+                            }
+                          }}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="company-image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        ref={fileInputRef}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Image className="h-4 w-4 mr-2" />
+                            Choose Image
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -579,7 +607,7 @@ const OrganizerManagement = () => {
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Organizer</DialogTitle>
               <DialogDescription>
@@ -602,51 +630,85 @@ const OrganizerManagement = () => {
                 <Label htmlFor="edit-company-image" className="text-right">
                   Company Image
                 </Label>
-                <div className="col-span-3 flex items-center gap-2">
-                  <Input
-                    id="edit-company-image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    ref={fileInputRef}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Image className="h-4 w-4 mr-2" />
-                        Choose Image
-                      </>
-                    )}
-                  </Button>
-                  {companyImage && (
-                    <div className="relative w-20 h-20">
-                      <img
-                        src={companyImage}
-                        alt="Company Preview"
-                        className="w-full h-full object-cover rounded-md"
+                <div className="col-span-3 flex flex-col items-start gap-2">
+                  {previewUrl && (
+                    <div className="relative w-32 h-32 rounded-md overflow-hidden border mb-2">
+                      <img 
+                        src={previewUrl} 
+                        alt="Company Preview" 
+                        className="w-full h-full object-cover"
                       />
                       <Button
                         type="button"
                         variant="destructive"
                         size="icon"
                         className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={() => setCompanyImage("")}
+                        onClick={() => {
+                          setCompanyImage("");
+                          setPreviewUrl(null);
+                          setSelectedFile(null);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                        }}
                       >
                         ×
                       </Button>
                     </div>
                   )}
+                  {!previewUrl && companyImage && (
+                    <div className="relative w-32 h-32 rounded-md overflow-hidden border mb-2">
+                      <img 
+                        src={companyImage} 
+                        alt="Company Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => {
+                          setCompanyImage("");
+                          setPreviewUrl(null);
+                          setSelectedFile(null);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                        }}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="edit-company-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      ref={fileInputRef}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Image className="h-4 w-4 mr-2" />
+                          Choose Image
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -778,4 +840,4 @@ const OrganizerManagement = () => {
   );
 };
 
-export default OrganizerManagement; 
+export default OrganizerManagement;

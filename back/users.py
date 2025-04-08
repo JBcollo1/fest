@@ -339,18 +339,40 @@ class UserRolesResource(Resource):
             
         data = request.get_json()
         
-        if 'role_id' not in data:
-            return error_response("Missing role_id field")
-            
-        role = Role.query.get(data['role_id'])
-        
-        if not role:
-            return error_response("Role not found", 404)
+        # Handle both role_id and role name parameters
+        role = None
+        if 'role_id' in data:
+            role = Role.query.get(data['role_id'])
+            if not role:
+                return error_response("Role not found", 404)
+        elif 'role' in data:
+            role_name = data['role']
+            role = Role.query.filter_by(name=role_name).first()
+            if not role:
+                # Create the role if it doesn't exist
+                role = Role(name=role_name, description=f"Role for {role_name}")
+                try:
+                    db.session.add(role)
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    return error_response(f"Error creating role: {str(e)}")
+        else:
+            role_name = "organizer"
+            role = Role.query.filter_by(name=role_name).first()
+            if not role:
+                role = Role(name=role_name, description="Event organizer role")
+                try:
+                    db.session.add(role)
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    return error_response(f"Error creating role: {str(e)}")
             
         if role in user.roles:
             return error_response("User already has this role")
-            
-        user.roles.append(role)
+        else:
+            user.roles.append(role)
         
         try:
             db.session.commit()
@@ -373,13 +395,18 @@ class UserRolesResource(Resource):
             
         data = request.get_json()
         
-        if 'role_id' not in data:
-            return error_response("Missing role_id field")
-            
-        role = Role.query.get(data['role_id'])
-        
-        if not role:
-            return error_response("Role not found", 404)
+        role = None
+        if 'role_id' in data:
+            role = Role.query.get(data['role_id'])
+            if not role:
+                return error_response("Role not found", 404)
+        elif 'role' in data:
+            role_name = data['role']
+            role = Role.query.filter_by(name=role_name).first()
+            if not role:
+                return error_response("Role not found", 404)
+        else:
+            return error_response("Missing role_id or role field")
             
         if role not in user.roles:
             return error_response("User does not have this role")

@@ -18,7 +18,9 @@ export const AuthContext = createContext({
   createEvent: () => Promise.resolve({}),
   updateEvent: () => Promise.resolve({}),
   deleteEvent: () => Promise.resolve({}),
- 
+  createOrganizer: () => Promise.resolve({}),
+  updateOrganizer: () => Promise.resolve({}),
+  deleteOrganizer: () => Promise.resolve({}),
   fetchEventPayments: () => Promise.resolve([]),
   fetchEventCategories: () => Promise.resolve([]),
 });
@@ -129,8 +131,9 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       setLoading(false);
-      // Optionally redirect to login page after logout
-      navigate('/login');
+      
+      setEventCache({});
+      navigate('/');
     }
   };
 
@@ -273,7 +276,58 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Fetch the organizer profile for the current user
+  const createOrganizer = async (organizerData) => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/organizers`,
+        organizerData,
+        { 
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error creating organizer:', error);
+      throw error;
+    }
+  };
+
+  const updateOrganizer = async (organizerId, organizerData) => {
+    try {
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/organizers/${organizerId}`,
+        organizerData,
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error updating organizer:', error);
+      throw error;
+    }
+  };
+
+  const deleteOrganizer = async (organizerId) => {
+    try {
+      const response = await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/organizers/${organizerId}`,
+        { withCredentials: true }
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting organizer:', error);
+      throw error;
+    }
+  };
+
   const fetchOrganizerProfile = async () => {
     if (!user) return null;
     
@@ -285,7 +339,6 @@ export const AuthProvider = ({ children }) => {
       return response.data.data;
     } catch (error) {
       console.error('Error fetching organizer profile:', error);
-      // Not an error if user is not an organizer
       if (error.response?.status === 404) {
         return null;
       }
@@ -336,7 +389,9 @@ export const AuthProvider = ({ children }) => {
     createEvent,
     updateEvent,
     deleteEvent,
-    
+    createOrganizer,
+    updateOrganizer,
+    deleteOrganizer,
     fetchEventPayments,
     fetchEventCategories,
   };

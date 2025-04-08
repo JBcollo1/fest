@@ -338,7 +338,11 @@ const UserProfile = () => {
                   </div>
                 </div>
                 
-                <Button variant="destructive" className="mt-6 w-full" onClick={logout}>
+                <Button 
+                  variant="destructive" 
+                  className={`mt-6 w-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`} 
+                  onClick={logout}
+                >
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
                 </Button>
