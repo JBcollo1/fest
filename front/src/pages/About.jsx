@@ -1,21 +1,6 @@
 import React from 'react';
 import { BookCheck, Globe, Users, Rocket } from 'lucide-react';
 
-// const CurveTop = ({ fill }) => (
-//   <div className="relative -top-1">
-//     <svg viewBox="0 0 1440 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-//       <path d="M1440 31.21V160H0V31.21C120 42.93 480 54.65 720 25.47C960 -3.71 1320 -23.9 1440 31.21Z" fill={fill}/>
-//     </svg>
-//   </div>
-// );
-
-// const CurveBottom = ({ fill }) => (
-//   <div className="relative -bottom-1">
-//     <svg viewBox="0 0 1440 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-//       <path d="M0 128.79V0H1440V128.79C1320 117.07 960 105.35 720 134.53C480 163.71 120 183.9 0 128.79Z" fill={fill}/>
-//     </svg>
-//   </div>
-// );
 const About = () => {
   const colors = {
     darkestBlue: '#000814',
@@ -60,14 +45,14 @@ const About = () => {
     <div className="bg-white text-gray-900 w-full">
       {/* Hero Section */}
       <div 
-        className=" text-white  mb-8 md:mb-14 pt-20 md:pt-28 pb-16 md:pb-24 px-4 sm:px-6 lg:px-8"
+        className="text-white mb-8 md:mb-14 pt-20 md:pt-28 pb-16 md:pb-24 px-4 sm:px-6 lg:px-8"
         style={{
           background: `linear-gradient(135deg, ${colors.darkestBlue}, ${colors.darkBlue})`,
           minHeight: '65vh'
         }}
       >
-        <div className=' md:pt-[100px]  '>
-          <div className="max-w-7xl mx-auto  text-center space-y-6 pt-24 md:pt-24"> 
+        <div className='md:pt-[100px]'>
+          <div className="max-w-7xl mx-auto text-center space-y-6 pt-24 md:pt-24"> 
             <h1 className="text-4xl md:text-6xl md:pt-10 font-bold mb-6">Fika Event Solutions</h1>
             <p 
               className="text-2xl md:text-4xl mb-8 max-w-3xl mx-auto leading-tight" 
@@ -93,8 +78,6 @@ const About = () => {
           </div>
         </div>
       </div>
-
-      {/* <CurveBottom fill={colors.darkBlue} /> */}
 
       {/* About Overview */}
       <div className="bg-white pt-20 md:pt-28 pb-16 md:pb-24 px-4 sm:px-6 lg:px-8">
@@ -135,12 +118,10 @@ const About = () => {
         </div>
       </div>
 
-      {/* <CurveTop fill="#ffffff" /> */}
-
-      {/* Services Section - Updated Card Colors */}
+      {/* Services Section */}
       <div 
         id="services" 
-        className="pt-20 md:pt-28 pb-16 md:pb-24 px-4 sm:px-6 lg:px-8" 
+        className="md:pb-24 md:pt-28 pt-20 pb-16 px-4 sm:px-6 lg:px-8" 
         style={{backgroundColor: '#001D3D1A'}}
       >
         <div className="max-w-7xl mx-auto">
@@ -179,37 +160,34 @@ const About = () => {
         </div>
       </div>
 
-      {/* <CurveBottom fill="#001D3D1A" /> */}
-
-      {/* Target Markets */}
-     <div className='min-h-[450px] mb-24'>
-        <div className="bg-white pt-20 md:pt-28  pb-18 md:pb-24 px-4 sm:px-6 lg:px-8 ">
-            <div className="max-w-7xl mx-auto">
-              <h2 
-                className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16" 
-                style={{color: colors.yellow}}
+      {/* Target Markets Section */}
+      <div className="bg-white px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto pt-20 md:pt-28 pb-16 md:pb-24">
+          <h2 
+            className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16" 
+            style={{color: colors.yellow}}
+          >
+            Markets We Serve
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
+            {targetMarkets.map((market, index) => (
+              <div 
+                key={index} 
+                className="px-6 py-3 rounded-full font-medium text-sm md:text-base text-center"
+                style={{
+                  backgroundColor: colors.brightYellow + '70',
+                  color: colors.darkestBlue
+                }}
               >
-                Markets We Serve
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3   lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
-                {targetMarkets.map((market, index) => (
-                  <div 
-                    key={index} 
-                    className="px-6 py-3 rounded-full font-medium text-sm md:text-base text-center"
-                    style={{
-                      backgroundColor: colors.brightYellow + '70',
-                      color: colors.darkestBlue
-                    }}
-                  >
-                    {market}
-                  </div>
-                ))}
+                {market}
               </div>
-            </div>
+            ))}
           </div>
-     </div>
-
-      {/* <CurveTop fill="#ffffff" /> */}
+        </div>
+      </div>
+      
+      {/* Spacer div to increase distance between Markets and Mission */}
+      <div className="h-32 md:h-40"></div>
 
       {/* Mission and Vision */}
       <div 
@@ -245,7 +223,8 @@ const About = () => {
         </div>
       </div>
 
-      {/* <CurveTop fill={colors.darkBlue} /> */}
+      {/* Spacer div to increase distance between Mission and Call to Action */}
+      <div className="h-32 md:h-40"></div>
 
       {/* Call to Action */}
       <div 
@@ -286,6 +265,9 @@ const About = () => {
           </div>
         </div>
       </div>
+
+      {/* Spacer div for footer */}
+      <div className="h-32 md:h-40"></div>
     </div>
   );
 };
