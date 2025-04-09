@@ -60,15 +60,15 @@ const About = () => {
     <div className="bg-white text-gray-900 w-full">
       {/* Hero Section */}
       <div 
-        className="text-white pt-24  md:pt-32 mb-8 md:mb-16 px-4 sm:px-6 lg:px-8"
+        className=" text-white  mb-8 md:mb-14 pt-20 md:pt-28 pb-16 md:pb-24 px-4 sm:px-6 lg:px-8"
         style={{
           background: `linear-gradient(135deg, ${colors.darkestBlue}, ${colors.darkBlue})`,
           minHeight: '65vh'
         }}
       >
-        <div className='pt-18 md:pt-34 '>
-          <div className="max-w-7xl mx-auto  text-center space-y-6 pt-16 md:pt-24"> 
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">Fika Event Solutions</h1>
+        <div className=' md:pt-[100px]  '>
+          <div className="max-w-7xl mx-auto  text-center space-y-6 pt-24 md:pt-24"> 
+            <h1 className="text-4xl md:text-6xl md:pt-10 font-bold mb-6">Fika Event Solutions</h1>
             <p 
               className="text-2xl md:text-4xl mb-8 max-w-3xl mx-auto leading-tight" 
               style={{color: colors.yellow}}
@@ -100,7 +100,7 @@ const About = () => {
       <div className="bg-white pt-20 md:pt-28 pb-16 md:pb-24 px-4 sm:px-6 lg:px-8">
         <h2 
           className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16" 
-          style={{color: colors.darkBlue}}
+          style={{color: colors.yellow}}
         >
           About Fika Innovations Group Ltd.
         </h2>
@@ -115,7 +115,7 @@ const About = () => {
           </div>
           <div 
             className="p-8 rounded-xl shadow-lg max-w-xl w-full" 
-            style={{backgroundColor: colors.brightYellow + '20'}}
+            style={{backgroundColor: colors.brightYellow + '70'}}
           >
             <h3 
               className="text-2xl font-semibold mb-6" 
@@ -146,7 +146,7 @@ const About = () => {
         <div className="max-w-7xl mx-auto">
           <h2 
             className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16" 
-            style={{color: colors.darkBlue}}
+            style={{color: colors.yellow}}
           >
             Our Core Services
           </h2>
@@ -156,7 +156,7 @@ const About = () => {
                 key={index} 
                 className="p-6 rounded-lg shadow-md hover:shadow-xl transition duration-300 space-y-4"
                 style={{
-                  backgroundColor: colors.brightYellow + '20',
+                  backgroundColor: colors.brightYellow + '70',
                   border: `2px solid ${colors.midBlue}20`,
                   color: colors.darkBlue
                 }}
@@ -182,12 +182,12 @@ const About = () => {
       {/* <CurveBottom fill="#001D3D1A" /> */}
 
       {/* Target Markets */}
-     <div className='min-h-[450px] '>
+     <div className='min-h-[450px] mb-24'>
         <div className="bg-white pt-20 md:pt-28  pb-18 md:pb-24 px-4 sm:px-6 lg:px-8 ">
             <div className="max-w-7xl mx-auto">
               <h2 
                 className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16" 
-                style={{color: colors.darkBlue}}
+                style={{color: colors.yellow}}
               >
                 Markets We Serve
               </h2>
@@ -197,7 +197,7 @@ const About = () => {
                     key={index} 
                     className="px-6 py-3 rounded-full font-medium text-sm md:text-base text-center"
                     style={{
-                      backgroundColor: colors.brightYellow + '20',
+                      backgroundColor: colors.brightYellow + '70',
                       color: colors.darkestBlue
                     }}
                   >
@@ -250,7 +250,7 @@ const About = () => {
       {/* Call to Action */}
       <div 
         className="pt-20 md:pt-28 pb-16 md:pb-24 px-4 sm:px-6 lg:px-8" 
-        style={{backgroundColor: colors.brightYellow + '10'}}
+        style={{backgroundColor: colors.brightYellow + '80'}}
       >
         <div className="max-w-7xl mx-auto text-center">
           <h2 
