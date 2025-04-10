@@ -320,11 +320,13 @@ const EventDetail = () => {
               {/* Event Image */}
               <div 
                 className="w-full h-[550px] md:h-[500px] rounded-xl overflow-hidden"
-                style={{ 
-                  height: '100%', 
-                  width: '100%',
-                  maxHeight: '650px'
-                }}
+                // style={{ 
+                //   height: '90%', 
+                //   width: '100%',
+                //   maxHeight: '650px',
+                //   maxWidth: '100%',
+                  
+                // }}
               >
                 <img 
                   src={event.image || '/default-event-image.jpg'} 
@@ -430,9 +432,9 @@ const EventDetail = () => {
                 </AnimatedSection>
                 
                 <AnimatedSection delay={100}>
-                  <div className="mt-10">
+                  <div className="mt-10 flex flex-col">
                     <h2 className="text-xl font-display font-semibold mb-4">Location</h2>
-                    <div className={`rounded-xl overflow-hidden h-[300px] ${isDarkMode ? 'bg-slate-800' : 'bg-muted'}`}>
+                    <div className={`rounded-xl overflow-hidden h-[300px] ${isDarkMode ? 'bg-slate-800' : 'bg-muted'}`} style={{ minHeight: '500px' }}>
                       <GoogleMapEmbed 
                         location={event.location}
                         className="w-full h-full"
