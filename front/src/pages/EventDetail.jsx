@@ -318,7 +318,14 @@ const EventDetail = () => {
             {/* Left Column - Event Image with Details Slightly Overlapping */}
             <div className="relative">
               {/* Event Image */}
-              <div className="w-full h-[550px] md:h-[500px] rounded-xl overflow-hidden">
+              <div 
+                className="w-full h-[550px] md:h-[500px] rounded-xl overflow-hidden"
+                style={{ 
+                  height: '100%', 
+                  width: '100%',
+                  maxHeight: '650px'
+                }}
+              >
                 <img 
                   src={event.image || '/default-event-image.jpg'} 
                   alt={event.title}
@@ -333,7 +340,7 @@ const EventDetail = () => {
               </div>
   
               {/* Event Details Card - Slightly Overlapping with higher z-index */}
-              <div className={`${isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'} rounded-xl p-6 mb-8 relative -mt-[2e00px] translate-y-[50px] z-20 mx-2 shadow-lg`}>
+              <div className={`${isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'} rounded-xl p-6 mb-8 relative -mt-24 translate-y-[50px] z-20 mx-2 shadow-lg`}>
                 <div className="flex gap-2  mb-4">
                   {event.categories?.map(category => (
                     <Badge key={category.id} variant={isDarkMode ? "default" : "outline"}>{category.name}</Badge>
