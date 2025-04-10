@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, User, Calendar, Moon, Sun } from 'lucide-react';
+import { Menu, X, User, Calendar, LogOut, Moon, Sun } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -86,6 +88,29 @@ const Navbar = () => {
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="rounded-full ">
+                    <User className="h-4 w-4 mr-1" /> 
+                    {user?.first_name || 'Account'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/d">Dashboard</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/d/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -122,18 +147,20 @@ const Navbar = () => {
                   variant="outline" 
                   className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                 >
-                  <Link to="/signin">
-                    <User className="h-4 w-4 mr-1" /> Sign In
-                  </Link>
-                </Button>
-                <Button 
+                      <Link to="/signin">
+                        <User className="h-4 w-4 mr-1" /> Sign In
+                      </Link>
+                    </Button>
+                    <Button 
                   asChild 
                   size="sm" 
                   variant='outline'
                   className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                 >
-                  <Link to="/signup">Sign Up</Link>
-                </Button>
+                      <Link to="/signup">Sign Up</Link>
+                    </Button>
+              </>
+            )}
               </>
             )}
           </div>
@@ -190,7 +217,30 @@ const Navbar = () => {
                   </>
                 )}
               </Button>
+              
               {isAuthenticated ? (
+                <>
+                  <Button asChild className="justify-center">
+                    <Link to="/d">
+                      <User className="h-4 w-4 mr-2" /> Dashboard
+                    </Link>
+                  </Button>
+                  <Button asChild className="justify-center">
+                    <Link to="/d/profile">
+                      <User className="h-4 w-4 mr-2" /> Profile
+                    </Link>
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    className="justify-center"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {isAuthenticated ? (
                 <>
                   <Button 
                     asChild 
@@ -214,17 +264,19 @@ const Navbar = () => {
                     asChild 
                     className={`justify-center ${isDarkMode ? 'bg-primary/90' : ''}`}
                   >
-                    <Link to="/signin">
-                      <User className="h-4 w-4 mr-2" /> Sign In
-                    </Link>
-                  </Button>
-                  <Button 
+                        <Link to="/signin">
+                          <User className="h-4 w-4 mr-2" /> Sign In
+                        </Link>
+                      </Button>
+                      <Button 
                     asChild 
                     variant="outline" 
                     className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                   >
-                    <Link to="/signup">Sign Up</Link>
-                  </Button>
+                        <Link to="/signup">Sign Up</Link>
+                      </Button>
+                </>
+              )}
                 </>
               )}
             </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
   MapPin, 
@@ -31,10 +31,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/components/ui/use-toast";
 
 const EventDetail = () => {
   const { id } = useParams();
-  const { fetchEventById } = useAuth();
+  const navigate = useNavigate();
+  const { fetchEventById, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const { isDarkMode } = useTheme();
   const [event, setEvent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +73,25 @@ const EventDetail = () => {
             initialSelectedTickets[type.id] = 0;
           });
         }
-        setSelectedTickets(initialSelectedTickets);
+        
+        // Check if we have saved tickets for this event
+        const savedTickets = localStorage.getItem(`event_${id}_tickets`);
+        if (savedTickets) {
+          try {
+            const parsedTickets = JSON.parse(savedTickets);
+            if (parsedTickets.eventId === id) {
+              setSelectedTickets(parsedTickets.tickets);
+              localStorage.removeItem(`event_${id}_tickets`);
+            } else {
+              setSelectedTickets(initialSelectedTickets);
+            }
+          } catch (e) {
+            console.error("Error parsing saved tickets:", e);
+            setSelectedTickets(initialSelectedTickets);
+          }
+        } else {
+          setSelectedTickets(initialSelectedTickets);
+        }
       } catch (err) {
         console.error('Error loading event:', err);
         setError('Failed to load event details');
@@ -154,6 +175,24 @@ const EventDetail = () => {
   };
 
   const handlePurchase = async () => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      const returnUrl = encodeURIComponent(`/event/${id}`);
+      
+      localStorage.setItem(`event_${id}_tickets`, JSON.stringify({
+        eventId: id,
+        tickets: selectedTickets
+      }));
+      
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to purchase tickets",
+        variant: "default",
+      });
+      navigate(`/signin?returnUrl=${returnUrl}`);
+      return;
+    }
+
     try {
       setIsPurchasing(true);
       const ticketDetails = Object.keys(selectedTickets).map(ticketTypeId => ({
@@ -184,8 +223,19 @@ const EventDetail = () => {
       }
 
       console.log("Tickets purchased successfully");
+      toast({
+        title: "Success!",
+        description: "Your tickets have been purchased successfully.",
+      });
+      
+      localStorage.removeItem(`event_${id}_tickets`);
     } catch (error) {
       console.error("Error purchasing tickets:", error);
+      toast({
+        title: "Error",
+        description: "Failed to purchase tickets. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setTimeout(() => setIsPurchasing(false), 40000);
     }
