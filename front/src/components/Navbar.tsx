@@ -43,7 +43,7 @@ const Navbar = () => {
             <span className="text-xl font-display font-semibold">EventHub</span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigaon */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link to="/" className="font-medium hover:text-primary transition-colors">
               Home
