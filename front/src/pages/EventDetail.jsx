@@ -77,23 +77,7 @@ const EventDetail = () => {
         }
         
         // Check if we have saved tickets for this event
-        const savedTickets = localStorage.getItem(`event_${id}_tickets`);
-        if (savedTickets) {
-          try {
-            const parsedTickets = JSON.parse(savedTickets);
-            if (parsedTickets.eventId === id) {
-              setSelectedTickets(parsedTickets.tickets);
-              localStorage.removeItem(`event_${id}_tickets`);
-            } else {
-              setSelectedTickets(initialSelectedTickets);
-            }
-          } catch (e) {
-            console.error("Error parsing saved tickets:", e);
-            setSelectedTickets(initialSelectedTickets);
-          }
-        } else {
-          setSelectedTickets(initialSelectedTickets);
-        }
+
         
         // Check if we have saved tickets for this event
         const savedTickets = localStorage.getItem(`event_${id}_tickets`);
