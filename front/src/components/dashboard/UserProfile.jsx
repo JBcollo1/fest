@@ -390,7 +390,7 @@ const UserProfile = () => {
                               name="username" 
                               value={formData.username} 
                               onChange={handleInputChange} 
-                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
+                              className={`w-full font-sans ${isDarkMode ? 'bg-muted text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -401,7 +401,7 @@ const UserProfile = () => {
                               type="email"
                               value={formData.email} 
                               onChange={handleInputChange} 
-                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
+                              className={`w-full font-sans ${isDarkMode ? 'bg-muted text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -411,7 +411,7 @@ const UserProfile = () => {
                               name="first_name" 
                               value={formData.first_name} 
                               onChange={handleInputChange} 
-                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
+                              className={`w-full font-sans ${isDarkMode ? 'bg-muted text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -421,7 +421,7 @@ const UserProfile = () => {
                               name="last_name" 
                               value={formData.last_name} 
                               onChange={handleInputChange} 
-                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
+                              className={`w-full font-sans ${isDarkMode ? 'bg-muted text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -431,7 +431,7 @@ const UserProfile = () => {
                               name="phone" 
                               value={formData.phone} 
                               onChange={handleInputChange} 
-                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
+                              className={`w-full font-sans ${isDarkMode ? 'bg-muted text-white' : ''}`}
                             />
                           </div>
 
@@ -477,7 +477,7 @@ const UserProfile = () => {
                               name="next_of_kin_name" 
                               value={formData.next_of_kin_name} 
                               onChange={handleInputChange} 
-                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
+                              className={`w-full font-sans ${isDarkMode ? 'bg-muted text-white' : ''}`}
                             />
                           </div>
                           <div className="space-y-2">
@@ -487,7 +487,7 @@ const UserProfile = () => {
                               name="next_of_kin_contact" 
                               value={formData.next_of_kin_contact} 
                               onChange={handleInputChange} 
-                              className={`w-full font-sans ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : ''}`}
+                              className={`w-full font-sans ${isDarkMode ? 'bg-muted text-white' : ''}`}
                             />
                           </div>
                         </div>

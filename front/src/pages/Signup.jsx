@@ -195,6 +195,7 @@ const SignUp = () => {
                     value={formData.first_name}
                     onChange={handleChange}
                     disabled={signupMutation.isPending}
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                   />
                   {errors.first_name && (
                     <p className="text-sm text-destructive">{errors.first_name}</p>
@@ -209,6 +210,7 @@ const SignUp = () => {
                     value={formData.last_name}
                     onChange={handleChange}
                     disabled={signupMutation.isPending}
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                   />
                   {errors.last_name && (
                     <p className="text-sm text-destructive">{errors.last_name}</p>
@@ -225,6 +227,7 @@ const SignUp = () => {
                   value={formData.username}
                   onChange={handleChange}
                   disabled={signupMutation.isPending}
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                 />
                 {errors.username && (
                   <p className="text-sm text-destructive">{errors.username}</p>
@@ -241,6 +244,7 @@ const SignUp = () => {
                   value={formData.email}
                   onChange={handleChange}
                   disabled={signupMutation.isPending}
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                 />
                 {errors.email && (
                   <p className="text-sm text-destructive">{errors.email}</p>
@@ -257,6 +261,7 @@ const SignUp = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   disabled={signupMutation.isPending}
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                 />
               </div>
               
@@ -269,6 +274,7 @@ const SignUp = () => {
                   value={formData.national_id}
                   onChange={handleChange}
                   disabled={signupMutation.isPending}
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                 />
                 {errors.national_id && (
                   <p className="text-sm text-destructive">{errors.national_id}</p>
@@ -294,7 +300,9 @@ const SignUp = () => {
                     accept="image/*"
                     onChange={handleFileSelect}
                     disabled={signupMutation.isPending}
-                    className="cursor-pointer"
+                    // className=
+                    className={`${isDarkMode ? 'bg-black text-white' : ''} cursor-pointer`}
+
                   />
                   {errors.photo_img && (
                     <p className="text-sm text-destructive">{errors.photo_img}</p>
@@ -311,6 +319,7 @@ const SignUp = () => {
                   value={formData.next_of_kin_name}
                   onChange={handleChange}
                   disabled={signupMutation.isPending}
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                 />
                 {errors.next_of_kin_name && (
                   <p className="text-sm text-destructive">{errors.next_of_kin_name}</p>
@@ -326,6 +335,7 @@ const SignUp = () => {
                   value={formData.next_of_kin_contact}
                   onChange={handleChange}
                   disabled={signupMutation.isPending}
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                 />
                 {errors.next_of_kin_contact && (
                   <p className="text-sm text-destructive">{errors.next_of_kin_contact}</p>
@@ -343,6 +353,7 @@ const SignUp = () => {
                     value={formData.password}
                     onChange={handleChange}
                     disabled={signupMutation.isPending}
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                   />
                   <Button
                     type="button"
@@ -377,6 +388,7 @@ const SignUp = () => {
                   value={formData.confirm_password}
                   onChange={handleChange}
                   disabled={signupMutation.isPending}
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                 />
                 {errors.confirm_password && (
                   <p className="text-sm text-destructive">{errors.confirm_password}</p>

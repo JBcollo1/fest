@@ -116,6 +116,7 @@ const SignIn = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                 />
                 {errors.email && (
                   <p className="text-sm text-destructive">{errors.email}</p>
@@ -140,6 +141,7 @@ const SignIn = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''}`}
                   />
                   <Button
                     type="button"

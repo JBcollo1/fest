@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Plus, Pencil, Trash2, CheckCircle, XCircle, Image } from "lucide-react";
 import { uploadImage } from "@/utils/imageUpload";
+import {useTheme} from "@/contexts/ThemeContext";
 
 const OrganizerManagement = () => {
   const { toast } = useToast();
@@ -64,7 +65,7 @@ const OrganizerManagement = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [errors, setErrors] = useState({});
-
+  const { isDarkMode } = useTheme();
   useEffect(() => {
     console.log('Current users:', users);
     console.log('Current organizers:', organizers);
@@ -441,7 +442,7 @@ const OrganizerManagement = () => {
                     id="company-name"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="col-span-3"
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                     required
                   />
                 </div>
@@ -539,7 +540,7 @@ const OrganizerManagement = () => {
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
-                    className="col-span-3"
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -550,7 +551,7 @@ const OrganizerManagement = () => {
                     id="contact-phone"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
-                    className="col-span-3"
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -561,7 +562,7 @@ const OrganizerManagement = () => {
                     id="kra-pin"
                     value={kraPin}
                     onChange={(e) => setKraPin(e.target.value)}
-                    className="col-span-3"
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -572,7 +573,7 @@ const OrganizerManagement = () => {
                     id="bank-details"
                     value={bankDetails}
                     onChange={(e) => setBankDetails(e.target.value)}
-                    className="col-span-3"
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -583,7 +584,7 @@ const OrganizerManagement = () => {
                     id="physical-address"
                     value={physicalAddress}
                     onChange={(e) => setPhysicalAddress(e.target.value)}
-                    className="col-span-3"
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -594,7 +595,7 @@ const OrganizerManagement = () => {
                     id="contact-person"
                     value={contactPerson}
                     onChange={(e) => setContactPerson(e.target.value)}
-                    className="col-span-3"
+                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                   />
                 </div>
               </div>
@@ -623,7 +624,7 @@ const OrganizerManagement = () => {
                   id="edit-company-name"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="col-span-3"
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -720,7 +721,7 @@ const OrganizerManagement = () => {
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
-                  className="col-span-3"
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -731,7 +732,7 @@ const OrganizerManagement = () => {
                   id="edit-contact-phone"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
-                  className="col-span-3"
+                  className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
                 />
               </div>
             </div>

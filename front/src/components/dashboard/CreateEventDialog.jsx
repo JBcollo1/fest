@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/card";
 // import { MultiSelect } from "@/components/ui/multi-select";
 // import Select from 'react-select';
+import { useTheme } from "@/contexts/ThemeContext";
 
 const CreateEventDialog = ({ 
   open, 
@@ -35,7 +36,8 @@ const CreateEventDialog = ({
   isadmin, 
   organizers, 
   fetchOrganizerById,
-  categories = []
+  categories = [],
+  
 }) => {
   // Form states
   const [title, setTitle] = useState("");
@@ -59,7 +61,7 @@ const CreateEventDialog = ({
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [selectedCategories, setSelectedCategories] = useState([]);
-
+  const { isDarkMode } = useTheme();
   // Reset form when dialog opens or closes
   useEffect(() => {
     if (!open) {
@@ -319,7 +321,7 @@ const CreateEventDialog = ({
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Tech Conference 2024"
                       required
-                      className="focus-visible:ring-primary"
+                      className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                     />
                   </div>
                   
@@ -331,7 +333,7 @@ const CreateEventDialog = ({
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Describe your event..."
                       rows={4}
-                      className="focus-visible:ring-primary resize-none"
+                      className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary resize-none`}
                     />
                   </div>
 
@@ -346,7 +348,7 @@ const CreateEventDialog = ({
                         value={startDateTime}
                         onChange={(e) => setStartDateTime(e.target.value)}
                         required
-                        className="focus-visible:ring-primary"
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       />
                     </div>
                     
@@ -359,7 +361,7 @@ const CreateEventDialog = ({
                         type="datetime-local"
                         value={endDateTime}
                         onChange={(e) => setEndDateTime(e.target.value)}
-                        className="focus-visible:ring-primary"
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       />
                     </div>
 
@@ -373,7 +375,7 @@ const CreateEventDialog = ({
                         onChange={(e) => setLocation(e.target.value)}
                         placeholder="Conference Center, New York"
                         required
-                        className="focus-visible:ring-primary"
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       />
                     </div>
                     
@@ -385,7 +387,7 @@ const CreateEventDialog = ({
                         accept="image/*"
                         onChange={handleFileSelect}
                         disabled={isUploading}
-                        className="focus-visible:ring-primary"
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       />
                       {previewUrl && (
                         <div className="relative w-32 h-32 rounded-full overflow-hidden mt-2">
@@ -406,7 +408,7 @@ const CreateEventDialog = ({
                         onValueChange={handleCategoryChange}
                         isMulti
                         placeholder="Select categories"
-                        className="focus-visible:ring-primary"
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select categories" />
@@ -451,7 +453,7 @@ const CreateEventDialog = ({
                           onChange={(e) => handleTicketTypeChange(index, 'name', e.target.value)}
                           placeholder="Regular"
                           required
-                          className="focus-visible:ring-primary"
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
@@ -465,7 +467,7 @@ const CreateEventDialog = ({
                           onChange={(e) => handleTicketTypeChange(index, 'price', e.target.value)}
                           placeholder="999.99"
                           required
-                          className="focus-visible:ring-primary"
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
@@ -478,7 +480,7 @@ const CreateEventDialog = ({
                           onChange={(e) => handleTicketTypeChange(index, 'quantity', e.target.value)}
                           placeholder="100"
                           required
-                          className="focus-visible:ring-primary"
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
@@ -490,7 +492,7 @@ const CreateEventDialog = ({
                           value={ticketType.per_person_limit}
                           onChange={(e) => handleTicketTypeChange(index, 'per_person_limit', e.target.value)}
                           placeholder="5"
-                          className="focus-visible:ring-primary"
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
@@ -500,7 +502,7 @@ const CreateEventDialog = ({
                           type="datetime-local"
                           value={ticketType.valid_from}
                           onChange={(e) => handleTicketTypeChange(index, 'valid_from', e.target.value)}
-                          className="focus-visible:ring-primary"
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
@@ -510,7 +512,7 @@ const CreateEventDialog = ({
                           type="datetime-local"
                           value={ticketType.valid_to}
                           onChange={(e) => handleTicketTypeChange(index, 'valid_to', e.target.value)}
-                          className="focus-visible:ring-primary"
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <Button
