@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "react-router-dom";
 // import Sidebar from "../components/dashboard/Sidebar";
 import UserProfile from "../components/dashboard/UserProfile";
 import PurchasedTickets from "../components/dashboard/PurchasedTickets";
@@ -12,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { User, Ticket, ShieldCheck, Calendar, QrCode } from "lucide-react";
 
 const Dashboard = () => {
+  const location = useLocation();
   const [activeSection, setActiveSection] = useState("profile");
   
   const { user } = useAuth();
@@ -23,10 +25,20 @@ const Dashboard = () => {
     }
   }, [user]);
   
+  // Set active tab based on URL parameter
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    
+    if (tabParam && ['profile', 'tickets', 'organized', 'organizers', 'scanner'].includes(tabParam)) {
+      setActiveSection(tabParam);
+    }
+  }, [location.search]);
+  
  return (
   <div className="relative flex flex-col min-h-screen pt-8">
 
-      <Tabs defaultValue={activeSection} onValueChange={setActiveSection} className="flex-1 p-4 sm:p-6 mt-8 transition-all duration-300 ease-in-out">
+      <Tabs defaultValue={activeSection} value={activeSection} onValueChange={setActiveSection} className="flex-1 p-4 sm:p-6 mt-8 transition-all duration-300 ease-in-out">
         <div className="flex justify-center mb-8 overflow-x-auto">
           <TabsList className="bg-gray-100 flex flex-wrap sm:flex-nowrap">
             <TabsTrigger 

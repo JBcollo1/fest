@@ -112,7 +112,7 @@ class TicketVerificationResource(Resource):
         
         # Check if user has permission to view ticket
         is_admin = user.has_role('admin')
-        is_organizer = user.has_role('Organizer') and user.organizer and user.organizer.id == event.organizer_id
+        is_organizer = user.has_role('organizer') and user.organizer and user.organizer.id == event.organizer_id
         is_ticket_owner = user.attendee and user.attendee.id == ticket.attendee_id
         
         if not (is_admin or is_organizer or is_ticket_owner):
@@ -176,7 +176,7 @@ class TicketListResource(Resource):
             return error_response("Event not found", 404)
         
         is_admin = user.has_role('admin')
-        is_organizer = user.has_role('Organizer') and user.organizer and user.organizer.id == event.organizer_id
+        is_organizer = user.has_role('organizer') and user.organizer and user.organizer.id == event.organizer_id
         
         if not (is_admin or is_organizer):
             return error_response("Unauthorized", 403)

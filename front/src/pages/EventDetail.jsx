@@ -222,13 +222,24 @@ const EventDetail = () => {
         throw new Error('Failed to purchase tickets');
       }
 
-      console.log("Tickets purchased successfully");
-      toast({
-        title: "Success!",
-        description: "Your tickets have been purchased successfully.",
-      });
+      const responseData = await response.json();
       
-      localStorage.removeItem(`event_${id}_tickets`);
+      if (responseData.message && responseData.message.includes("Payment initiated successfully")) {
+        toast({
+          title: "Payment Initiated",
+          description: "Please complete the payment on your phone. You'll be notified via email when your payment is confirmed.",
+          duration: 7000,
+        });
+        
+        localStorage.removeItem(`event_${id}_tickets`);
+        
+      } else {
+        toast({
+          title: "Unexpected Response",
+          description: "There was an issue with the payment process. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error purchasing tickets:", error);
       toast({
