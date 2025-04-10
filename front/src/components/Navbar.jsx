@@ -86,6 +86,29 @@ const Navbar = () => {
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="rounded-full ">
+                    <User className="h-4 w-4 mr-1" /> 
+                    {user?.first_name || 'Account'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/d">Dashboard</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/d/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -134,6 +157,8 @@ const Navbar = () => {
                 >
                       <Link to="/signup">Sign Up</Link>
                     </Button>
+              </>
+            )}
               </>
             )}
           </div>
@@ -234,6 +259,8 @@ const Navbar = () => {
                   >
                         <Link to="/signup">Sign Up</Link>
                       </Button>
+                </>
+              )}
                 </>
               )}
             </div>
