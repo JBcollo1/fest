@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, User, Calendar, LogOut, Moon, Sun } from 'lucide-react';
+import { Menu, X, User, Calendar, LogOut, Moon, Sun } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -89,6 +90,9 @@ const Navbar = () => {
                   <Button size="sm" variant="outline" className="rounded-full ">
                     <User className="h-4 w-4 mr-1" /> 
                     {user?.first_name || 'Account'}
+                  <Button size="sm" variant="outline" className="rounded-full ">
+                    <User className="h-4 w-4 mr-1" /> 
+                    {user?.first_name || 'Account'}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -97,7 +101,10 @@ const Navbar = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/d/profile">Profile</Link>
+                    <Link to="/d/profile">Profile</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
                   <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                     <LogOut className="h-4 w-4 mr-2" /> Sign Out
                   </DropdownMenuItem>
@@ -127,6 +134,7 @@ const Navbar = () => {
             )}
           </div>
 
+          {/* Mobile Menu Togle */}
           {/* Mobile Menu Togle */}
           <button 
             className="md:hidden p-2 rounded-md" 
@@ -180,6 +188,7 @@ const Navbar = () => {
                 )}
               </Button>
               
+              
               {isAuthenticated ? (
                 <>
                   <Button 
@@ -203,6 +212,7 @@ const Navbar = () => {
                     className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                     onClick={handleLogout}
                   >
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
                     <LogOut className="h-4 w-4 mr-2" /> Sign Out
                   </Button>
                 </>

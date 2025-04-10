@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
   MapPin, 
@@ -31,6 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/components/ui/use-toast";
 import { useToast } from "@/components/ui/use-toast";
 
 const EventDetail = () => {
@@ -72,6 +74,25 @@ const EventDetail = () => {
           eventData.ticket_types.forEach(type => {
             initialSelectedTickets[type.id] = 0;
           });
+        }
+        
+        // Check if we have saved tickets for this event
+        const savedTickets = localStorage.getItem(`event_${id}_tickets`);
+        if (savedTickets) {
+          try {
+            const parsedTickets = JSON.parse(savedTickets);
+            if (parsedTickets.eventId === id) {
+              setSelectedTickets(parsedTickets.tickets);
+              localStorage.removeItem(`event_${id}_tickets`);
+            } else {
+              setSelectedTickets(initialSelectedTickets);
+            }
+          } catch (e) {
+            console.error("Error parsing saved tickets:", e);
+            setSelectedTickets(initialSelectedTickets);
+          }
+        } else {
+          setSelectedTickets(initialSelectedTickets);
         }
         
         // Check if we have saved tickets for this event
@@ -193,6 +214,24 @@ const EventDetail = () => {
       return;
     }
 
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      const returnUrl = encodeURIComponent(`/event/${id}`);
+      
+      localStorage.setItem(`event_${id}_tickets`, JSON.stringify({
+        eventId: id,
+        tickets: selectedTickets
+      }));
+      
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to purchase tickets",
+        variant: "default",
+      });
+      navigate(`/signin?returnUrl=${returnUrl}`);
+      return;
+    }
+
     try {
       setIsPurchasing(true);
       const ticketDetails = Object.keys(selectedTickets).map(ticketTypeId => ({
@@ -242,6 +281,11 @@ const EventDetail = () => {
       }
     } catch (error) {
       console.error("Error purchasing tickets:", error);
+      toast({
+        title: "Error",
+        description: "Failed to purchase tickets. Please try again.",
+        variant: "destructive",
+      });
       toast({
         title: "Error",
         description: "Failed to purchase tickets. Please try again.",
@@ -450,7 +494,92 @@ const EventDetail = () => {
             </div>
             
             {/* Right Column - Ticket Purchase Section */}
+            {/* Right Column - Ticket Purchase Section */}
             <div className="md:col-span-1" id="tickets-section">
+              <div className="sticky top-24">
+                <AnimatedSection>
+                  <div className={`${isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'} rounded-xl p-6`}>
+                    <h2 className="text-xl font-semibold mb-4">Get Tickets</h2>
+                    
+                    <div className="mb-4">
+                      <p className="text-sm text-muted-foreground">Price</p>
+                      <p className="text-2xl font-semibold">
+                        {event.ticket_types && event.ticket_types.length > 0 ? (
+                          (() => {
+                            // Find the minimum price among ticket types
+                            const minPrice = Math.min(...event.ticket_types.map(type => type.price || 0));
+                            return minPrice > 0 ? `${event.currency} ${minPrice.toLocaleString()}` : "Free";
+                          })()
+                        ) : (
+                          "Free"
+                        )}
+                      </p>
+                    </div>
+                    
+                    {event.ticket_types.map(ticketType => (
+                      <div key={ticketType.id} className="mb-6">
+                        <p className="text-muted-foreground mb-2">
+                          {ticketType.name} - Holds up to {ticketType.per_person_limit || 'unlimited'} people
+                        </p>
+                        <div className="flex items-center">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => decreaseTickets(ticketType.id)}
+                            disabled={selectedTickets[ticketType.id] <= 0}
+                            className={`h-10 w-10 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="mx-4 text-lg font-medium w-8 text-center">{selectedTickets[ticketType.id]}</span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => increaseTickets(ticketType.id)}
+                            disabled={selectedTickets[ticketType.id] >= ticketType.quantity - ticketType.tickets_sold}
+                            className={`h-10 w-10 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex justify-between mt-2">
+                          <span>Price per ticket</span>
+                          {ticketType.price !== null && ticketType.price !== undefined ? (
+                            <span>{event.currency} {ticketType.price.toLocaleString()}</span>
+                          ) : (
+                            <span>Free</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <div className={`border-t ${isDarkMode ? 'border-slate-700' : 'border-border'} pt-4 mb-6`}>
+                      <div className={`flex justify-between font-semibold text-lg mt-4 pt-4 border-t ${isDarkMode ? 'border-slate-700' : 'border-border'}`}>
+                        <span>Total</span>
+                        <span>{event.currency} {totalPrice.toLocaleString()}</span>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      className="w-full" 
+                      size="lg" 
+                      onClick={handlePurchase} 
+                      disabled={isPurchasing || totalPrice < 1}
+                    >
+                      {isPurchasing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Ticket className="h-4 w-4 mr-2" />
+                      )}
+                      {isPurchasing ? 'Processing...' : 'Buy Tickets'}
+                    </Button>
+                    
+                    <p className="text-xs text-muted-foreground text-center mt-4">
+                      By purchasing tickets you agree to our terms of service and privacy policy.
+                    </p>
+                  </div>
+                </AnimatedSection>
+              </div>
               <div className="sticky top-24">
                 <AnimatedSection>
                   <div className={`${isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'} rounded-xl p-6`}>
