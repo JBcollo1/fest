@@ -12,7 +12,7 @@ import SignIn from "./pages/Signin";
 import SignUp from "./pages/Signup";
 import About from "./pages/About";
 import Events from "./pages/Event";
-import Navbar from "./components/Navbar";
+import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/footer";
 import Dashboard from "./pages/Dashboard";
 import Safari from './pages/Safari';

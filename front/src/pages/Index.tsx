@@ -1,8 +1,7 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Calendar, Filter, ChevronRight } from 'lucide-react';
-import Navbar from '@/components/Navbar';
+import Navbar from '@/components/Navbar.jsx';
 import SearchBar from '@/components/SearchBar';
 import EventCard from '@/components/EventCard';
 import FeaturedEvent from '@/components/FeaturedEvent';

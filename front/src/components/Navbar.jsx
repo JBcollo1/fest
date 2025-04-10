@@ -107,65 +107,29 @@ const Navbar = () => {
               </DropdownMenu>
             ) : (
               <>
-                
-            {isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className={`rounded-full overflow-hidden p-0 h-8 w-8 ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
-                  >
-                    {user?.profile_image ? (
-                      <img 
-                        src={user.profile_image} 
-                        alt={user.name || "Profile"} 
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <User className="h-4 w-4" />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link to="/d">Dashboard</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile">Profile</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout}>
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <>
                 <Button 
                   asChild 
                   size="sm" 
                   variant="outline" 
                   className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                 >
-                      <Link to="/signin">
-                        <User className="h-4 w-4 mr-1" /> Sign In
-                      </Link>
-                    </Button>
-                    <Button 
+                  <Link to="/signin">
+                    <User className="h-4 w-4 mr-1" /> Sign In
+                  </Link>
+                </Button>
+                <Button 
                   asChild 
                   size="sm" 
                   variant='outline'
                   className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                 >
-                      <Link to="/signup">Sign Up</Link>
-                    </Button>
-              </>
-            )}
+                  <Link to="/signup">Sign Up</Link>
+                </Button>
               </>
             )}
           </div>
 
-          {/* Mobile Menu Toggle */}
+          {/* Mobile Menu Togle */}
           <button 
             className="md:hidden p-2 rounded-md" 
             onClick={toggleMobileMenu}
@@ -240,43 +204,21 @@ const Navbar = () => {
                 </>
               ) : (
                 <>
-                  {isAuthenticated ? (
-                <>
                   <Button 
                     asChild 
                     className={`justify-center ${isDarkMode ? 'bg-primary/90' : ''}`}
                   >
-                    <Link to="/profile">
-                      <User className="h-4 w-4 mr-2" /> Profile
+                    <Link to="/signin">
+                      <User className="h-4 w-4 mr-2" /> Sign In
                     </Link>
                   </Button>
                   <Button 
+                    asChild 
                     variant="outline" 
                     className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
-                    onClick={handleLogout}
                   >
-                    Logout
+                    <Link to="/signup">Sign Up</Link>
                   </Button>
-                </>
-              ) : (
-                <>
-                  <Button 
-                    asChild 
-                    className={`justify-center ${isDarkMode ? 'bg-primary/90' : ''}`}
-                  >
-                        <Link to="/signin">
-                          <User className="h-4 w-4 mr-2" /> Sign In
-                        </Link>
-                      </Button>
-                      <Button 
-                    asChild 
-                    variant="outline" 
-                    className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
-                  >
-                        <Link to="/signup">Sign Up</Link>
-                      </Button>
-                </>
-              )}
                 </>
               )}
             </div>
