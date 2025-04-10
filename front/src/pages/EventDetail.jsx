@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+
 import { 
   Calendar, 
   MapPin, 
@@ -33,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
-import { useToast } from "@/components/ui/use-toast";
+
 
 const EventDetail = () => {
   const { id } = useParams();
