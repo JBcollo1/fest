@@ -28,22 +28,24 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            
-            <Navbar/>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/event/:id" element={<EventDetail />} />
-              <Route path="/signin" element={<SignIn />} />
-              <Route path="/signup" element={<SignUp />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/events" element={<Events />} />
-              <Route path="/d" element={<Dashboard />} />
-              <Route path="/safari" element={<Safari />} />
-
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Footer/>
-            <CookieConsent />
+            <div className="min-h-screen flex flex-col">
+              <Navbar/>
+              <main className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/event/:id" element={<EventDetail />} />
+                  <Route path="/signin" element={<SignIn />} />
+                  <Route path="/signup" element={<SignUp />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/events" element={<Events />} />
+                  <Route path="/d" element={<Dashboard />} />
+                  <Route path="/safari" element={<Safari />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+              <Footer/>
+              <CookieConsent />
+            </div>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

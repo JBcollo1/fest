@@ -76,7 +76,7 @@ const SafariSection = () => {
   ];
 
   return (
-    <section className={`py-20 ${isDarkMode ? 'bg-gradient-to-b from-slate-950 to-black' : 'bg-gradient-to-b from-slate-900 to-slate-800 text-white'}`} id="safari" style={{ color: isDarkMode ? 'black' : 'white' }}>
+    <section className="py-20 " id="safari">
       <div className="container mx-auto px-4">
         <AnimatedSection>
           <div className="text-center mb-16">

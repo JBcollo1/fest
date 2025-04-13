@@ -268,7 +268,7 @@ const UserProfile = () => {
 
 
   return (
-    <div className="container mx-auto py-12 px-4 animate-fade-in">
+    <div className={`container mx-auto py-12 px-4 animate-fade-in ${isDarkMode ? 'bg-slate-950' : ''}`}>
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-foreground mb-3 flex items-center gap-3 font-display">
           <UserCircle className="h-8 w-8 text-primary" />
@@ -280,7 +280,7 @@ const UserProfile = () => {
 
           {/* Left Column - User Card */}
           <div className="lg:col-span-3">
-           <Card className={`shadow-glass overflow-hidden ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-muted border border-border/40'} w-[400px]`}>
+            <Card className={`shadow-glass overflow-hidden ${isDarkMode ? 'bg-slate-950/90 border-slate-800' : 'bg-muted border border-border/40'} w-full`}>
               <div className={`${isDarkMode ? 'bg-gradient-radial from-primary/10 to-primary/5' : 'bg-gradient-radial from-primary/20 to-primary/5'} h-32 relative`} />
               <div className="flex justify-center">
                 <div className="relative">
@@ -351,15 +351,15 @@ const UserProfile = () => {
           </div> 
           
           {/* Right Column - Tabs and Content */}
-          <div className="lg:col-span-9">
-            <Card className={`shadow-glass border ${isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-border/40'} mb-6`}>
+          <div className="lg:col-span-9 space-y-8">
+            <Card className={`shadow-glass border ${isDarkMode ? 'bg-slate-950/90 border-slate-800' : 'bg-white/90 border-border/40'}`}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between mb-2">
                   <CardTitle className="font-display text-2xl">Account Information</CardTitle>
                   <Button 
                     onClick={handleEditToggle} 
                     variant={isEditing ? "outline" : "default"}
-                    className={`flex items-center gap-2 ${isDarkMode && isEditing ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                    className={`flex items-center gap-6 ${isDarkMode && isEditing ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                   >
                     <Edit className="w-4 h-4" />
                     {isEditing ? "Cancel" : "Edit Profile"}
@@ -538,7 +538,7 @@ const UserProfile = () => {
             </Card>
             
             {/* Payment Methods Card with M-PESA */}
-            <Card className={`shadow-glass border ${isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-border/40'} mb-6`}>
+            <Card className={`shadow-glass border ${isDarkMode ? 'bg-slate-950/90 border-slate-800' : 'bg-white/90 border-border/40'}`}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between mb-2">
                   <CardTitle className="font-display text-2xl">Payment Methods</CardTitle>

@@ -48,7 +48,7 @@ const FeaturedEvent = ({ event }) => {
         className="absolute inset-0 bg-cover bg-center rounded-lg"
         style={{ 
           width: '1080px',
-          height:'566px',
+          height:'66px',
           backgroundImage: `url(${event.image})`,
           filter: 'brightness(0.5)'
         }}

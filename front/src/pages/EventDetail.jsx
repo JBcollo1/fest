@@ -333,7 +333,7 @@ const EventDetail = () => {
               </div>
   
               {/* Event Details Card - Slightly Overlapping with higher z-index */}
-              <div className={`${isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'} rounded-xl p-6 mb-8 relative -mt-24 translate-y-[50px] z-20 mx-2 shadow-lg`}>
+              <div className={`${isDarkMode ? 'bg-slate-900/90 border border-slate-800' : 'glass'} rounded-xl p-6 mb-8 relative -mt-24 translate-y-[60px] z-20 mx-2 shadow-lg`}>
                 <div className="flex gap-2  mb-4">
                   {event.categories?.map(category => (
                     <Badge key={category.id} variant={isDarkMode ? "default" : "outline"}>{category.name}</Badge>
@@ -406,7 +406,7 @@ const EventDetail = () => {
               </div>
               
               {/* About This Event - Below the card */}
-              <div className="mt-6">
+              <div className="mt-16">
                 <AnimatedSection>
                   <h2 className="text-xl font-display font-semibold mb-4">About This Event</h2>
                   <div className="prose prose-slate max-w-none dark:prose-invert">

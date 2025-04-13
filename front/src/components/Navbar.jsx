@@ -122,18 +122,18 @@ const Navbar = () => {
                   variant="outline" 
                   className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                 >
-                      <Link to="/signin">
-                        <User className="h-4 w-4 mr-1" /> Sign In
-                      </Link>
-                    </Button>
-                    <Button 
+                  <Link to="/signin">
+                    <User className="h-4 w-4 mr-1" /> Sign In
+                  </Link>
+                </Button>
+                <Button 
                   asChild 
                   size="sm" 
                   variant='outline'
                   className={`rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                 >
-                      <Link to="/signup">Sign Up</Link>
-                    </Button>
+                  <Link to="/signup">Sign Up</Link>
+                </Button>
               </>
             )}
           </div>
@@ -162,8 +162,8 @@ const Navbar = () => {
                 Home
               </Link>
               <a href="/#safari" className="font-medium hover:text-primary transition-colors">
-              Safari
-            </a>
+                Safari
+              </a>
               <Link to="/about" className="font-medium text-lg hover:text-primary transition-colors">
                 About
               </Link>
@@ -223,17 +223,17 @@ const Navbar = () => {
                     asChild 
                     className={`justify-center ${isDarkMode ? 'bg-primary/90' : ''}`}
                   >
-                        <Link to="/signin">
-                          <User className="h-4 w-4 mr-2" /> Sign In
-                        </Link>
-                      </Button>
-                      <Button 
+                    <Link to="/signin">
+                      <User className="h-4 w-4 mr-2" /> Sign In
+                    </Link>
+                  </Button>
+                  <Button 
                     asChild 
                     variant="outline" 
                     className={`justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                   >
-                        <Link to="/signup">Sign Up</Link>
-                      </Button>
+                    <Link to="/signup">Sign Up</Link>
+                  </Button>
                 </>
               )}
             </div>

@@ -12,8 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import SafariSection from './Safari';
 import { useRef } from 'react';
 import axios from 'axios';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const Index = () => {
+  const { isDarkMode } = useTheme();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,17 +93,16 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className={`min-h-screen flex flex-col ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-background'}`}>
       <Navbar />
       
       {/* Hero Section */}
       <section className="pt-20 md:pt-24">
-        
         <HeroSlider />
       </section>
       
       {/* Search Section */}
-      <section className=" relative z-10">
+      <section className="relative z-10">
         <div className="container mx-auto px-4 -mt-8">
           <SearchBar showFilters={false} />
         </div>
@@ -114,7 +115,7 @@ const Index = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
               <div>
                 <h2 className="text-2xl md:text-3xl font-display font-bold mb-2">Upcoming Events</h2>
-                <p className="text-muted-foreground">Discover the best experiences happening in Kenya</p>
+                <p className={`${isDarkMode ? 'text-white/70' : 'text-muted-foreground'}`}>Discover the best experiences happening in Kenya</p>
               </div>
               <div className="mt-4 md:mt-0">
                 <Button variant="outline" asChild>
@@ -147,9 +148,9 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, index) => (
                 <div key={index} className="animate-pulse">
-                  <div className="h-[220px] bg-muted rounded-xl mb-4"></div>
-                  <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-muted rounded w-1/2"></div>
+                  <div className={`h-[220px] ${isDarkMode ? 'bg-slate-800' : 'bg-muted'} rounded-xl mb-4`}></div>
+                  <div className={`h-4 ${isDarkMode ? 'bg-slate-800' : 'bg-muted'} rounded w-3/4 mb-2`}></div>
+                  <div className={`h-4 ${isDarkMode ? 'bg-slate-800' : 'bg-muted'} rounded w-1/2`}></div>
                 </div>
               ))}
             </div>
@@ -170,7 +171,7 @@ const Index = () => {
       </section>
       
       {/* Categories Section */}
-      <section className="section-padding bg-secondary" id='safari'>
+      <section className={`section-padding rounded-xl ${isDarkMode ? 'bg-primary' : 'bg-secondary'}`} id='safari'>
         <SafariSection/>
       </section>
       
@@ -180,7 +181,7 @@ const Index = () => {
           <AnimatedSection>
             <div className="text-center mb-12">
               <h2 className="text-2xl md:text-3xl font-display font-bold mb-4">Popular Locations</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
+              <p className={`${isDarkMode ? 'text-white/70' : 'text-muted-foreground'} max-w-2xl mx-auto`}>
                 Find events happening in major cities across Kenya
               </p>
             </div>
@@ -194,10 +195,10 @@ const Index = () => {
                     className="absolute inset-0 bg-cover bg-center"
                     style={{ 
                       backgroundImage: 'url(https://images.unsplash.com/photo-1611348524140-53c9a25308d8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1173&q=80)',
-                      filter: 'brightness(0.7)'
+                      filter: isDarkMode ? 'brightness(0.5)' : 'brightness(0.7)'
                     }}
                   />
-                  <div className="absolute bottom-0 left-0 right-0 p-6 glass">
+                  <div className={`absolute bottom-0 left-0 right-0 p-6 ${isDarkMode ? 'bg-slate-900/90' : 'glass'}`}>
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="text-xl font-display font-semibold">Nairobi</h3>
@@ -222,10 +223,10 @@ const Index = () => {
                     className="absolute inset-0 bg-cover bg-center"
                     style={{ 
                       backgroundImage: 'url(https://images.unsplash.com/photo-1580224298254-9bbe22c5f07a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1074&q=80)',
-                      filter: 'brightness(0.7)'
+                      filter: isDarkMode ? 'brightness(0.5)' : 'brightness(0.7)'
                     }}
                   />
-                  <div className="absolute bottom-0 left-0 right-0 p-6 glass">
+                  <div className={`absolute bottom-0 left-0 right-0 p-6 ${isDarkMode ? 'bg-slate-900/90' : 'glass'}`}>
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="text-xl font-display font-semibold">Mombasa</h3>
@@ -250,10 +251,10 @@ const Index = () => {
                     className="absolute inset-0 bg-cover bg-center"
                     style={{ 
                       backgroundImage: 'url(https://images.unsplash.com/photo-1593117579800-806d62306514?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80)',
-                      filter: 'brightness(0.7)'
+                      filter: isDarkMode ? 'brightness(0.5)' : 'brightness(0.7)'
                     }}
                   />
-                  <div className="absolute bottom-0 left-0 right-0 p-6 glass">
+                  <div className={`absolute bottom-0 left-0 right-0 p-6 ${isDarkMode ? 'bg-slate-900/90' : 'glass'}`}>
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="text-xl font-display font-semibold">Kisumu</h3>
@@ -282,7 +283,7 @@ const Index = () => {
               <h2 className="text-2xl md:text-3xl font-display font-bold mb-4">
                 Stay Updated on Events
               </h2>
-              <p className="text-primary-foreground/90 mb-8">
+              <p className={`mb-8 ${isDarkMode ? 'text-white/70' : 'text-primary-foreground/90'}`}>
                 Subscribe to our newsletter and never miss out on the latest events in Kenya
               </p>
               
@@ -290,7 +291,7 @@ const Index = () => {
                 <input
                   type="email"
                   placeholder="Enter your email"
-                  className="px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/30 w-full sm:w-auto flex-1 max-w-md"
+                  className={`px-4 py-3 rounded-lg ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white/10 border-white/20'} text-white placeholder:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/30 w-full sm:w-auto flex-1 max-w-md`}
                 />
                 <Button variant="secondary" size="lg">
                   Subscribe
@@ -300,9 +301,6 @@ const Index = () => {
           </AnimatedSection>
         </div>
       </section>
-      
-      {/* Footer */}
-  
     </div>
   );
 };

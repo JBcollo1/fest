@@ -42,7 +42,7 @@ const EventCard = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative w-[1080px] h-[1080px] overflow-hidden">
+      <div className="relative h-[260px]">
         <div 
           className={`w-full transition-transform duration-700 ${
             isHovered ? 'scale-105' : 'scale-100'
@@ -51,7 +51,7 @@ const EventCard = ({
             backgroundImage: `url(${event.image || '/default-event-image.jpg'})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            height: featured ? '350px' : '220px'
+            height: featured ? '260px' : '260px'
           }}
         />
         {/* Show categories as badges */}
@@ -73,8 +73,8 @@ const EventCard = ({
         )}
       </div>
       
-      <div className={`p-4 ${featured ? 'glass absolute bottom-0 left-0 right-0' : 'bg-card'}`}>
-        <div className="space-y-3">
+      <div className={`p-3 ${featured ? 'glass absolute bottom-0 left-0 right-0' : 'bg-card'}`}>
+        <div className="space-y-2">
           <h3 className={`font-display font-semibold ${featured ? 'text-xl md:text-2xl' : 'text-lg'}`}>
             {event.title}
           </h3>
