@@ -6,17 +6,10 @@ from requests.auth import HTTPBasicAuth
 from flask_restful import Resource
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from email_service import send_email, mail
 from database import db
 from models import Ticket, Event, User, Attendee, Payment, TicketType
 from utils.response import success_response, error_response
-from flask_mail import Message
 from datetime import datetime, timedelta
-import qrcode
-import smtplib
-from smtplib import SMTPException
-from config2 import Config2
-from io import BytesIO
 import time
 import json
 from json.decoder import JSONDecodeError
@@ -24,6 +17,7 @@ from flask import g
 import threading
 from sqlalchemy.exc import SQLAlchemyError
 from contextlib import contextmanager
+from tasks import process_ticket_purchase, send_ticket_email
 
 from config import (
     MPESA_BASE_URL, 
@@ -379,13 +373,13 @@ class MpesaCallbackResource(Resource):
                     logger.info(f"Payment completed for CheckoutRequestID: {checkout_request_id}")
                     
                 
-                    try:
+                    # try:
                         
-                        send_ticket_qr_email(ticket)
-                    except Exception as email_error:
-                        logger.error(f"Error sending ticket email: {str(email_error)}")
+                    #     send_ticket_qr_email(ticket)
+                    # except Exception as email_error:
+                    #     logger.error(f"Error sending ticket email: {str(email_error)}")
                     
-                    return {"ResultCode": 0, "ResultDesc": "Success"}, 200
+                    # return {"ResultCode": 0, "ResultDesc": "Success"}, 200
                     
                 else:  
                 
@@ -435,450 +429,106 @@ class TicketPurchaseResource(Resource):
             if not ticket_details:
                 return error_response("No ticket details provided", 400)
             
-            # Validate ticket availability and create purchase transaction
-            with transaction_lock(f"event_{event_id}"):
-                # Validate all tickets first
-                for detail in ticket_details:
-                    ticket_type_id = detail.get('ticket_type_id')
-                    quantity = detail.get('quantity', 1)
-                    
-                    ticket_type = TicketType.query.get(ticket_type_id)
-                    if not ticket_type or ticket_type.event_id != event_id:
-                        return error_response("Invalid ticket type", 400)
-                        
-                    available = ticket_type.quantity - ticket_type.tickets_sold
-                    if available < quantity:
-                        return error_response(f"Only {available} tickets available for {ticket_type.name}", 400)
-                        
-                    if ticket_type.per_person_limit and quantity > ticket_type.per_person_limit:
-                        return error_response(f"Cannot purchase more than {ticket_type.per_person_limit} tickets per person", 400)
-                
-                # Get or create attendee
-                attendee = Attendee.query.filter_by(user_id=user.id).first()
-                if not attendee:
-                    attendee = Attendee(user_id=user.id)
-                    db.session.add(attendee)
-                    db.session.flush()
-                
-                # Initialize M-Pesa payment
-                payment_result = initiate_mpesa_payment(total_amount, user.phone)
-                
-                if "error" in payment_result:
-                    return error_response(f"Payment initiation failed: {payment_result.get('error')}", 400)
-                    
-                if payment_result.get('ResponseCode') != '0':
-                    return error_response(f"Payment gateway error: {payment_result.get('ResponseDescription')}", 400)
-                    
-                checkout_request_id = payment_result.get('CheckoutRequestID')
-                if not checkout_request_id:
-                    return error_response("Missing checkout request ID in payment response", 400)
-                
-                # Create ticket records
-                tickets = []
-                for detail in ticket_details:
-                    ticket_type_id = detail.get('ticket_type_id')
-                    quantity = detail.get('quantity', 1)
-                    ticket_type = TicketType.query.get(ticket_type_id)
-                    
-                    ticket = Ticket(
-                        event_id=event.id,
-                        attendee_id=attendee.id,
-                        ticket_type_id=ticket_type.id,
-                        price=ticket_type.price * quantity,
-                        quantity=quantity,
-                        currency=ticket_type.currency,
-                        satus='pending'
-                    )
-                    
-                    db.session.add(ticket)
-                    db.session.flush()
-                    tickets.append(ticket)
-                
-                # Create payment record
-                payment = Payment(
-                    ticket_id=tickets[0].id,
-                    payment_method='Mpesa',
-                    payment_status='Pending',
-                    transaction_id=checkout_request_id,
-                    amount=total_amount,
-                    currency=tickets[0].currency
-                )
-                
-                db.session.add(payment)
-                db.session.commit()
-
-                # Schedule verification
-                threading.Timer(
-                    5,  # Initial delay
-                    delayed_verification,
-                    args=(checkout_request_id,)
-                ).start()
-
-                return success_response(
-                    message="Payment initiated successfully. Please complete on your phone.",
-                    data={"CheckoutRequestID": checkout_request_id},
-                    status_code=200
-                )
+            # Initialize M-Pesa payment
+            payment_result = initiate_mpesa_payment(total_amount, user.phone)
             
-        except TimeoutError as e:
-            logger.error(f"Transaction lock timeout: {str(e)}")
-            return error_response("Transaction processing timeout", 503)
+            if "error" in payment_result:
+                return error_response(f"Payment initiation failed: {payment_result.get('error')}", 400)
+                
+            if payment_result.get('ResponseCode') != '0':
+                return error_response(f"Payment gateway error: {payment_result.get('ResponseDescription')}", 400)
+                
+            checkout_request_id = payment_result.get('CheckoutRequestID')
+            if not checkout_request_id:
+                return error_response("Missing checkout request ID in payment response", 400)
+            
+            # Process tickets asynchronously
+            ticket_tasks = []
+            for detail in ticket_details:
+                ticket_data = {
+                    'ticket_type_id': detail.get('ticket_type_id'),
+                    'quantity': detail.get('quantity', 1),
+                    'event_id': event_id,
+                    'user_id': user.id
+                }
+                task = process_ticket_purchase.delay(ticket_data)
+                ticket_tasks.append(task)
+            
+            # Create payment record
+            payment = Payment(
+                payment_method='Mpesa',
+                payment_status='Pending',
+                transaction_id=checkout_request_id,
+                amount=total_amount,
+                currency=event.currency
+            )
+            
+            db.session.add(payment)
+            db.session.commit()
+
+            # Schedule payment verification
+            threading.Timer(
+                5,  # Initial delay
+                delayed_verification,
+                args=(checkout_request_id,)
+            ).start()
+
+            return success_response(
+                message="Payment initiated successfully. Please complete on your phone.",
+                data={
+                    "CheckoutRequestID": checkout_request_id,
+                    "ticket_tasks": [task.id for task in ticket_tasks]
+                },
+                status_code=200
+            )
+            
         except Exception as e:
             logger.error(f"Error processing ticket purchase: {str(e)}")
             db.session.rollback()
             return error_response(f"Error: {str(e)}", 500)
 
-# class PaymentStatusResource(Resource):
-#     """Resource for checking payment status"""
-    
-#     @jwt_required()
 def get_verification_status(result, payment):
     """Check payment status for a given checkout request ID"""
     try:
-        # First verify the payment is actually successful
-        if result.get('ResultCode') != '0':
+        result_code = result.get('ResultCode')
+        
+        if result_code != '0':
             payment.payment_status = 'Failed'
             payment.failure_reason = result.get('ResultDesc', 'Payment verification failed')
+            
+            # Update associated tickets
+            tickets = Ticket.query.filter_by(payment_id=payment.id).all()
+            for ticket in tickets:
+                ticket.satus = 'payment_failed'
+                
             db.session.commit()
-            logger.info(f"Payment verification failed for payment ID: {payment.id}")
             return False
         
         # Update payment status for successful transaction
         payment.payment_status = 'Completed'
         payment.mpesa_receipt_no = result.get('MpesaReceiptNumber')
         payment.payment_date = datetime.now()
-
-        # Update ticket status
-        ticket = Ticket.query.get(payment.ticket_id)
-        if ticket:
+        
+        # Get associated tickets and update their status
+        tickets = Ticket.query.filter_by(payment_id=payment.id).all()
+        for ticket in tickets:
             ticket.satus = 'purchased'
-            ticket_type = TicketType.query.get(ticket.ticket_type_id)
-            if ticket_type:
-                ticket_type.tickets_sold += ticket.quantity
-
-        # Commit changes
+            # Send ticket email asynchronously
+            send_ticket_email.delay(ticket.id)
+        
         db.session.commit()
-
-        # Send confirmation email only for completed payments
-        logger.info(f"Sending ticket email for payment ID: {payment.id}")
-        send_ticket_qr_email(ticket)
+        
+        # Log successful payment
+        logger.info(f"Payment {payment.id} completed successfully for amount {payment.amount}")
         return True
 
     except Exception as e:
         logger.error(f"Payment processing failed: {str(e)}")
         db.session.rollback()
+        
+        # Update payment status to indicate processing error
+        payment.payment_status = 'Error'
+        payment.failure_reason = f"Processing error: {str(e)}"
+        db.session.commit()
+        
         return False
-
-def send_ticket_qr_email( ticket):
-    """Send ticket email with properly attached QR code"""
-    
-    
-    user = User.query.get(ticket.attendee.user_id)
-    
-    try:
-        # Validate essential data
-        if not all([ticket, ticket.qr_code, user.email, ticket.event]):
-            logging.error(f"Missing data - Ticket: {bool(ticket)}, QR: {bool(ticket.qr_code)}, User: {user}")
-            return
-
-        
-        qr_filename, qr_data = generate_qr_attachment(ticket)
-        
-        # Create email message
-        msg = create_email_message(user, ticket, qr_filename, qr_data)
-        
-        # Send with retry logic
-        send_email_with_retry(msg, retries=2)
-        
-    except Exception as e:
-        logging.error(f"Ticket email failed: {str(e)}")
-
-def generate_qr_attachment(ticket):
-    """Generate QR code file with enhanced security and visual appeal"""
-    try:
-        # Create verification URL using ticket ID as the primary identifier
-        verification_url = f"{Config2.BASE_URL}/verify/ticket/{ticket.id}"
-        
-        # Create QR code with enhanced settings
-        qr = qrcode.QRCode(
-            version=None, 
-            error_correction=qrcode.constants.ERROR_CORRECT_H,  
-            box_size=10, 
-            border=4,  
-        )
-        
-        qr.add_data(verification_url)
-        qr.make(fit=True)
-        
-        img = qr.make_image(
-            fill_color="#1a1a1a", 
-            back_color="#ffffff",  
-            image_factory=None  
-        )
-        
-        # Convert to PNG with high quality
-        img_buffer = BytesIO()
-        img.save(img_buffer, format="PNG", quality=100)
-        img_buffer.seek(0)
-        
-        # Generate filename using ticket ID
-        filename = f"ticket_{ticket.id}.png"
-        
-        return (filename, img_buffer.getvalue())
-        
-    except Exception as e:
-        logging.error(f"QR generation failed: {str(e)}")
-        raise
-
-def create_email_message(user, ticket, qr_filename, qr_data):
-    """Create email message with enhanced styling and layout"""
-    try:
-        event_date = ticket.event.start_datetime.strftime('%B %d, %Y %H:%M') if not ticket.event.start_datetime else "Date to be announced"
-        
-        html_content = f"""<!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                body {{
-                    margin: 0;
-                    padding: 0;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    background-color: #f5f5f5;
-                }}
-                .email-container {{
-                    max-width: 600px;
-                    margin: 0 auto;
-                    background-color: #ffffff;
-                    border-radius: 12px;
-                    overflow: hidden;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                }}
-                .email-header {{
-                    background: linear-gradient(135deg, {Config2.BRAND_COLOR}, {Config2.BRAND_COLOR}99);
-                    color: white;
-                    padding: 30px 20px;
-                    text-align: center;
-                }}
-                .email-header h1 {{
-                    margin: 0;
-                    font-size: 24px;
-                    font-weight: 600;
-                }}
-                .email-body {{
-                    padding: 30px;
-                    color: #333333;
-                }}
-                .greeting {{
-                    font-size: 18px;
-                    margin-bottom: 25px;
-                    color: #444444;
-                }}
-                .ticket-details {{
-                    background-color: #f8f9fa;
-                    border-radius: 8px;
-                    padding: 20px;
-                    margin-bottom: 25px;
-                }}
-                .detail-item {{
-                    display: flex;
-                    align-items: center;
-                    margin-bottom: 15px;
-                    padding-bottom: 15px;
-                    border-bottom: 1px solid #e9ecef;
-                }}
-                .detail-item:last-child {{
-                    border-bottom: none;
-                    margin-bottom: 0;
-                    padding-bottom: 0;
-                }}
-                .detail-icon {{
-                    width: 24px;
-                    height: 24px;
-                    margin-right: 15px;
-                    color: {Config2.BRAND_COLOR};
-                }}
-                .detail-content {{
-                    flex: 1;
-                }}
-                .detail-label {{
-                    font-size: 14px;
-                    color: #6c757d;
-                    margin-bottom: 4px;
-                }}
-                .detail-value {{
-                    font-size: 16px;
-                    font-weight: 500;
-                    color: #212529;
-                }}
-                .qr-section {{
-                    text-align: center;
-                    margin: 30px 0;
-                    padding: 25px;
-                    background-color: #ffffff;
-                    border-radius: 8px;
-                    border: 1px solid #e9ecef;
-                }}
-                .qr-box {{
-                    display: inline-block;
-                    padding: 20px;
-                    background-color: #ffffff;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                }}
-                .qr-code-img {{
-                    width: 200px;
-                    height: 200px;
-                    margin: 0 auto;
-                    display: block;
-                }}
-                .qr-instructions {{
-                    margin-top: 15px;
-                    color: #6c757d;
-                    font-size: 14px;
-                }}
-                .footer {{
-                    margin-top: 30px;
-                    padding-top: 20px;
-                    border-top: 1px solid #e9ecef;
-                    text-align: center;
-                    color: #6c757d;
-                    font-size: 14px;
-                }}
-                .event-title {{
-                    font-size: 20px;
-                    font-weight: 600;
-                    color: #212529;
-                    margin-bottom: 20px;
-                }}
-                @media only screen and (max-width: 600px) {{
-                    .email-container {{
-                        border-radius: 0;
-                    }}
-                    .email-body {{
-                        padding: 20px;
-                    }}
-                    .qr-code-img {{
-                        width: 180px;
-                        height: 180px;
-                    }}
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="email-container">
-                <div class="email-header">
-                    <h1>🎟 Your Ticket Confirmation</h1>
-                </div>
-                
-                <div class="email-body">
-                    <div class="greeting">
-                        Hello {user.first_name} {user.last_name},
-                    </div>
-
-                    <div class="ticket-details">
-                        <div class="event-title">{ticket.event.title}</div>
-                        
-                        <div class="detail-item">
-                            <div class="detail-icon">📅</div>
-                            <div class="detail-content">
-                                <div class="detail-label">Event Date & Time</div>
-                                <div class="detail-value">{event_date}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="detail-item">
-                            <div class="detail-icon">📍</div>
-                            <div class="detail-content">
-                                <div class="detail-label">Location</div>
-                                <div class="detail-value">{ticket.event.location}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="detail-item">
-                            <div class="detail-icon">🎫</div>
-                            <div class="detail-content">
-                                <div class="detail-label">Number of Tickets</div>
-                                <div class="detail-value">{ticket.quantity}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="qr-section">
-                        <div class="qr-box">
-                            <img src="cid:qr_code" 
-                                 class="qr-code-img"
-                                 alt="Ticket QR Code">
-                            <div class="qr-instructions">
-                                Present this QR code at the event entrance for scanning
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="footer">
-                        <p>We look forward to seeing you at the event!</p>
-                        <p>Best regards,<br><strong>{Config2.EMAIL_SENDER_NAME}</strong></p>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>"""
-
-        msg = Message(
-            subject=f"🎟 Your Ticket for {ticket.event.title}",
-            recipients=[user.email],
-            sender=(Config2.EMAIL_SENDER_NAME, Config2.MAIL_USERNAME),
-            charset="utf-8"
-        )
-        
-        # HTML version
-        msg.html = html_content
-        
-        # Text version
-        msg.body = f"""Hi {user.first_name},
-
-Your ticket details:
-
-Event: {ticket.event.title}
-Date: {event_date}
-Location: {ticket.event.location}
-Tickets: {ticket.quantity}
-
-Please present the attached QR code at the event entrance for scanning.
-
-We look forward to seeing you at the event!
-
-Best regards,
-{Config2.EMAIL_SENDER_NAME}"""
-
-        # Attach QR code
-        msg.attach(
-            filename=qr_filename,
-            content_type="image/png",
-            data=qr_data,
-            headers=[("Content-ID", "<qr_code>")]
-        )
-        
-        return msg
-
-    except Exception as e:
-        logging.error(f"Email creation failed: {str(e)}")
-        raise
-def send_email_with_retry(msg, retries=2):
-    """Robust email sending with retries"""
-    logger = logging.getLogger(__name__)
-    for attempt in range(retries + 1):
-        try:
-            mail.send(msg)
-            logger.info(f"Email sent successfully to {msg.recipients}")
-            return True
-        except SMTPException as e:
-            logger.warning(f"Email attempt {attempt+1} failed: {str(e)}")
-            if attempt < retries:
-                sleep_time = 2 ** attempt
-                logger.info(f"Retrying in {sleep_time} seconds")
-                time.sleep(sleep_time)
-        except Exception as e:
-            logger.error(f"Non-SMTP error: {str(e)}")
-            raise

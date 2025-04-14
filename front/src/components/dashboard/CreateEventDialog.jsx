@@ -154,38 +154,106 @@ const CreateEventDialog = ({
   };
 
   const validateForm = () => {
+    const newErrors = {};
+    
+    // Validate title
     if (!title) {
-      setFormError("Title is required");
-      return false;
+      newErrors.title = "Title is required";
+    } else if (title.length < 3 || title.length > 100) {
+      newErrors.title = "Title must be between 3 and 100 characters";
+    } else if (!/^[a-zA-Z0-9\s\-_.,!?()]+$/.test(title)) {
+      newErrors.title = "Title contains invalid characters";
     }
+    
+    // Validate description
+    if (description && description.length > 2000) {
+      newErrors.description = "Description must be less than 2000 characters";
+    }
+    
+    // Validate dates
     if (!startDateTime) {
-      setFormError("Start date and time are required");
-      return false;
+      newErrors.startDateTime = "Start date and time are required";
+    } else {
+      const startDate = new Date(startDateTime);
+      const now = new Date();
+      if (startDate < now) {
+        newErrors.startDateTime = "Start date cannot be in the past";
+      }
     }
+    
+    if (endDateTime) {
+      const endDate = new Date(endDateTime);
+      const startDate = new Date(startDateTime);
+      if (endDate <= startDate) {
+        newErrors.endDateTime = "End date must be after start date";
+      }
+    }
+    
+    // Validate location
     if (!location) {
-      setFormError("Location is required");
-      return false;
+      newErrors.location = "Location is required";
+    } else if (location.length < 3 || location.length > 200) {
+      newErrors.location = "Location must be between 3 and 200 characters";
     }
-    // if (!totalTickets || isNaN(parseInt(totalTickets)) || parseInt(totalTickets) <= 0) {
-    //   setFormError("Valid number of tickets is required");
-    //   return false;
-    // }
+    
+    // Validate image
+    if (selectedFile) {
+      if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
+        newErrors.image = "Image size must be less than 5MB";
+      }
+      if (!['image/jpeg', 'image/png', 'image/gif'].includes(selectedFile.type)) {
+        newErrors.image = "Only JPEG, PNG, and GIF images are allowed";
+      }
+    }
+    
+    // Validate ticket types
+    if (ticketTypes.length === 0) {
+      newErrors.ticketTypes = "At least one ticket type is required";
+    } else {
+      ticketTypes.forEach((ticketType, index) => {
+        if (!ticketType.name) {
+          newErrors[`ticketType_${index}_name`] = "Ticket type name is required";
+        } else if (ticketType.name.length < 3 || ticketType.name.length > 50) {
+          newErrors[`ticketType_${index}_name`] = "Ticket type name must be between 3 and 50 characters";
+        }
+        
+        if (!ticketType.price || isNaN(parseFloat(ticketType.price)) || parseFloat(ticketType.price) < 0) {
+          newErrors[`ticketType_${index}_price`] = "Valid price is required";
+        }
+        
+        if (!ticketType.quantity || isNaN(parseInt(ticketType.quantity)) || parseInt(ticketType.quantity) <= 0) {
+          newErrors[`ticketType_${index}_quantity`] = "Valid quantity is required";
+        }
+        
+        if (ticketType.per_person_limit && (isNaN(parseInt(ticketType.per_person_limit)) || parseInt(ticketType.per_person_limit) <= 0)) {
+          newErrors[`ticketType_${index}_per_person_limit`] = "Valid per person limit is required";
+        }
+        
+        if (ticketType.valid_from) {
+          const validFrom = new Date(ticketType.valid_from);
+          const startDate = new Date(startDateTime);
+          if (validFrom > startDate) {
+            newErrors[`ticketType_${index}_valid_from`] = "Valid from date cannot be after event start date";
+          }
+        }
+        
+        if (ticketType.valid_to) {
+          const validTo = new Date(ticketType.valid_to);
+          const startDate = new Date(startDateTime);
+          if (validTo < startDate) {
+            newErrors[`ticketType_${index}_valid_to`] = "Valid to date cannot be before event start date";
+          }
+        }
+      });
+    }
+    
     // For admins, require organizer selection
     if (isadmin && !organizerId) {
-      setFormError("Please select an organizer");
-      return false;
+      newErrors.organizer = "Please select an organizer";
     }
-    for (const ticketType of ticketTypes) {
-      if (!ticketType.name) {
-        setFormError("Ticket type name is required");
-        return false;
-      }
-      if (!ticketType.quantity || isNaN(parseInt(ticketType.quantity)) || parseInt(ticketType.quantity) <= 0) {
-        setFormError("Valid ticket type quantity is required");
-        return false;
-      }
-    }
-    return true;
+    
+    setFormError(Object.values(newErrors).join("\n"));
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleFileSelect = (e) => {
