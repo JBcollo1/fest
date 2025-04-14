@@ -63,8 +63,31 @@ const EventDetail = () => {
       try {
         setIsLoading(true);
         setError(null);
+
+        // Check for cached event data
+        const cachedEvent = localStorage.getItem(`event_${id}`);
+        if (cachedEvent) {
+          const parsedEvent = JSON.parse(cachedEvent);
+          const cacheTime = parsedEvent.timestamp;
+          const now = new Date().getTime();
+          const cacheDuration = 5 * 60 * 1000; // 5 minutes cache duration
+
+          if (now - cacheTime < cacheDuration) {
+            setEvent(parsedEvent.data);
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // If no cache or cache expired, fetch from API
         const eventData = await fetchEventById(id);
         setEvent(eventData);
+
+        // Cache the event data
+        localStorage.setItem(`event_${id}`, JSON.stringify({
+          data: eventData,
+          timestamp: new Date().getTime()
+        }));
 
         // Initialize selected tickets state
         const initialSelectedTickets = {};
