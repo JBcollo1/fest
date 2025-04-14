@@ -456,7 +456,7 @@ class TicketPurchaseResource(Resource):
                 # Create ticket
                 ticket = Ticket(
                     event_id=event_id,
-                    attendee_id=attendee.id,  # Use the attendee's ID
+                    attendee_id=attendee.id,
                     ticket_type_id=ticket_type.id,
                     price=ticket_type.price * detail.get('quantity', 1),
                     quantity=detail.get('quantity', 1),
