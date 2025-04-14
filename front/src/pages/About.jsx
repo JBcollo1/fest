@@ -63,7 +63,7 @@ const About = () => {
         <div className='pt-8 md:pt-12'>
           <div className="max-w-7xl mx-auto text-center space-y-6"> 
             <h1 className="text-4xl md:text-6xl font-bold mb-6">Fika Event Solutions</h1>
-            <p className="text-2xl md:text-4xl mb-8 max-w-3xl mx-auto leading-tight text-accent">
+            <p className="text-2xl md:text-4xl mb-8 max-w-3xl mx-auto leading-tight ">
               We Make Experience Out Of Events!
             </p>
             <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto">
@@ -148,7 +148,7 @@ const About = () => {
       {/* <CurveBottom fill="#001D3D1A" /> */}
 
       {/* Target Markets */}
-      <div className='min-h-[450px]'>
+      <div className='min-h-[350px]'>
         <div className="pt-20 md:pt-28 pb-18 md:pb-24 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16 text-primary">
@@ -158,7 +158,7 @@ const About = () => {
               {targetMarkets.map((market, index) => (
                 <div 
                   key={index} 
-                  className="px-6 py-3 rounded-full font-medium text-sm md:text-base text-center bg-accent/10 dark:bg-accent/20 text-accent-foreground"
+                  className="px-6 py-3 rounded-full font-medium text-sm md:text-base text-center bg-accent/40 dark:bg-accent/70 text-accent-foreground"
                 >
                   {market}
                 </div>
@@ -180,7 +180,7 @@ const About = () => {
       >
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8">
           <div className="bg-background/10 dark:bg-background/20 p-10 rounded-xl space-y-6">
-            <h3 className="text-2xl font-bold text-accent">
+            <h3 className="text-2xl font-bold ">
               Our Mission
             </h3>
             <p className="text-lg leading-relaxed">
@@ -188,7 +188,7 @@ const About = () => {
             </p>
           </div>
           <div className="bg-background/10 dark:bg-background/20 p-10 rounded-xl space-y-6">
-            <h3 className="text-2xl font-bold text-accent">
+            <h3 className="text-2xl font-bold ">
               Our Vision
             </h3>
             <p className="text-lg leading-relaxed">

@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Pencil, Trash2, CheckCircle, XCircle, Image } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, CheckCircle, XCircle, Image, Search } from "lucide-react";
 import { uploadImage } from "@/utils/imageUpload";
 import {useTheme} from "@/contexts/ThemeContext";
 
@@ -66,6 +66,11 @@ const OrganizerManagement = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [errors, setErrors] = useState({});
   const { isDarkMode } = useTheme();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredOrganizers, setFilteredOrganizers] = useState([]);
+  const [dialogSearchQuery, setDialogSearchQuery] = useState("");
+  const [filteredDialogUsers, setFilteredDialogUsers] = useState([]);
+
   useEffect(() => {
     console.log('Current users:', users);
     console.log('Current organizers:', organizers);
@@ -146,6 +151,44 @@ const OrganizerManagement = () => {
       loadUsers();
     }
   }, [isAddDialogOpen, organizers]);
+
+  // Filter organizers based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredOrganizers(organizers);
+    } else {
+      const filtered = organizers.filter(organizer => {
+        const searchLower = searchQuery.toLowerCase();
+        const name = organizer.user?.first_name?.toLowerCase() || '';
+        const email = organizer.user?.email?.toLowerCase() || '';
+        const companyName = organizer.company_name?.toLowerCase() || '';
+        const contactEmail = organizer.contact_email?.toLowerCase() || '';
+        const contactPhone = organizer.contact_phone?.toLowerCase() || '';
+        
+        return name.includes(searchLower) || 
+               email.includes(searchLower) || 
+               companyName.includes(searchLower) ||
+               contactEmail.includes(searchLower) ||
+               contactPhone.includes(searchLower);
+      });
+      setFilteredOrganizers(filtered);
+    }
+  }, [searchQuery, organizers]);
+
+  // Filter users in dialog based on search query
+  useEffect(() => {
+    if (dialogSearchQuery.trim() === "") {
+      setFilteredDialogUsers(users);
+    } else {
+      const filtered = users.filter(user => {
+        const searchLower = dialogSearchQuery.toLowerCase();
+        const name = user.first_name?.toLowerCase() || '';
+        const email = user.email?.toLowerCase() || '';
+        return name.includes(searchLower) || email.includes(searchLower);
+      });
+      setFilteredDialogUsers(filtered);
+    }
+  }, [dialogSearchQuery, users]);
 
   const handleAddOrganizer = async (e) => {
     e.preventDefault();
@@ -388,10 +431,10 @@ const OrganizerManagement = () => {
               <Plus className="mr-2 h-4 w-4" /> Add Organizer
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className={`sm:max-w-[425px] max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-slate-900 text-white' : ''}`}>
             <DialogHeader>
-              <DialogTitle>Add New Organizer</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className={isDarkMode ? 'text-white' : ''}>Add New Organizer</DialogTitle>
+              <DialogDescription className={isDarkMode ? 'text-slate-300' : ''}>
                 Promote a user to organizer by adding their company details.
               </DialogDescription>
             </DialogHeader>
@@ -401,23 +444,36 @@ const OrganizerManagement = () => {
             }}>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="user" className="text-right">
+                  <Label htmlFor="user" className={`text-right ${isDarkMode ? 'text-slate-300' : ''}`}>
                     User
                   </Label>
-                  <div className="col-span-3">
+                  <div className="col-span-3 space-y-2">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className={`h-4 w-4 ${isDarkMode ? 'text-slate-400' : 'text-gray-400'}`} />
+                      </div>
+                      <Input
+                        type="text"
+                        placeholder="Search users..."
+                        value={dialogSearchQuery}
+                        onChange={(e) => setDialogSearchQuery(e.target.value)}
+                        className={`pl-10 w-full ${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''}`}
+                      />
+                    </div>
                     <Select
                       value={selectedUserId}
                       onValueChange={setSelectedUserId}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className={`w-full ${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''}`}>
                         <SelectValue placeholder="Select a user" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {users.length > 0 ? (
-                          users.map((user) => (
+                      <SelectContent className={isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''}>
+                        {filteredDialogUsers.length > 0 ? (
+                          filteredDialogUsers.map((user) => (
                             <SelectItem 
                               key={user.id} 
                               value={String(user.id)}
+                              className={isDarkMode ? 'hover:bg-slate-700 focus:bg-slate-700' : ''}
                             >
                               {`${user.first_name || ''} ${user.last_name || ''} (${user.email})`}
                             </SelectItem>
@@ -426,6 +482,7 @@ const OrganizerManagement = () => {
                           <SelectItem 
                             value="no-users" 
                             disabled
+                            className={isDarkMode ? 'text-slate-400' : ''}
                           >
                             No available users found
                           </SelectItem>
@@ -435,19 +492,19 @@ const OrganizerManagement = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="company-name" className="text-right">
+                  <Label htmlFor="company-name" className={`text-right ${isDarkMode ? 'text-slate-300' : ''}`}>
                     Company Name
                   </Label>
                   <Input
                     id="company-name"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
+                    className={`${isDarkMode ? 'bg-slate-800 text-white' : ''} col-span-3`}
                     required
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="company-image" className="text-right">
+                  <Label htmlFor="company-image" className={`text-right ${isDarkMode ? 'text-slate-300' : ''}`}>
                     Company Image
                   </Label>
                   <div className="col-span-3 flex flex-col items-start gap-2">
@@ -532,7 +589,7 @@ const OrganizerManagement = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="contact-email" className="text-right">
+                  <Label htmlFor="contact-email" className={`text-right ${isDarkMode ? 'text-slate-300' : ''}`}>
                     Contact Email
                   </Label>
                   <Input
@@ -540,67 +597,69 @@ const OrganizerManagement = () => {
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
-                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
+                    className={`${isDarkMode ? 'bg-slate-800 text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="contact-phone" className="text-right">
+                  <Label htmlFor="contact-phone" className={`text-right ${isDarkMode ? 'text-slate-300' : ''}`}>
                     Contact Phone
                   </Label>
                   <Input
                     id="contact-phone"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
-                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
+                    className={`${isDarkMode ? 'bg-slate-800 text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="kra-pin" className="text-right">
+                  <Label htmlFor="kra-pin" className={`text-right ${isDarkMode ? 'text-slate-300' : ''}`}>
                     KRA PIN
                   </Label>
                   <Input
                     id="kra-pin"
                     value={kraPin}
                     onChange={(e) => setKraPin(e.target.value)}
-                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
+                    className={`${isDarkMode ? 'bg-slate-800 text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="bank-details" className="text-right">
+                  <Label htmlFor="bank-details" className={`text-right ${isDarkMode ? 'text-slate-300' : ''}`}>
                     Bank Details
                   </Label>
                   <Input
                     id="bank-details"
                     value={bankDetails}
                     onChange={(e) => setBankDetails(e.target.value)}
-                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
+                    className={`${isDarkMode ? 'bg-slate-800 text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="physical-address" className="text-right">
+                  <Label htmlFor="physical-address" className={`text-right ${isDarkMode ? 'text-slate-300' : ''}`}>
                     Physical Address
                   </Label>
                   <Input
                     id="physical-address"
                     value={physicalAddress}
                     onChange={(e) => setPhysicalAddress(e.target.value)}
-                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
+                    className={`${isDarkMode ? 'bg-slate-800 text-white' : ''} col-span-3`}
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="contact-person" className="text-right">
+                  <Label htmlFor="contact-person" className={`text-right ${isDarkMode ? 'text-slate-300' : ''}`}>
                     Contact Person
                   </Label>
                   <Input
                     id="contact-person"
                     value={contactPerson}
                     onChange={(e) => setContactPerson(e.target.value)}
-                    className={`${isDarkMode ? 'bg-muted text-white' : ''} col-span-3`}
+                    className={`${isDarkMode ? 'bg-slate-800 text-white' : ''} col-span-3`}
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Add Organizer</Button>
+                <Button type="submit" className={isDarkMode ? 'bg-primary hover:bg-primary/90' : ''}>
+                  Add Organizer
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -751,6 +810,18 @@ const OrganizerManagement = () => {
           <CardDescription>
             Manage users with organizer privileges
           </CardDescription>
+          <div className="relative mt-4">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <Input
+              type="text"
+              placeholder="Search organizers by name, email, company, or contact..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 w-full"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex justify-end mb-6">
@@ -767,9 +838,9 @@ const OrganizerManagement = () => {
             <div className="flex justify-center items-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : !Array.isArray(organizers) || organizers.length === 0 ? (
+          ) : !Array.isArray(filteredOrganizers) || filteredOrganizers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No organizers found. Add one to get started.
+              {searchQuery ? "No organizers found matching your search." : "No organizers found. Add one to get started."}
             </div>
           ) : (
             <Table>
@@ -782,7 +853,7 @@ const OrganizerManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {organizers.map((organizer) => (
+                {filteredOrganizers.map((organizer) => (
                   <TableRow key={organizer.id}>
                     <TableCell className="font-medium">
                       {organizer.user ? (

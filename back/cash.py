@@ -623,70 +623,138 @@ def send_ticket_qr_email( ticket):
         logging.error(f"Ticket email failed: {str(e)}")
 
 def generate_qr_attachment(ticket):
-    """Generate QR code file and return attachment data"""
+    """Generate QR code file with enhanced security and visual appeal"""
     try:
-        verification_url = f"{Config2.BASE_URL}/verify/{ticket.qr_code}"
+        # Create verification URL using ticket ID as the primary identifier
+        verification_url = f"{Config2.BASE_URL}/verify/ticket/{ticket.id}"
         
+        # Create QR code with enhanced settings
         qr = qrcode.QRCode(
-            version=5,
-            error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=12,
-            border=6,
+            version=None, 
+            error_correction=qrcode.constants.ERROR_CORRECT_H,  
+            box_size=10, 
+            border=4,  
         )
+        
         qr.add_data(verification_url)
         qr.make(fit=True)
         
-        img = qr.make_image(fill_color="#000000", back_color="#FFFFFF")
+        img = qr.make_image(
+            fill_color="#1a1a1a", 
+            back_color="#ffffff",  
+            image_factory=None  
+        )
+        
+        # Convert to PNG with high quality
         img_buffer = BytesIO()
-        img.save(img_buffer, format="PNG")
+        img.save(img_buffer, format="PNG", quality=100)
         img_buffer.seek(0)
         
-        return ("qr_ticket.png", img_buffer.getvalue())
+        # Generate filename using ticket ID
+        filename = f"ticket_{ticket.id}.png"
+        
+        return (filename, img_buffer.getvalue())
         
     except Exception as e:
         logging.error(f"QR generation failed: {str(e)}")
         raise
 
 def create_email_message(user, ticket, qr_filename, qr_data):
-    """Create email message with original QR box styling"""
+    """Create email message with enhanced styling and layout"""
     try:
         event_date = ticket.event.start_datetime.strftime('%B %d, %Y %H:%M') if not ticket.event.start_datetime else "Date to be announced"
         
-
         html_content = f"""<!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
+                body {{
+                    margin: 0;
+                    padding: 0;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background-color: #f5f5f5;
+                }}
                 .email-container {{
-                    font-family: Arial, sans-serif;
-                    padding: 20px;
-                    background-color: #f4f4f4;
-                    border-radius: 10px;
                     max-width: 600px;
                     margin: 0 auto;
+                    background-color: #ffffff;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
                 }}
                 .email-header {{
-                    background-color: {Config2.BRAND_COLOR};
+                    background: linear-gradient(135deg, {Config2.BRAND_COLOR}, {Config2.BRAND_COLOR}99);
                     color: white;
-                    padding: 20px;
+                    padding: 30px 20px;
                     text-align: center;
-                    border-radius: 10px 10px 0 0;
+                }}
+                .email-header h1 {{
+                    margin: 0;
+                    font-size: 24px;
+                    font-weight: 600;
                 }}
                 .email-body {{
                     padding: 30px;
-                    background-color: white;
-                    border-radius: 0 0 10px 10px;
+                    color: #333333;
+                }}
+                .greeting {{
+                    font-size: 18px;
+                    margin-bottom: 25px;
+                    color: #444444;
+                }}
+                .ticket-details {{
+                    background-color: #f8f9fa;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin-bottom: 25px;
+                }}
+                .detail-item {{
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    padding-bottom: 15px;
+                    border-bottom: 1px solid #e9ecef;
+                }}
+                .detail-item:last-child {{
+                    border-bottom: none;
+                    margin-bottom: 0;
+                    padding-bottom: 0;
+                }}
+                .detail-icon {{
+                    width: 24px;
+                    height: 24px;
+                    margin-right: 15px;
+                    color: {Config2.BRAND_COLOR};
+                }}
+                .detail-content {{
+                    flex: 1;
+                }}
+                .detail-label {{
+                    font-size: 14px;
+                    color: #6c757d;
+                    margin-bottom: 4px;
+                }}
+                .detail-value {{
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: #212529;
+                }}
+                .qr-section {{
+                    text-align: center;
+                    margin: 30px 0;
+                    padding: 25px;
+                    background-color: #ffffff;
+                    border-radius: 8px;
+                    border: 1px solid #e9ecef;
                 }}
                 .qr-box {{
-                    text-align: center;
-                    margin: 25px 0;
+                    display: inline-block;
                     padding: 20px;
-                    background: #ffffff;
-                    border: 2px solid #eeeeee;
+                    background-color: #ffffff;
                     border-radius: 8px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
                 }}
                 .qr-code-img {{
                     width: 200px;
@@ -694,56 +762,93 @@ def create_email_message(user, ticket, qr_filename, qr_data):
                     margin: 0 auto;
                     display: block;
                 }}
-                .details {{
-                    margin: 20px 0;
-                    line-height: 1.6;
-                    color: #333333;
+                .qr-instructions {{
+                    margin-top: 15px;
+                    color: #6c757d;
+                    font-size: 14px;
                 }}
-                .detail-item {{
-                    margin: 15px 0;
+                .footer {{
+                    margin-top: 30px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e9ecef;
+                    text-align: center;
+                    color: #6c757d;
+                    font-size: 14px;
+                }}
+                .event-title {{
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: #212529;
+                    margin-bottom: 20px;
+                }}
+                @media only screen and (max-width: 600px) {{
+                    .email-container {{
+                        border-radius: 0;
+                    }}
+                    .email-body {{
+                        padding: 20px;
+                    }}
+                    .qr-code-img {{
+                        width: 180px;
+                        height: 180px;
+                    }}
                 }}
             </style>
         </head>
         <body>
             <div class="email-container">
                 <div class="email-header">
-                    <h1>Your Ticket for {ticket.event.title}</h1>
+                    <h1>🎟 Your Ticket Confirmation</h1>
                 </div>
                 
                 <div class="email-body">
-                    <div class="details">
-                        <p>Hello {user.first_name} {user.last_name},</p>
+                    <div class="greeting">
+                        Hello {user.first_name} {user.last_name},
+                    </div>
+
+                    <div class="ticket-details">
+                        <div class="event-title">{ticket.event.title}</div>
                         
                         <div class="detail-item">
-                            <h3>{ticket.event.title}</h3>
+                            <div class="detail-icon">📅</div>
+                            <div class="detail-content">
+                                <div class="detail-label">Event Date & Time</div>
+                                <div class="detail-value">{event_date}</div>
+                            </div>
                         </div>
                         
                         <div class="detail-item">
-                            📅 <strong>Date:</strong> {event_date}
+                            <div class="detail-icon">📍</div>
+                            <div class="detail-content">
+                                <div class="detail-label">Location</div>
+                                <div class="detail-value">{ticket.event.location}</div>
+                            </div>
                         </div>
                         
                         <div class="detail-item">
-                            📍 <strong>Location:</strong> {ticket.event.location}
-                        </div>
-                        
-                        <div class="detail-item">
-                            🎟 <strong>Tickets:</strong> {ticket.quantity}
+                            <div class="detail-icon">🎫</div>
+                            <div class="detail-content">
+                                <div class="detail-label">Number of Tickets</div>
+                                <div class="detail-value">{ticket.quantity}</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="qr-box">
-                        <img src="cid:qr_code" 
-                             class="qr-code-img"
-                             alt="Ticket QR Code">
-                        <p style="margin-top: 15px; color: #666;">
-                            Scan this QR code at the event entrance
-                        </p>
+                    <div class="qr-section">
+                        <div class="qr-box">
+                            <img src="cid:qr_code" 
+                                 class="qr-code-img"
+                                 alt="Ticket QR Code">
+                            <div class="qr-instructions">
+                                Present this QR code at the event entrance for scanning
+                            </div>
+                        </div>
                     </div>
                     
-                    <p style="margin-top: 25px;">
-                        Best regards,<br>
-                        <strong>The {Config2.EMAIL_SENDER_NAME}</strong>
-                    </p>
+                    <div class="footer">
+                        <p>We look forward to seeing you at the event!</p>
+                        <p>Best regards,<br><strong>{Config2.EMAIL_SENDER_NAME}</strong></p>
+                    </div>
                 </div>
             </div>
         </body>
@@ -769,10 +874,12 @@ Date: {event_date}
 Location: {ticket.event.location}
 Tickets: {ticket.quantity}
 
-Scan the attached QR code at the event entrance.
+Please present the attached QR code at the event entrance for scanning.
+
+We look forward to seeing you at the event!
 
 Best regards,
-The {Config2.EMAIL_SENDER_NAME}"""
+{Config2.EMAIL_SENDER_NAME}"""
 
         # Attach QR code
         msg.attach(

@@ -59,7 +59,15 @@ const EventStatsPage = () => {
         return;
       }
 
-      const response = await api.get(`/api/stats?page=${eventsPage}&per_page=${eventsPerPage}`);
+      const response = await api.get(`/api/stats`, {
+        params: {
+          page: eventsPage,
+          per_page: eventsPerPage
+        },
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
 
       if (response.data) {
         setPlatformData({

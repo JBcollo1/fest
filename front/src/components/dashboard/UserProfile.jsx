@@ -268,15 +268,15 @@ const UserProfile = () => {
 
 
   return (
-    <div className={`container mx-auto py-12 px-4 animate-fade-in ${isDarkMode ? 'bg-slate-950' : ''}`}>
+    <div className={`container mx-auto py-6 sm:py-12 px-4 animate-fade-in ${isDarkMode ? 'bg-slate-950' : ''}`}>
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-foreground mb-3 flex items-center gap-3 font-display">
-          <UserCircle className="h-8 w-8 text-primary" />
+        <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 sm:mb-3 flex items-center gap-2 sm:gap-3 font-display">
+          <UserCircle className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
           My Profile
         </h1>
-        <p className="text-muted-foreground mb-10 text-lg font-sans">Manage your account information and preferences</p>
+        <p className="text-muted-foreground mb-6 sm:mb-10 text-base sm:text-lg font-sans">Manage your account information and preferences</p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 w-full">
 
           {/* Left Column - User Card */}
           <div className="lg:col-span-3">
@@ -351,40 +351,40 @@ const UserProfile = () => {
           </div> 
           
           {/* Right Column - Tabs and Content */}
-          <div className="lg:col-span-9 space-y-8">
+          <div className="lg:col-span-9 space-y-6 sm:space-y-8">
             <Card className={`shadow-glass border ${isDarkMode ? 'bg-slate-950/90 border-slate-800' : 'bg-white/90 border-border/40'}`}>
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between mb-2">
-                  <CardTitle className="font-display text-2xl">Account Information</CardTitle>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 mb-2">
+                  <CardTitle className="font-display text-xl sm:text-2xl">Account Information</CardTitle>
                   <Button 
                     onClick={handleEditToggle} 
                     variant={isEditing ? "outline" : "default"}
-                    className={`flex items-center gap-6 ${isDarkMode && isEditing ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                    className={`flex items-center gap-2 w-full sm:w-auto ${isDarkMode && isEditing ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                   >
                     <Edit className="w-4 h-4" />
                     {isEditing ? "Cancel" : "Edit Profile"}
                   </Button>
                 </div>
-                <CardDescription className="font-sans text-base">
+                <CardDescription className="font-sans text-sm sm:text-base">
                   Update your personal details and contact information
                 </CardDescription>
               </CardHeader>
               
               <Tabs defaultValue="personal" className="w-full" onValueChange={setActiveTab}>
-                <div className="px-6">
+                <div className="px-4 sm:px-6">
                   <TabsList className={`grid grid-cols-2 w-full max-w-md ${isDarkMode ? 'bg-slate-800' : ''}`}>
-                    <TabsTrigger value="personal" className="font-sans">Personal Info</TabsTrigger>
-                    <TabsTrigger value="emergency" className="font-sans">Emergency Contacts</TabsTrigger>
+                    <TabsTrigger value="personal" className="font-sans text-sm sm:text-base">Personal Info</TabsTrigger>
+                    <TabsTrigger value="emergency" className="font-sans text-sm sm:text-base">Emergency Contacts</TabsTrigger>
                   </TabsList>
                 </div>
                 
-                <CardContent className="pt-6">
-                  <TabsContent value="personal" className="space-y-6 animate-fade-in">
+                <CardContent className="pt-4 sm:pt-6">
+                  <TabsContent value="personal" className="space-y-4 sm:space-y-6 animate-fade-in">
                     {isEditing ? (
-                      <form onSubmit={handleFormSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <form onSubmit={handleFormSubmit} className="space-y-4 sm:space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                           <div className="space-y-2">
-                            <Label htmlFor="username" className="font-sans text-sm">Username</Label>
+                            <Label htmlFor="username" className="font-sans text-sm sm:text-base">Username</Label>
                             <Input 
                               id="username" 
                               name="username" 
@@ -394,7 +394,7 @@ const UserProfile = () => {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="email" className="font-sans text-sm">Email Address</Label>
+                            <Label htmlFor="email" className="font-sans text-sm sm:text-base">Email Address</Label>
                             <Input 
                               id="email" 
                               name="email" 
@@ -405,7 +405,7 @@ const UserProfile = () => {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="first_name" className="font-sans text-sm">First Name</Label>
+                            <Label htmlFor="first_name" className="font-sans text-sm sm:text-base">First Name</Label>
                             <Input 
                               id="first_name" 
                               name="first_name" 
@@ -415,7 +415,7 @@ const UserProfile = () => {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="last_name" className="font-sans text-sm">Last Name</Label>
+                            <Label htmlFor="last_name" className="font-sans text-sm sm:text-base">Last Name</Label>
                             <Input 
                               id="last_name" 
                               name="last_name" 
@@ -425,7 +425,7 @@ const UserProfile = () => {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="phone" className="font-sans text-sm">Phone Number</Label>
+                            <Label htmlFor="phone" className="font-sans text-sm sm:text-base">Phone Number</Label>
                             <Input 
                               id="phone" 
                               name="phone" 
@@ -434,44 +434,42 @@ const UserProfile = () => {
                               className={`w-full font-sans ${isDarkMode ? 'bg-muted text-white' : ''}`}
                             />
                           </div>
-
                         </div>
                       </form>
                     ) : (
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4 sm:space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                           <div className="space-y-1">
-                            <Label className="font-sans text-sm text-muted-foreground">Username</Label>
+                            <Label className="font-sans text-sm sm:text-base text-muted-foreground">Username</Label>
                             <p className="font-medium font-sans">{formData.username || "Not provided"}</p>
                           </div>
                           <div className="space-y-1">
-                            <Label className="font-sans text-sm text-muted-foreground">Email Address</Label>
+                            <Label className="font-sans text-sm sm:text-base text-muted-foreground">Email Address</Label>
                             <p className="font-medium font-sans">{formData.email || "Not provided"}</p>
                           </div>
                           <div className="space-y-1">
-                            <Label className="font-sans text-sm text-muted-foreground">First Name</Label>
+                            <Label className="font-sans text-sm sm:text-base text-muted-foreground">First Name</Label>
                             <p className="font-medium font-sans">{formData.first_name || "Not provided"}</p>
                           </div>
                           <div className="space-y-1">
-                            <Label className="font-sans text-sm text-muted-foreground">Last Name</Label>
+                            <Label className="font-sans text-sm sm:text-base text-muted-foreground">Last Name</Label>
                             <p className="font-medium font-sans">{formData.last_name || "Not provided"}</p>
                           </div>
                           <div className="space-y-1">
-                            <Label className="font-sans text-sm text-muted-foreground">Phone Number</Label>
+                            <Label className="font-sans text-sm sm:text-base text-muted-foreground">Phone Number</Label>
                             <p className="font-medium font-sans">{formData.phone || "Not provided"}</p>
                           </div>
- 
                         </div>
                       </div>
                     )}
                   </TabsContent>
                   
-                  <TabsContent value="emergency" className="space-y-6 animate-fade-in">
+                  <TabsContent value="emergency" className="space-y-4 sm:space-y-6 animate-fade-in">
                     {isEditing ? (
-                      <form onSubmit={handleFormSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <form onSubmit={handleFormSubmit} className="space-y-4 sm:space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                           <div className="space-y-2">
-                            <Label htmlFor="next_of_kin_name" className="font-sans text-sm">Next of Kin Name</Label>
+                            <Label htmlFor="next_of_kin_name" className="font-sans text-sm sm:text-base">Next of Kin Name</Label>
                             <Input 
                               id="next_of_kin_name" 
                               name="next_of_kin_name" 
@@ -481,7 +479,7 @@ const UserProfile = () => {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="next_of_kin_contact" className="font-sans text-sm">Next of Kin Contact</Label>
+                            <Label htmlFor="next_of_kin_contact" className="font-sans text-sm sm:text-base">Next of Kin Contact</Label>
                             <Input 
                               id="next_of_kin_contact" 
                               name="next_of_kin_contact" 
@@ -493,14 +491,14 @@ const UserProfile = () => {
                         </div>
                       </form>
                     ) : (
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4 sm:space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                           <div className="space-y-1">
-                            <Label className="font-sans text-sm text-muted-foreground">Next of Kin Name</Label>
+                            <Label className="font-sans text-sm sm:text-base text-muted-foreground">Next of Kin Name</Label>
                             <p className="font-medium font-sans">{formData.next_of_kin_name || "Not provided"}</p>
                           </div>
                           <div className="space-y-1">
-                            <Label className="font-sans text-sm text-muted-foreground">Next of Kin Contact</Label>
+                            <Label className="font-sans text-sm sm:text-base text-muted-foreground">Next of Kin Contact</Label>
                             <p className="font-medium font-sans">{formData.next_of_kin_contact || "Not provided"}</p>
                           </div>
                         </div>
@@ -510,16 +508,20 @@ const UserProfile = () => {
                 </CardContent>
                 
                 {isEditing && (
-                  <CardFooter className={`flex justify-end border-t ${isDarkMode ? 'border-slate-700' : 'border-border/40'} pt-4 pb-6`}>
+                  <CardFooter className={`flex flex-col sm:flex-row justify-end gap-2 sm:gap-0 border-t ${isDarkMode ? 'border-slate-700' : 'border-border/40'} pt-4 pb-6`}>
                     <Button 
                       type="button" 
                       variant="outline" 
-                      className={`mr-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`} 
+                      className={`w-full sm:w-auto ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`} 
                       onClick={handleEditToggle}
                     >
                       Cancel
                     </Button>
-                    <Button type="button" onClick={handleFormSubmit} className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary">
+                    <Button 
+                      type="button" 
+                      onClick={handleFormSubmit} 
+                      className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+                    >
                       {isUploading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -540,20 +542,20 @@ const UserProfile = () => {
             {/* Payment Methods Card with M-PESA */}
             <Card className={`shadow-glass border ${isDarkMode ? 'bg-slate-950/90 border-slate-800' : 'bg-white/90 border-border/40'}`}>
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between mb-2">
-                  <CardTitle className="font-display text-2xl">Payment Methods</CardTitle>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 mb-2">
+                  <CardTitle className="font-display text-xl sm:text-2xl">Payment Methods</CardTitle>
                   {isEditing ? null : (
                     <Button 
                       onClick={handleEditToggle}
                       variant="outline"
-                      className={`flex items-center gap-2 ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+                      className={`flex items-center gap-2 w-full sm:w-auto ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
                     >
                       <Edit className="w-4 h-4" />
                       Edit Payment Methods
                     </Button>
                   )}
                 </div>
-                <CardDescription className="font-sans text-base">
+                <CardDescription className="font-sans text-sm sm:text-base">
                   Manage your payment methods and billing information
                 </CardDescription>
               </CardHeader>
@@ -562,47 +564,47 @@ const UserProfile = () => {
                 <div className="space-y-4">
 
                   {/* M-PESA Payment */}
-                  <div className={`${isDarkMode ? 'border-green-900 bg-green-950' : 'border-green-100 bg-green-50'} border rounded-lg p-4 flex items-start space-x-4`}>
-                      <div className={isDarkMode ? 'bg-green-900 p-2 rounded-md' : 'bg-green-100 p-2 rounded-md'}>
-                        <Phone className={`h-6 w-6 ${isDarkMode ? 'text-green-500' : 'text-green-600'}`} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between">
-                          <div>
-                            <p className="font-medium flex items-center">
-                              <span className={`${isDarkMode ? 'text-green-500' : 'text-green-700'} font-bold mr-2`}>M-PESA</span>
-                            </p>
-                            {isEditing ? (
-                              <div className="mt-2">
-                                <Label htmlFor="mpesa_number" className={`font-sans text-xs ${isDarkMode ? 'text-green-500' : 'text-green-600'} mb-1 block`}>M-PESA Number</Label>
-                                <Input 
-                                  id="mpesa_number" 
-                                  name="mpesa_number" 
-                                  value={formData.phone} // Use phone from formData instead of separate mpesa_number
-                                  onChange={handleInputChange} 
-                                  className={`w-full font-sans text-sm ${isDarkMode ? 'bg-green-900 border-green-800 text-white focus:border-green-700' : 'border-green-200 focus:border-green-500'}`}
-                                  placeholder="+254 7XX XXX XXX"
-                                />
-                              </div>
-                            ) : (
-                              <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formData.phone || "No phone number"}</p>
-                            )}
-                          </div>
-                          {!isEditing && (
-                            <span className={`${isDarkMode ? 'bg-green-900 text-green-500' : 'bg-green-100 text-green-800'} px-2 py-1 rounded text-xs font-medium`}>Default</span>
+                  <div className={`${isDarkMode ? 'border-green-900 bg-green-950' : 'border-green-100 bg-green-50'} border rounded-lg p-4 flex flex-col sm:flex-row sm:items-start gap-4`}>
+                    <div className={`${isDarkMode ? 'bg-green-900' : 'bg-green-100'} p-2 rounded-md w-fit`}>
+                      <Phone className={`h-6 w-6 ${isDarkMode ? 'text-green-500' : 'text-green-600'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <p className="font-medium flex items-center">
+                            <span className={`${isDarkMode ? 'text-green-500' : 'text-green-700'} font-bold mr-2`}>M-PESA</span>
+                          </p>
+                          {isEditing ? (
+                            <div className="mt-2">
+                              <Label htmlFor="mpesa_number" className={`font-sans text-xs ${isDarkMode ? 'text-green-500' : 'text-green-600'} mb-1 block`}>M-PESA Number</Label>
+                              <Input 
+                                id="mpesa_number" 
+                                name="mpesa_number" 
+                                value={formData.phone}
+                                onChange={handleInputChange} 
+                                className={`w-full font-sans text-sm ${isDarkMode ? 'bg-green-900 border-green-800 text-white focus:border-green-700' : 'border-green-200 focus:border-green-500'}`}
+                                placeholder="+254 7XX XXX XXX"
+                              />
+                            </div>
+                          ) : (
+                            <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{formData.phone || "No phone number"}</p>
                           )}
                         </div>
+                        {!isEditing && (
+                          <span className={`${isDarkMode ? 'bg-green-900 text-green-500' : 'bg-green-100 text-green-800'} px-2 py-1 rounded text-xs font-medium w-fit`}>Default</span>
+                        )}
                       </div>
                     </div>
+                  </div>
                   {/* Credit Card Payment */}
-                  <div className={`border ${isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-gray-200 bg-white'} rounded-lg p-4 flex items-start space-x-4`}>
-                    <div className={`${isDarkMode ? 'bg-primary/20' : 'bg-primary/10'} p-2 rounded-md`}>
+                  <div className={`border ${isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-gray-200 bg-white'} rounded-lg p-4 flex flex-col sm:flex-row sm:items-start gap-4`}>
+                    <div className={`${isDarkMode ? 'bg-primary/20' : 'bg-primary/10'} p-2 rounded-md w-fit`}>
                       <CreditCard className="h-6 w-6 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <div className="flex justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <p className="font-medium">•••• •••• •••• 4242</p>
-                        <span className={`${isDarkMode ? 'bg-yellow-900 text-yellow-500' : 'bg-yellow-100 text-yellow-800'} px-2 py-1 rounded text-xs font-medium`}>Inactive</span>
+                        <span className={`${isDarkMode ? 'bg-yellow-900 text-yellow-500' : 'bg-yellow-100 text-yellow-800'} px-2 py-1 rounded text-xs font-medium w-fit`}>Inactive</span>
                       </div>
                       <p className="text-sm text-gray-500">Not Yet Available</p>
                     </div>
