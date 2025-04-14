@@ -132,6 +132,31 @@ class RedisManager:
             logger.error(f"Error invalidating event cache {event_id}: {str(e)}")
             return False
 
+    def acquire_lock(self, lock_name, timeout=30):
+        """Acquire a distributed lock"""
+        if not self.client:
+            return False
+        try:
+            return self.client.set(
+                f"lock:{lock_name}",
+                "1",
+                nx=True,
+                ex=timeout
+            )
+        except Exception as e:
+            logger.error(f"Error acquiring lock {lock_name}: {str(e)}")
+            return False
+
+    def release_lock(self, lock_name):
+        """Release a distributed lock"""
+        if not self.client:
+            return False
+        try:
+            return self.client.delete(f"lock:{lock_name}") > 0
+        except Exception as e:
+            logger.error(f"Error releasing lock {lock_name}: {str(e)}")
+            return False
+
     def __del__(self):
         """Cleanup connection pool"""
         if self._pool:

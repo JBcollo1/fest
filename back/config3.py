@@ -20,6 +20,19 @@ class Config:
     CELERY_TASK_IGNORE_RESULT = False
     CELERYD_MAX_TASKS_PER_CHILD = 100
     CELERYD_MAX_MEMORY_PER_CHILD = 15000  # 15MB
+    CELERY_TASK_ACKS_LATE = True
+    CELERY_TASK_REJECT_ON_WORKER_LOST = True
+    CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+    CELERY_TASK_QUEUES = {
+        'high_priority': {
+            'exchange': 'high_priority',
+            'routing_key': 'high_priority'
+        },
+        'low_priority': {
+            'exchange': 'low_priority',
+            'routing_key': 'low_priority'
+        }
+    }
     
     # Redis connection settings
     if REDIS_URL:
@@ -53,10 +66,12 @@ class Config:
     
     # Database connection pool settings
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,
-        'max_overflow': 20,
+        'pool_size': 20,
+        'max_overflow': 40,
         'pool_recycle': 300,
-        'pool_pre_ping': True
+        'pool_pre_ping': True,
+        'pool_timeout': 30,
+        'pool_reset_on_return': 'rollback'
     }
     
     # Memory management settings
