@@ -425,108 +425,113 @@ class TicketPurchaseResource(Resource):
     """Resource for initiating ticket purchases"""
     
     @jwt_required()
-    def post(self):
+    def post(self, event_id):
         """Initiate ticket purchase for an event"""
         try:
-            data = request.get_json()
-            ticket_type_id = data.get('ticket_type_id')
-            quantity = data.get('quantity', 1)
-            event_id = data.get('event_id')
-            user_id = get_jwt_identity()
-            phone_number = data.get('phone_number')
+            current_user_id = get_jwt_identity()
+            user = User.query.get(current_user_id)
             
-            # Get user and create attendee if needed
-            user = User.query.get(user_id)
             if not user:
-                return {'error': 'User not found'}, 404
+                return error_response("User not found", 404)
                 
+            # Get event
+            event = Event.query.get(event_id)
+            
+            if not event:
+                return error_response("Event not found", 404)
+                
+            # Get ticket details from request
+            data = request.get_json()
+            ticket_details = data.get('ticket_details', [])
+            total_amount = data.get('total_amount', 0)
+            
+            if not ticket_details:
+                return error_response("No ticket details provided", 400)
+                
+            # Validate ticket details
+            for detail in ticket_details:
+                ticket_type_id = detail.get('ticket_type_id')
+                quantity = detail.get('quantity', 1)
+                
+                # Get ticket type
+                ticket_type = TicketType.query.get(ticket_type_id)
+                
+                if not ticket_type or ticket_type.event_id != event_id:
+                    return error_response("Invalid ticket type", 400)
+                    
+                # Check availability
+                available = ticket_type.quantity - ticket_type.tickets_sold
+                if available < quantity:
+                    return error_response(f"Only {available} tickets available for {ticket_type.name}", 400)
+                    
+                # Check per-person limit
+                if ticket_type.per_person_limit and quantity > ticket_type.per_person_limit:
+                    return error_response(f"Cannot purchase more than {ticket_type.per_person_limit} tickets per person", 400)
+            
+            # Get or create attendee
             attendee = Attendee.query.filter_by(user_id=user.id).first()
             if not attendee:
-                attendee = Attendee(
-                    user_id=user.id,
-                    first_name=user.first_name,
-                    last_name=user.last_name,
-                    email=user.email,
-                    phone=user.phone
-                )
+                attendee = Attendee(user_id=user.id)
                 db.session.add(attendee)
                 db.session.flush()
             
-            # Get ticket type with lock
-            ticket_type = TicketType.query.with_for_update().get(ticket_type_id)
-            if not ticket_type or ticket_type.event_id != event_id:
-                return {'error': 'Invalid ticket type'}, 400
+            # Initialize M-Pesa payment
+            payment_result = initiate_mpesa_payment(total_amount, user.phone)
             
-            # Validate ticket availability
-            available = ticket_type.quantity - ticket_type.tickets_sold
-            if available < quantity:
-                return {'error': f'Only {available} tickets available'}, 400
-            
-            # Check if ticket type is still active
-            if not ticket_type.is_active:
-                return {'error': 'Ticket type is no longer available'}, 400
+            if "error" in payment_result:
+                return error_response(f"Payment initiation failed: {payment_result.get('error')}", 400)
                 
-            # Check if ticket type is within valid date range
-            now = datetime.utcnow()
-            if ticket_type.valid_from and now < ticket_type.valid_from:
-                return {'error': 'Ticket type is not yet available'}, 400
-            if ticket_type.valid_until and now > ticket_type.valid_until:
-                return {'error': 'Ticket type has expired'}, 400
+            # Check for valid response
+            if payment_result.get('ResponseCode') != '0':
+                return error_response(f"Payment gateway error: {payment_result.get('ResponseDescription')}", 400)
+                
+            # Get checkout request ID
+            checkout_request_id = payment_result.get('CheckoutRequestID')
             
-            # Create ticket first
-            ticket = Ticket(
-                event_id=event_id,
-                attendee_id=attendee.id,
-                ticket_type_id=ticket_type_id,
-                price=ticket_type.price * quantity,
-                quantity=quantity,
-                currency=ticket_type.currency,
-                satus='pending'
-            )
+            if not checkout_request_id:
+                return error_response("Missing checkout request ID in payment response", 400)
             
-            db.session.add(ticket)
-            db.session.flush()  # This will generate the ticket ID
+            # Create ticket records for each ticket type
+            tickets = []
+            for detail in ticket_details:
+                ticket_type_id = detail.get('ticket_type_id')
+                quantity = detail.get('quantity', 1)
+                
+                ticket_type = TicketType.query.get(ticket_type_id)
+                
+                # Create ticket
+                ticket = Ticket(
+                    event_id=event.id,
+                    attendee_id=attendee.id,
+                    ticket_type_id=ticket_type.id,
+                    price=ticket_type.price * quantity,
+                    quantity=quantity,
+                    currency=ticket_type.currency,
+                    satus='pending'  # Initially pending
+                )
+                
+                db.session.add(ticket)
+                db.session.flush()  # Get ticket ID
+                tickets.append(ticket)
             
-            # Update tickets sold count
-            ticket_type.tickets_sold += quantity
-            
-            # Create payment with the ticket ID
+            # Create payment record
             payment = Payment(
-                ticket_id=ticket.id,  # Now we have the ticket ID
                 payment_method='Mpesa',
                 payment_status='Pending',
-                transaction_id=None,  # Will be updated after STK push
-                amount=ticket.price,
-                currency=ticket.currency,
-                payment_date=datetime.utcnow()
+                transaction_id=checkout_request_id,
+                amount=total_amount,
+                currency=tickets[0].currency
             )
             
             db.session.add(payment)
-            db.session.flush()  # This will generate the payment ID
+            db.session.flush()  # Get payment ID
             
-            # Update ticket with payment ID
-            ticket.payment_id = payment.id
+            # Link all tickets to the payment
+            for ticket in tickets:
+                ticket.payment_id = payment.id
             
-            # Process payment
-            stk_response = initiate_mpesa_payment(ticket.price, phone_number)
-            
-            if "error" in stk_response:
-                db.session.rollback()
-                return {'error': stk_response.get('error')}, 400
-                
-            if stk_response.get('ResponseCode') != '0':
-                db.session.rollback()
-                return {'error': stk_response.get('ResponseDescription')}, 400
-                
-            checkout_request_id = stk_response.get('CheckoutRequestID')
-            if not checkout_request_id:
-                db.session.rollback()
-                return {'error': 'Missing checkout request ID in payment response'}, 400
-            
-            # Update payment with transaction ID
-            payment.transaction_id = checkout_request_id
             db.session.commit()
-            
+
             # Schedule payment verification
             threading.Timer(
                 5,  # Initial delay
@@ -544,9 +549,9 @@ class TicketPurchaseResource(Resource):
             }
                 
         except Exception as e:
-            logger.error(f"Error processing ticket purchase: {str(e)}")
             db.session.rollback()
-            return {'error': str(e)}, 500
+            logger.error(f"Error processing ticket purchase: {str(e)}")
+            return {'error': 'An unexpected error occurred'}, 500
 
 def get_verification_status(result, payment):
     """Check payment status for a given checkout request ID"""
