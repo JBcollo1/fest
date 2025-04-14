@@ -429,6 +429,19 @@ class TicketPurchaseResource(Resource):
             if not ticket_details:
                 return error_response("No ticket details provided", 400)
             
+            # Check if attendee exists, if not create one
+            attendee = Attendee.query.filter_by(user_id=user.id).first()
+            if not attendee:
+                attendee = Attendee(
+                    user_id=user.id,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    email=user.email,
+                    phone=user.phone
+                )
+                db.session.add(attendee)
+                db.session.flush()  # Get the attendee ID without committing
+            
             # Create tickets first
             created_tickets = []
             for detail in ticket_details:
@@ -443,7 +456,7 @@ class TicketPurchaseResource(Resource):
                 # Create ticket
                 ticket = Ticket(
                     event_id=event_id,
-                    attendee_id=user.id,
+                    attendee_id=attendee.id,  # Use the attendee's ID
                     ticket_type_id=ticket_type.id,
                     price=ticket_type.price * detail.get('quantity', 1),
                     quantity=detail.get('quantity', 1),
