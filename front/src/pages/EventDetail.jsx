@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
+import axios from 'axios';
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -80,55 +81,45 @@ const EventDetail = () => {
         }
 
         // If no cache or cache expired, fetch from API
-        const eventData = await fetchEventById(id);
-        if (!eventData) {
-          throw new Error('Event not found');
-        }
-        
-        setEvent(eventData);
-
-        // Cache the event data
-        localStorage.setItem(`event_${id}`, JSON.stringify({
-          data: eventData,
-          timestamp: new Date().getTime()
-        }));
-
-        // Initialize selected tickets state
-        const initialSelectedTickets = {};
-        if (eventData && eventData.ticket_types) {
-          eventData.ticket_types.forEach(type => {
-            initialSelectedTickets[type.id] = 0;
-          });
-        }
-        
-        // Check if we have saved tickets for this event
-        const savedTickets = localStorage.getItem(`event_${id}_tickets`);
-        if (savedTickets) {
-          try {
-            const parsedTickets = JSON.parse(savedTickets);
-            if (parsedTickets.eventId === id) {
-              setSelectedTickets(parsedTickets.tickets);
-              localStorage.removeItem(`event_${id}_tickets`);
-            } else {
-              setSelectedTickets(initialSelectedTickets);
-            }
-          } catch (e) {
-            console.error("Error parsing saved tickets:", e);
-            setSelectedTickets(initialSelectedTickets);
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/${id}`, {
+          withCredentials: true,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
           }
-        } else {
+        });
+
+        if (response.data?.data) {
+          const eventData = response.data.data;
+          setEvent(eventData);
+
+          // Cache the event data
+          localStorage.setItem(`event_${id}`, JSON.stringify({
+            data: eventData,
+            timestamp: new Date().getTime()
+          }));
+
+          // Initialize selected tickets state
+          const initialSelectedTickets = {};
+          if (eventData.ticket_types) {
+            eventData.ticket_types.forEach(type => {
+              initialSelectedTickets[type.id] = 0;
+            });
+          }
           setSelectedTickets(initialSelectedTickets);
+        } else {
+          throw new Error('Event not found');
         }
       } catch (err) {
         console.error('Error loading event:', err);
-        setError('Failed to load event details');
+        setError(err.response?.data?.message || 'Failed to load event details');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadEvent();
-  }, [id, fetchEventById]);
+  }, [id]);
   
   const increaseTickets = (ticketTypeId) => {
     if (event) {
@@ -202,80 +193,76 @@ const EventDetail = () => {
   };
 
   const handlePurchase = async () => {
-    // Check if user is authenticated
     if (!isAuthenticated) {
       const returnUrl = encodeURIComponent(`/event/${id}`);
-      
-      localStorage.setItem(`event_${id}_tickets`, JSON.stringify({
-        eventId: id,
-        tickets: selectedTickets
-      }));
-      
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to purchase tickets",
-        variant: "default",
-      });
       navigate(`/signin?returnUrl=${returnUrl}`);
       return;
     }
 
     try {
       setIsPurchasing(true);
-      const ticketDetails = Object.keys(selectedTickets).map(ticketTypeId => ({
-        ticket_type_id: ticketTypeId,
-        quantity: selectedTickets[ticketTypeId]
-      }));
+      
+      // Prepare ticket details
+      const ticketDetails = Object.entries(selectedTickets)
+        .filter(([_, quantity]) => quantity > 0)
+        .map(([ticketTypeId, quantity]) => ({
+          ticket_type_id: ticketTypeId,
+          quantity: quantity
+        }));
 
-      const totalAmount = Object.keys(selectedTickets).reduce((total, ticketTypeId) => {
-        const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
-        return total + (ticketType.price * selectedTickets[ticketTypeId]);
-      }, 0);
-
-      // Send the purchase request to the backend
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/events/${event.id}/purchase`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include', // Include cookies with the request
-        body: JSON.stringify({
-          ticket_details: ticketDetails,
-          total_amount: totalAmount
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to purchase tickets');
+      if (ticketDetails.length === 0) {
+        toast({
+          title: "No tickets selected",
+          description: "Please select at least one ticket to purchase",
+          variant: "destructive",
+        });
+        return;
       }
 
-      const responseData = await response.json();
-      
-      if (responseData.message && responseData.message.includes("Payment initiated successfully")) {
+      // Calculate total amount
+      const totalAmount = ticketDetails.reduce((total, detail) => {
+        const ticketType = event.ticket_types.find(type => type.id === detail.ticket_type_id);
+        return total + (ticketType.price * detail.quantity);
+      }, 0);
+
+      // Send purchase request
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/events/${id}/purchase`,
+        {
+          ticket_details: ticketDetails,
+          total_amount: totalAmount
+        },
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data?.message?.includes("Payment initiated successfully")) {
         toast({
           title: "Payment Initiated",
           description: "Please complete the payment on your phone. You'll be notified via email when your payment is confirmed.",
           duration: 7000,
         });
         
-        localStorage.removeItem(`event_${id}_tickets`);
-        
-      } else {
-        toast({
-          title: "Unexpected Response",
-          description: "There was an issue with the payment process. Please try again.",
-          variant: "destructive",
+        // Clear selected tickets after successful purchase
+        const initialSelectedTickets = {};
+        event.ticket_types.forEach(type => {
+          initialSelectedTickets[type.id] = 0;
         });
+        setSelectedTickets(initialSelectedTickets);
       }
     } catch (error) {
       console.error("Error purchasing tickets:", error);
       toast({
         title: "Error",
-        description: "Failed to purchase tickets. Please try again.",
+        description: error.response?.data?.message || "Failed to purchase tickets. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setTimeout(() => setIsPurchasing(false), 40000);
+      setIsPurchasing(false);
     }
   };
 

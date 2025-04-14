@@ -144,13 +144,27 @@ const Events = () => {
         return;
       }
 
+      // Build query params
       const queryParams = new URLSearchParams();
+      
+      // Add base filters
+      if (activeFilter !== 'all') {
+        queryParams.append('category', activeFilter);
+      }
+      if (searchQuery) {
+        queryParams.append('search', searchQuery);
+      }
+      if (selectedLocation) {
+        queryParams.append('location', selectedLocation);
+      }
+      
+      // Add show_past parameter
+      queryParams.append('show_past', showPastEvents.toString());
+      
+      // Add additional filters
       Object.entries(filters).forEach(([key, value]) => {
         if (value) queryParams.append(key, value);
       });
-
-      // Add show_past parameter
-      queryParams.append('show_past', showPastEvents.toString());
 
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/events?${queryParams.toString()}`,
@@ -194,7 +208,7 @@ const Events = () => {
     // Debounce search to prevent too many API calls
     const timeoutId = setTimeout(() => {
       fetchEvents(filters);
-    }, searchQuery ? 500 : 0); // Increased debounce time for search
+    }, searchQuery ? 500 : 0);
     
     return () => {
       clearTimeout(timeoutId);
@@ -202,7 +216,7 @@ const Events = () => {
         abortControllerRef.current.abort();
       }
     };
-  }, [activeFilter, searchQuery, selectedLocation, filters, retryCount]);
+  }, [activeFilter, searchQuery, selectedLocation, filters, showPastEvents]);
 
   const handleSearch = (searchParams) => {
     setSearchQuery(searchParams.query || '');
@@ -239,6 +253,13 @@ const Events = () => {
   // Add toggle for past events
   const togglePastEvents = () => {
     setShowPastEvents(!showPastEvents);
+    // Clear cache when toggling past events
+    eventsCache.current = {
+      all: [],
+      byCategory: {},
+      bySearch: {},
+      byLocation: {}
+    };
   };
 
   return (
