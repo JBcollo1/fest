@@ -32,6 +32,7 @@ class EventListResource(Resource):
         end_date = request.args.get('end_date')
         organizer_id = request.args.get('organizer_id')
         location = request.args.get('location')
+        show_past = request.args.get('show_past', 'false').lower() == 'true'
         
         query = Event.query
         
@@ -40,7 +41,6 @@ class EventListResource(Resource):
             
         if search:
             search_term = f"%{search}%"
-            # Enhanced search across multiple fields with case-insensitive matching
             query = query.filter(
                 db.or_(
                     Event.title.ilike(search_term),
@@ -60,22 +60,26 @@ class EventListResource(Resource):
                 end_date = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
                 query = query.filter(Event.end_datetime <= end_date)
             except ValueError:
-                return error_response("Invalid end_date format")
+                return error_response("Invalid end_datetime format")
                 
         if organizer_id:
             query = query.filter(Event.organizer_id == organizer_id)
             
         if location:
-            print(f"Filtering events by location: {location}")  # Debug log
             location_term = f"%{location}%"
             query = query.filter(Event.location.ilike(location_term))
-            print(f"SQL Query: {str(query)}")  # Debug log
             
-        # Sort by start date
-        query = query.order_by(Event.start_datetime)
+        # Get current time for sorting
+        current_time = datetime.utcnow()
         
-        # Get paginated results
-        result = paginate_response(query)
+        # Split events into upcoming and past
+        upcoming_events = query.filter(Event.start_datetime >= current_time).order_by(Event.start_datetime).all()
+        past_events = query.filter(Event.start_datetime < current_time).order_by(Event.start_datetime.desc()).all() if show_past else []
+        
+        # Combine events with upcoming first
+        all_events = upcoming_events + past_events
+        
+        result = success_response(data=[event.to_dict() for event in all_events])
         
         # Cache the results
         redis_client.set_cached_events(cache_key, result)

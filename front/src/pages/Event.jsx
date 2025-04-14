@@ -32,6 +32,7 @@ const Events = () => {
     date: '',
     price: ''
   });
+  const [showPastEvents, setShowPastEvents] = useState(false);
   
   const eventsCache = useRef({
     all: [],
@@ -148,6 +149,9 @@ const Events = () => {
         if (value) queryParams.append(key, value);
       });
 
+      // Add show_past parameter
+      queryParams.append('show_past', showPastEvents.toString());
+
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/events?${queryParams.toString()}`,
         { 
@@ -159,18 +163,22 @@ const Events = () => {
         }
       );
 
-      const eventsData = response.data.data;
-      setEvents(eventsData);
-      
-      // Update cache with timestamp
-      const cacheKey = getCacheKey();
-      eventsCache.current[cacheKey] = {
-        data: eventsData,
-        timestamp: Date.now()
-      };
+      if (response.data?.data) {
+        const eventsData = response.data.data;
+        setEvents(eventsData);
+        
+        // Update cache with timestamp
+        const cacheKey = getCacheKey();
+        eventsCache.current[cacheKey] = {
+          data: eventsData,
+          timestamp: Date.now()
+        };
+      } else {
+        setError('No events found matching your criteria');
+      }
     } catch (error) {
       console.error('Error fetching events:', error);
-      setError('Failed to load events. Please try again later.');
+      setError(error.response?.data?.message || 'Failed to load events. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -183,9 +191,10 @@ const Events = () => {
     }
     abortControllerRef.current = new AbortController();
     
+    // Debounce search to prevent too many API calls
     const timeoutId = setTimeout(() => {
       fetchEvents(filters);
-    }, searchQuery ? 300 : 0); // 300ms delay for search, no delay for other filters
+    }, searchQuery ? 500 : 0); // Increased debounce time for search
     
     return () => {
       clearTimeout(timeoutId);
@@ -193,7 +202,7 @@ const Events = () => {
         abortControllerRef.current.abort();
       }
     };
-  }, [fetchEvents]);
+  }, [activeFilter, searchQuery, selectedLocation, filters, retryCount]);
 
   const handleSearch = (searchParams) => {
     setSearchQuery(searchParams.query || '');
@@ -225,6 +234,11 @@ const Events = () => {
       setSelectedCategory('');
       setSelectedLocation('');
     }
+  };
+
+  // Add toggle for past events
+  const togglePastEvents = () => {
+    setShowPastEvents(!showPastEvents);
   };
 
   return (
@@ -277,6 +291,15 @@ const Events = () => {
                 {category.name}
               </Button>
             ))}
+            <Button
+              variant={showPastEvents ? 'default' : 'outline'}
+              size="sm"
+              onClick={togglePastEvents}
+              className={`flex items-center gap-2 ${isDarkMode && !showPastEvents ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+            >
+              <Calendar className="w-4 h-4" />
+              {showPastEvents ? 'Hide Past Events' : 'Show Past Events'}
+            </Button>
           </div>
         </AnimatedSection>
         
