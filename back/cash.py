@@ -233,57 +233,60 @@ def verify_mpesa_payment(checkout_request_id):
 
 def delayed_verification(checkout_request_id, attempt=1):
     """Handle delayed payment verification with retries"""
-    try:
-        with transaction_lock(checkout_request_id):
-            with db.session.begin():
-                payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
-                if not payment or payment.payment_status != PAYMENT_STATUS['PENDING']:
-                    return
-
-                result = verify_mpesa_payment(checkout_request_id)
-                
-                if 'error' in result:
-                    logger.error(f"Payment verification error: {result['error']}")
-                    if attempt <= 3:
-                        delay = 5 * (2 ** (attempt - 1))
-                        threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
-                        return
-                    else:
-                        payment.payment_status = PAYMENT_STATUS['FAILED']
-                        payment.failure_reason = result.get('error', 'Payment verification failed after retries')
+    from database import app  # Import app here to avoid circular imports
+    
+    with app.app_context():  # Create application context for the thread
+        try:
+            with transaction_lock(checkout_request_id):
+                with db.session.begin():
+                    payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
+                    if not payment or payment.payment_status != PAYMENT_STATUS['PENDING']:
                         return
 
-                result_code = result.get('ResultCode')
-                if result_code == '1032' or result_code == '1':
-                    payment.payment_status = PAYMENT_STATUS['CANCELED']
-                    payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
-                    ticket = payment.ticket
-                    if ticket:
-                        ticket.satus = TICKET_STATUS['CANCELED']
-                    return
-                
-                elif result_code == '0':
-                    get_verification_status(result, payment)
-                
-                elif result_code == '2001' or result.get('status') == 'pending':
-                    if attempt <= 3:
-                        delay = 5 * (2 ** (attempt - 1))
-                        threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
+                    result = verify_mpesa_payment(checkout_request_id)
+                    
+                    if 'error' in result:
+                        logger.error(f"Payment verification error: {result['error']}")
+                        if attempt <= 3:
+                            delay = 5 * (2 ** (attempt - 1))
+                            threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
+                            return
+                        else:
+                            payment.payment_status = PAYMENT_STATUS['FAILED']
+                            payment.failure_reason = result.get('error', 'Payment verification failed after retries')
+                            return
+
+                    result_code = result.get('ResultCode')
+                    if result_code == '1032' or result_code == '1':
+                        payment.payment_status = PAYMENT_STATUS['CANCELED']
+                        payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
+                        ticket = payment.ticket
+                        if ticket:
+                            ticket.satus = TICKET_STATUS['CANCELED']
+                        return
+                    
+                    elif result_code == '0':
+                        get_verification_status(result, payment)
+                    
+                    elif result_code == '2001' or result.get('status') == 'pending':
+                        if attempt <= 3:
+                            delay = 5 * (2 ** (attempt - 1))
+                            threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
+                        else:
+                            payment.payment_status = PAYMENT_STATUS['FAILED']
+                            payment.failure_reason = 'Payment pending but max retries reached'
+                    
                     else:
                         payment.payment_status = PAYMENT_STATUS['FAILED']
-                        payment.failure_reason = 'Payment pending but max retries reached'
-                
-                else:
-                    payment.payment_status = PAYMENT_STATUS['FAILED']
-                    payment.failure_reason = result.get('ResultDesc', 'Payment failed')
+                        payment.failure_reason = result.get('ResultDesc', 'Payment failed')
 
-    except SQLAlchemyError as e:
-        logger.error(f"Database error: {str(e)}")
-        db.session.rollback()
-    except Exception as e:
-        logger.error(f"Thread error: {str(e)}")
-    finally:
-        db.session.remove()
+        except SQLAlchemyError as e:
+            logger.error(f"Database error: {str(e)}")
+            db.session.rollback()
+        except Exception as e:
+            logger.error(f"Thread error: {str(e)}")
+        finally:
+            db.session.remove()
 
 class LockManager:
     def __init__(self):
