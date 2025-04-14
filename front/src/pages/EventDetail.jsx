@@ -37,7 +37,7 @@ import axios from 'axios';
 const EventDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { fetchEventById, isAuthenticated } = useAuth();
+  const { fetchEventById, isAuthenticated, user } = useAuth();
   const { isDarkMode } = useTheme();
   const { toast } = useToast();
   const [event, setEvent] = useState(null);
@@ -73,14 +73,23 @@ const EventDetail = () => {
           const now = new Date().getTime();
           const cacheDuration = 5 * 60 * 1000; // 5 minutes cache duration
 
-          if (now - cacheTime < cacheDuration) {
-            setEvent(parsedEvent.data);
-            setIsLoading(false);
-            return;
+          if (now - cacheTime < cacheDuration && parsedEvent.data) {
+            // Verify we have all required data
+            if (parsedEvent.data.ticket_types && parsedEvent.data.organizer) {
+              setEvent(parsedEvent.data);
+              // Initialize selected tickets state
+              const initialSelectedTickets = {};
+              parsedEvent.data.ticket_types.forEach(type => {
+                initialSelectedTickets[type.id] = 0;
+              });
+              setSelectedTickets(initialSelectedTickets);
+              setIsLoading(false);
+              return;
+            }
           }
         }
 
-        // If no cache or cache expired, fetch from API
+        // If no cache or cache expired or incomplete, fetch from API
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/${id}`, {
           withCredentials: true,
           headers: {
@@ -89,30 +98,36 @@ const EventDetail = () => {
           }
         });
 
-        if (response.data?.data) {
-          const eventData = response.data.data;
-          setEvent(eventData);
+        if (response.data && response.data[0] && response.data[0].data) {
+          const eventData = response.data[0].data;
+          
+          // Verify we have all required data before caching
+          if (eventData.ticket_types && eventData.organizer) {
+            setEvent(eventData);
 
-          // Cache the event data
-          localStorage.setItem(`event_${id}`, JSON.stringify({
-            data: eventData,
-            timestamp: new Date().getTime()
-          }));
+            // Cache the event data with timestamp
+            localStorage.setItem(`event_${id}`, JSON.stringify({
+              data: eventData,
+              timestamp: new Date().getTime()
+            }));
 
-          // Initialize selected tickets state
-          const initialSelectedTickets = {};
-          if (eventData.ticket_types) {
+            // Initialize selected tickets state
+            const initialSelectedTickets = {};
             eventData.ticket_types.forEach(type => {
               initialSelectedTickets[type.id] = 0;
             });
+            setSelectedTickets(initialSelectedTickets);
+          } else {
+            throw new Error('Incomplete event data received');
           }
-          setSelectedTickets(initialSelectedTickets);
         } else {
           throw new Error('Event not found');
         }
       } catch (err) {
         console.error('Error loading event:', err);
         setError(err.response?.data?.message || 'Failed to load event details');
+        // Clear invalid cache
+        localStorage.removeItem(`event_${id}`);
       } finally {
         setIsLoading(false);
       }
@@ -122,22 +137,30 @@ const EventDetail = () => {
   }, [id]);
   
   const increaseTickets = (ticketTypeId) => {
-    if (event) {
-      const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
-      if (selectedTickets[ticketTypeId] < ticketType.quantity - ticketType.tickets_sold) {
-        setSelectedTickets(prev => ({
-          ...prev,
-          [ticketTypeId]: prev[ticketTypeId] + 1
-        }));
-      }
+    if (!event || !event.ticket_types) return;
+    
+    const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
+    if (!ticketType) return;
+
+    const currentQuantity = selectedTickets[ticketTypeId] || 0;
+    const availableTickets = ticketType.quantity - ticketType.tickets_sold;
+    
+    if (currentQuantity < availableTickets) {
+      setSelectedTickets(prev => ({
+        ...prev,
+        [ticketTypeId]: currentQuantity + 1
+      }));
     }
   };
   
   const decreaseTickets = (ticketTypeId) => {
-    if (selectedTickets[ticketTypeId] > 0) {
+    if (!event || !event.ticket_types) return;
+    
+    const currentQuantity = selectedTickets[ticketTypeId] || 0;
+    if (currentQuantity > 0) {
       setSelectedTickets(prev => ({
         ...prev,
-        [ticketTypeId]: prev[ticketTypeId] - 1
+        [ticketTypeId]: currentQuantity - 1
       }));
     }
   };
@@ -199,6 +222,16 @@ const EventDetail = () => {
       return;
     }
 
+    // Check if user has a phone number
+    if (!user?.phone) {
+      toast({
+        title: "Phone Number Required",
+        description: "Please add a phone number to your account before purchasing tickets.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsPurchasing(true);
       
@@ -225,12 +258,21 @@ const EventDetail = () => {
         return total + (ticketType.price * detail.quantity);
       }, 0);
 
+      // Format phone number to ensure it's in the correct format for the payment service
+      // Remove any non-digit characters and ensure it starts with 254
+      const phoneNumber = user.phone
+        .replace(/\D/g, '') // Remove all non-digit characters
+        .replace(/^0+/, '') // Remove leading zeros
+        .replace(/^254/, '') // Remove existing 254 if present
+        .padStart(9, '0'); // Ensure we have 9 digits after 254
+
       // Send purchase request
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/events/${id}/purchase`,
         {
           ticket_details: ticketDetails,
-          total_amount: totalAmount
+          total_amount: totalAmount,
+          phone_number: `254${phoneNumber}` // Ensure phone number is properly formatted
         },
         {
           withCredentials: true,
@@ -256,9 +298,15 @@ const EventDetail = () => {
       }
     } catch (error) {
       console.error("Error purchasing tickets:", error);
+      let errorMessage = "Failed to purchase tickets. Please try again.";
+      
+      if (error.response?.data?.errorMessage?.includes("Invalid RecieverIdentifierType")) {
+        errorMessage = "Invalid phone number format. Please ensure your phone number is correct and try again.";
+      }
+      
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to purchase tickets. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
