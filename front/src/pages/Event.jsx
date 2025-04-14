@@ -15,6 +15,7 @@ import { Loader2 } from "lucide-react";
 const Events = () => {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false); // New state for refreshing vs initial load
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [error, setError] = useState(null);
@@ -33,13 +34,11 @@ const Events = () => {
     price: ''
   });
   const [showPastEvents, setShowPastEvents] = useState(false);
+  const mountedRef = useRef(true);
   
-  const eventsCache = useRef({
-    all: [],
-    byCategory: {},
-    bySearch: {},
-    byLocation: {}
-  });
+  // Cache for events data
+  const eventsCache = useRef({});
+  const lastFetchParams = useRef(null);
   
   // Get search parameters from URL or state
   const searchFromUrl = searchParams.get('query');
@@ -90,60 +89,47 @@ const Events = () => {
     fetchCategories();
   }, []);
   
-  const getCacheKey = useCallback(() => {
-    let key = 'all';
-    if (activeFilter !== 'all') key = `category:${activeFilter}`;
-    if (searchQuery) key += `:search:${searchQuery}`;
-    if (selectedLocation) key += `:location:${selectedLocation}`;
-    return key;
-  }, [activeFilter, searchQuery, selectedLocation]);
-  
-  // Function to check if we have cached data for current filters
-  const getCachedEvents = useCallback(() => {
-    const key = getCacheKey();
-    const now = Date.now();
-    
-    if (eventsCache.current[key] && 
-        now - eventsCache.current[key].timestamp < 300000) { // 5 minutes cache
-      return eventsCache.current[key].data;
-    }
-    
-    // If searching with a category filter, we can use "all events" of that category as initial data
-    if (searchQuery && activeFilter !== 'all') {
-      const categoryKey = `category:${activeFilter}`;
-      if (eventsCache.current[categoryKey] && 
-          now - eventsCache.current[categoryKey].timestamp < 300000) {
-        return eventsCache.current[categoryKey].data.filter(event => 
-          event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.description?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      }
-    }
-    
-    // For location-based searches
-    if (selectedLocation && eventsCache.current.all && 
-        now - eventsCache.current.all.timestamp < 300000) {
-      return eventsCache.current.all.data.filter(event => 
-        event.location?.toLowerCase().includes(selectedLocation.toLowerCase())
-      );
-    }
-    
-    return null; // No suitable cache found
-  }, [activeFilter, searchQuery, selectedLocation, getCacheKey]);
-  
-  const fetchEvents = async (filters = {}) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Check cache first
-      const cachedData = getCachedEvents();
-      if (cachedData) {
-        setEvents(cachedData);
-        setIsLoading(false);
-        return;
-      }
+  // Create a cache key from filters
+  const createCacheKey = (activeFilter, searchQuery, selectedLocation, filters, showPastEvents) => {
+    return JSON.stringify({
+      activeFilter,
+      searchQuery,
+      selectedLocation,
+      filters,
+      showPastEvents
+    });
+  };
 
+  const fetchEvents = async (filters = {}, forceRefresh = false) => {
+    if (!mountedRef.current) return;
+
+    // Build query params for cache key
+    const cacheKey = createCacheKey(
+      activeFilter,
+      searchQuery,
+      selectedLocation,
+      filters,
+      showPastEvents
+    );
+    
+    // Check if we have cached data and aren't forcing a refresh
+    if (!forceRefresh && eventsCache.current[cacheKey]) {
+      setEvents(eventsCache.current[cacheKey]);
+      setIsLoading(false);
+      return;
+    }
+    
+    // If we're refreshing current data, show refreshing state instead of loading
+    if (events.length > 0 && !forceRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    
+    setError(null);
+    lastFetchParams.current = cacheKey;
+
+    try {
       // Build query params
       const queryParams = new URLSearchParams();
       
@@ -171,34 +157,62 @@ const Events = () => {
         { 
           withCredentials: true,
           headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
+            // Remove cache-control headers to allow browser caching
           }
         }
       );
 
-      if (response.data?.data) {
-        const eventsData = response.data.data;
-        setEvents(eventsData);
-        
-        // Update cache with timestamp
-        const cacheKey = getCacheKey();
-        eventsCache.current[cacheKey] = {
-          data: eventsData,
-          timestamp: Date.now()
-        };
+      if (!mountedRef.current) return;
+
+      // Handle the response structure correctly
+      if (response.data && response.data[0] && response.data[0].data) {
+        const fetchedEvents = response.data[0].data;
+        // Update cache with new data
+        eventsCache.current[cacheKey] = fetchedEvents;
+        // Only update state if this is still the most recent request
+        if (lastFetchParams.current === cacheKey) {
+          setEvents(fetchedEvents);
+        }
       } else {
         setError('No events found matching your criteria');
       }
     } catch (error) {
+      if (!mountedRef.current) return;
+      
+      if (error.name === 'AbortError') {
+        console.log('Request was aborted');
+        return;
+      }
+      
       console.error('Error fetching events:', error);
       setError(error.response?.data?.message || 'Failed to load events. Please try again later.');
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   };
 
+  // Cleanup function
   useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    console.log('Initial fetch triggered');
+    fetchEvents(filters);
+  }, [filters]);
+
+  // Handle filter changes with debounce
+  useEffect(() => {
+    console.log('Filter change detected:', { activeFilter, searchQuery, selectedLocation, filters, showPastEvents });
     // Cancel any pending requests when filter or search changes
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -207,6 +221,7 @@ const Events = () => {
     
     // Debounce search to prevent too many API calls
     const timeoutId = setTimeout(() => {
+      console.log('Fetching events with filters:', filters);
       fetchEvents(filters);
     }, searchQuery ? 500 : 0);
     
@@ -217,6 +232,20 @@ const Events = () => {
       }
     };
   }, [activeFilter, searchQuery, selectedLocation, filters, showPastEvents]);
+
+  // Add a refresh function that forces bypass of cache
+  const refreshEvents = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    fetchEvents(filters, true); // Force refresh
+  }, [filters]);
+
+  // Add a retry mechanism
+  const handleRetry = () => {
+    refreshEvents();
+  };
 
   const handleSearch = (searchParams) => {
     setSearchQuery(searchParams.query || '');
@@ -234,11 +263,6 @@ const Events = () => {
     }
   };
 
-  const handleRetry = () => {
-    setRetryCount(0);
-    fetchEvents(filters);
-  };
-
   const handleFilterClick = (filter) => {
     setActiveFilter(filter);
     setSearchQuery(''); // Clear search when changing filters
@@ -253,13 +277,6 @@ const Events = () => {
   // Add toggle for past events
   const togglePastEvents = () => {
     setShowPastEvents(!showPastEvents);
-    // Clear cache when toggling past events
-    eventsCache.current = {
-      all: [],
-      byCategory: {},
-      bySearch: {},
-      byLocation: {}
-    };
   };
 
   return (
@@ -321,6 +338,29 @@ const Events = () => {
               <Calendar className="w-4 h-4" />
               {showPastEvents ? 'Hide Past Events' : 'Show Past Events'}
             </Button>
+            
+            {/* Manual refresh button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshEvents}
+              className={`flex items-center gap-2 ml-auto ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19.5 12c0-4.14-3.36-7.5-7.5-7.5-2.98 0-5.56 1.75-6.77 4.25h2.02M4.5 12c0 4.14 3.36 7.5 7.5 7.5 2.98 0 5.56-1.75 6.77-4.25h-2.02" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Refresh
+                </>
+              )}
+            </Button>
           </div>
         </AnimatedSection>
         
@@ -367,7 +407,7 @@ const Events = () => {
                 </div>
               )}
             </div>
-            {isLoading && events.length > 0 && (
+            {isRefreshing && events.length > 0 && (
               <div className="text-center mt-4">
                 <p className="text-sm text-muted-foreground">Refreshing results...</p>
               </div>
