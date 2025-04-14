@@ -429,41 +429,63 @@ class TicketPurchaseResource(Resource):
             if not ticket_details:
                 return error_response("No ticket details provided", 400)
             
+            # Create tickets first
+            created_tickets = []
+            for detail in ticket_details:
+                ticket_type = TicketType.query.get(detail.get('ticket_type_id'))
+                if not ticket_type or ticket_type.event_id != event_id:
+                    return error_response("Invalid ticket type", 400)
+                
+                # Check ticket availability
+                if ticket_type.tickets_sold + detail.get('quantity', 1) > ticket_type.quantity:
+                    return error_response(f"Not enough tickets available for {ticket_type.name}", 400)
+                
+                # Create ticket
+                ticket = Ticket(
+                    event_id=event_id,
+                    attendee_id=user.id,
+                    ticket_type_id=ticket_type.id,
+                    price=ticket_type.price * detail.get('quantity', 1),
+                    quantity=detail.get('quantity', 1),
+                    currency=event.currency,
+                    satus='pending'
+                )
+                db.session.add(ticket)
+                created_tickets.append(ticket)
+            
             # Initialize M-Pesa payment
             payment_result = initiate_mpesa_payment(total_amount, user.phone)
             
             if "error" in payment_result:
+                db.session.rollback()
                 return error_response(f"Payment initiation failed: {payment_result.get('error')}", 400)
                 
             if payment_result.get('ResponseCode') != '0':
+                db.session.rollback()
                 return error_response(f"Payment gateway error: {payment_result.get('ResponseDescription')}", 400)
                 
             checkout_request_id = payment_result.get('CheckoutRequestID')
             if not checkout_request_id:
+                db.session.rollback()
                 return error_response("Missing checkout request ID in payment response", 400)
             
-            # Process tickets asynchronously
-            ticket_tasks = []
+            # Create payment record for each ticket
+            for ticket in created_tickets:
+                payment = Payment(
+                    ticket_id=ticket.id,
+                    payment_method='Mpesa',
+                    payment_status='Pending',
+                    transaction_id=checkout_request_id,
+                    amount=ticket.price,
+                    currency=event.currency
+                )
+                db.session.add(payment)
+            
+            # Update tickets sold count
             for detail in ticket_details:
-                ticket_data = {
-                    'ticket_type_id': detail.get('ticket_type_id'),
-                    'quantity': detail.get('quantity', 1),
-                    'event_id': event_id,
-                    'user_id': user.id
-                }
-                task = process_ticket_purchase.delay(ticket_data)
-                ticket_tasks.append(task)
+                ticket_type = TicketType.query.get(detail.get('ticket_type_id'))
+                ticket_type.tickets_sold += detail.get('quantity', 1)
             
-            # Create payment record
-            payment = Payment(
-                payment_method='Mpesa',
-                payment_status='Pending',
-                transaction_id=checkout_request_id,
-                amount=total_amount,
-                currency=event.currency
-            )
-            
-            db.session.add(payment)
             db.session.commit()
 
             # Schedule payment verification
@@ -477,7 +499,7 @@ class TicketPurchaseResource(Resource):
                 message="Payment initiated successfully. Please complete on your phone.",
                 data={
                     "CheckoutRequestID": checkout_request_id,
-                    "ticket_tasks": [task.id for task in ticket_tasks]
+                    "ticket_ids": [ticket.id for ticket in created_tickets]
                 },
                 status_code=200
             )
