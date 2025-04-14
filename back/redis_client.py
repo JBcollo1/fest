@@ -90,11 +90,15 @@ class RedisManager:
     def get_cached_events(self, key):
         """Get cached events with the given key"""
         if not self.client:
+            logger.warning("Redis client not initialized, cannot get cached events")
             return None
         try:
+            logger.info(f"Attempting to get cached data for key: {key}")
             cached_data = self.client.get(key)
             if cached_data:
+                logger.info(f"Cache hit for key: {key}")
                 return json.loads(cached_data)
+            logger.info(f"Cache miss for key: {key}")
         except redis.RedisError as e:
             logger.error(f"Redis error getting cached events: {str(e)}")
             self._retry_connection()
@@ -105,9 +109,12 @@ class RedisManager:
     def set_cached_events(self, key, data, ttl=300):
         """Cache events with the given key and TTL (default 5 minutes)"""
         if not self.client:
+            logger.warning("Redis client not initialized, cannot set cached events")
             return
         try:
+            logger.info(f"Attempting to cache data for key: {key}")
             self.client.setex(key, ttl, json.dumps(data))
+            logger.info(f"Successfully cached data for key: {key}")
         except redis.RedisError as e:
             logger.error(f"Redis error caching events: {str(e)}")
             self._retry_connection()

@@ -162,11 +162,7 @@ const Events = () => {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/events?${queryParams.toString()}`,
         { 
-          withCredentials: true,
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
+          withCredentials: true
         }
       );
 

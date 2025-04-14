@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import axios from "axios";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
 import {
@@ -43,7 +43,11 @@ const EventStatsPage = () => {
   const api = useMemo(() => {
     const instance = axios.create({
       baseURL: import.meta.env.VITE_API_URL,
-      withCredentials: true
+      withCredentials: true,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
     });
     return instance;
   }, []);
@@ -59,13 +63,16 @@ const EventStatsPage = () => {
         return;
       }
 
-      const response = await api.get(`/api/stats`, {
+      // Check if user has admin role
+      if (!user.roles?.includes('admin')) {
+        setError("You don't have permission to view these statistics");
+        return;
+      }
+
+      const response = await api.get('/api/stats', {
         params: {
           page: eventsPage,
           per_page: eventsPerPage
-        },
-        headers: {
-          'Accept': 'application/json'
         }
       });
 
@@ -75,8 +82,8 @@ const EventStatsPage = () => {
           totalTickets: response.data.totalTickets || 0,
           totalUsers: response.data.totalUsers || 0,
           activeEvents: response.data.activeEvents || 0,
-          revenueGrowth: response.data.revenueGrowth || 5, // Placeholder
-          ticketGrowth: response.data.ticketGrowth || 12, // Placeholder
+          revenueGrowth: response.data.revenueGrowth || 5,
+          ticketGrowth: response.data.ticketGrowth || 12,
         });
         
         // Process additional data for charts and tables
@@ -103,11 +110,6 @@ const EventStatsPage = () => {
 
   useEffect(() => {
     fetchStatsData();
-    
-    // Cleanup function
-    return () => {
-      // Cancel any pending requests
-    };
   }, [fetchStatsData]);
 
   const handlePageChange = (newPage) => {
