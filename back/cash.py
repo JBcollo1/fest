@@ -516,6 +516,8 @@ class TicketPurchaseResource(Resource):
             
             # Create payment record
             payment = Payment(
+                ticket_id=tickets[0].id,  # Link to first ticket
+
                 payment_method='Mpesa',
                 payment_status='Pending',
                 transaction_id=checkout_request_id,
