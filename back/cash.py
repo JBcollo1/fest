@@ -118,7 +118,7 @@ def initiate_mpesa_payment(amount, phone_number):
         
        
         response = requests.post(
-            f"{MPESA_BASE_URL}/mpesa/b2b/v1/paymentrequest", 
+            f"{MPESA_BASE_URL}/mpesa/stkpush/v1/processrequest", 
             json=payload, 
             headers=headers
         )
