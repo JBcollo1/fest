@@ -99,19 +99,20 @@ const Events = () => {
   
   // Function to check if we have cached data for current filters
   const getCachedEvents = useCallback(() => {
-    console.log("fetched from cache")
     const key = getCacheKey();
+    const now = Date.now();
     
-    if (eventsCache.current[key]) {
-      // cache of all or category or search or location
-      return eventsCache.current[key];
+    if (eventsCache.current[key] && 
+        now - eventsCache.current[key].timestamp < 300000) { // 5 minutes cache
+      return eventsCache.current[key].data;
     }
     
     // If searching with a category filter, we can use "all events" of that category as initial data
     if (searchQuery && activeFilter !== 'all') {
       const categoryKey = `category:${activeFilter}`;
-      if (eventsCache.current[categoryKey]) {
-        return eventsCache.current[categoryKey].filter(event => 
+      if (eventsCache.current[categoryKey] && 
+          now - eventsCache.current[categoryKey].timestamp < 300000) {
+        return eventsCache.current[categoryKey].data.filter(event => 
           event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           event.description?.toLowerCase().includes(searchQuery.toLowerCase())
         );
@@ -119,24 +120,11 @@ const Events = () => {
     }
     
     // For location-based searches
-    if (selectedLocation && eventsCache.current.all.length > 0) {
-      return eventsCache.current.all.filter(event => 
+    if (selectedLocation && eventsCache.current.all && 
+        now - eventsCache.current.all.timestamp < 300000) {
+      return eventsCache.current.all.data.filter(event => 
         event.location?.toLowerCase().includes(selectedLocation.toLowerCase())
       );
-    }
-    
-    // filter client-side if we have all the events fetched before
-    if (eventsCache.current.all.length > 0 && (activeFilter !== 'all' || searchQuery || selectedLocation)) {
-      return eventsCache.current.all.filter(event => {
-        let matchesCategory = activeFilter === 'all' || event.category === activeFilter;
-        let matchesSearch = !searchQuery || 
-          event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.description?.toLowerCase().includes(searchQuery.toLowerCase());
-        let matchesLocation = !selectedLocation || 
-          event.location?.toLowerCase().includes(selectedLocation.toLowerCase());
-        
-        return matchesCategory && matchesSearch && matchesLocation;
-      });
     }
     
     return null; // No suitable cache found
@@ -144,13 +132,14 @@ const Events = () => {
   
   const fetchEvents = async (filters = {}) => {
     try {
-      const cacheKey = JSON.stringify(filters);
-      const now = Date.now();
+      setIsLoading(true);
+      setError(null);
       
-      // Check if we have a valid cache entry
-      if (eventsCache.current[cacheKey] && 
-          now - eventsCache.current[cacheKey].timestamp < 300000) { // 5 minutes cache
-        setEvents(eventsCache.current[cacheKey].data);
+      // Check cache first
+      const cachedData = getCachedEvents();
+      if (cachedData) {
+        setEvents(cachedData);
+        setIsLoading(false);
         return;
       }
 
@@ -162,7 +151,11 @@ const Events = () => {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/events?${queryParams.toString()}`,
         { 
-          withCredentials: true
+          withCredentials: true,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         }
       );
 
@@ -170,13 +163,16 @@ const Events = () => {
       setEvents(eventsData);
       
       // Update cache with timestamp
+      const cacheKey = getCacheKey();
       eventsCache.current[cacheKey] = {
         data: eventsData,
-        timestamp: now
+        timestamp: Date.now()
       };
     } catch (error) {
       console.error('Error fetching events:', error);
       setError('Failed to load events. Please try again later.');
+    } finally {
+      setIsLoading(false);
     }
   };
 

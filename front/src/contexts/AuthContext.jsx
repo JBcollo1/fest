@@ -234,22 +234,26 @@ export const AuthProvider = ({ children }) => {
     if (eventCache[eventId]) {
       const cacheAge = Date.now() - (eventCache[eventId].timestamp || 0);
       if (cacheAge < 300000) { // 5 minutes cache
+        console.log('Using cached event data for:', eventId);
         return eventCache[eventId].data;
       }
     }
 
     try {
+      console.log('Fetching event data for:', eventId);
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/events/${eventId}`,
         { 
-          withCredentials: true,
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
+          withCredentials: true
         }
       );
+      
+      if (!response.data || !response.data.data) {
+        throw new Error('Invalid response format');
+      }
+      
       const eventData = response.data.data;
+      console.log('Fetched event data:', eventData);
       
       // Update cache with timestamp
       setEventCache(prev => ({
@@ -263,6 +267,12 @@ export const AuthProvider = ({ children }) => {
       return eventData;
     } catch (error) {
       console.error('Error fetching event:', error);
+      // Clear cache for this event if there's an error
+      setEventCache(prev => {
+        const newCache = { ...prev };
+        delete newCache[eventId];
+        return newCache;
+      });
       throw error;
     }
   };

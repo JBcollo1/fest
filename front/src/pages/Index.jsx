@@ -25,36 +25,21 @@ const Index = () => {
   useEffect(() => {
     const fetchFeaturedEvents = async () => {
       try {
+        setIsLoading(true);
+        setError(null);
+        
         // First fetch upcoming events
         const currentDate = new Date().toISOString();
-        const upcomingResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured?start_date=${currentDate}`);
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured?start_date=${currentDate}`);
         
-        let events = [];
-        if (upcomingResponse.data?.data) {
-          // Sort upcoming events (featured first, then by date)
-          events = upcomingResponse.data.data.sort((a, b) => {
-            if (a.is_featured && !b.is_featured) return -1;
-            if (!a.is_featured && b.is_featured) return 1;
-            return new Date(a.start_datetime) - new Date(b.start_datetime);
-          });
+        if (response.data?.data) {
+          // Sort events by start date
+          const events = response.data.data.sort((a, b) => 
+            new Date(a.start_datetime) - new Date(b.start_datetime)
+          );
           
-          // If we have less than 3 upcoming events, fetch previous events
-          if (events.length < 3) {
-            const endDate = new Date().toISOString();
-            const previousResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured?end_date=${endDate}`);
-            
-            if (previousResponse.data?.data) {
-              // Sort previous events by date (most recent first)
-              const previousEvents = previousResponse.data.data
-                .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime))
-                .slice(0, 3 - events.length);
-              
-              events = [...events, ...previousEvents];
-            }
-          }
+          setFeaturedEvents(events);
         }
-        
-        setFeaturedEvents(events);
       } catch (error) {
         console.error('Error fetching featured events:', error);
         setError('Failed to load featured events');

@@ -81,6 +81,10 @@ const EventDetail = () => {
 
         // If no cache or cache expired, fetch from API
         const eventData = await fetchEventById(id);
+        if (!eventData) {
+          throw new Error('Event not found');
+        }
+        
         setEvent(eventData);
 
         // Cache the event data

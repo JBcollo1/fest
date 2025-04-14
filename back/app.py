@@ -68,7 +68,7 @@ CORS(
         "http://localhost:5173", 
         "http://127.0.0.1:5173"
     ],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "Cache-Control", "Pragma"],
     expose_headers=["Set-Cookie"],
     methods=["GET", "POST", "PUT", "DELETE"]
 )
