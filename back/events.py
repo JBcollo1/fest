@@ -390,16 +390,31 @@ class FeaturedEventsResource(Resource):
     """
     def get(self):
         """Get featured events"""
-        # cache featured events
-        cache_key = "events:featured"
+        # Get start_date from query params
+        start_date = request.args.get('start_date')
+        
+        # Generate cache key based on start_date
+        cache_key = f"events:featured:{start_date if start_date else 'all'}"
         cached_data = redis_client.get_cached_events(cache_key)
         if cached_data:
             return cached_data
             
-        featured_events = Event.query.filter_by(featured=True).order_by(Event.start_datetime).all()
+        # Build query
+        query = Event.query.filter_by(featured=True)
+        
+        # Apply start_date filter if provided
+        if start_date:
+            try:
+                start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                query = query.filter(Event.start_datetime >= start_date)
+            except ValueError:
+                return error_response("Invalid start_date format")
+        
+        # Get and sort events
+        featured_events = query.order_by(Event.start_datetime).all()
         result = success_response(data=[event.to_dict() for event in featured_events])
         
-        
+        # Cache the result
         redis_client.set_cached_events(cache_key, result)
         
         return result

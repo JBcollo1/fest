@@ -28,21 +28,18 @@ const Index = () => {
         setIsLoading(true);
         setError(null);
         
-        // First fetch upcoming events
         const currentDate = new Date().toISOString();
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured?start_date=${currentDate}`);
         
         if (response.data?.data) {
-          // Sort events by start date
-          const events = response.data.data.sort((a, b) => 
-            new Date(a.start_datetime) - new Date(b.start_datetime)
-          );
-          
-          setFeaturedEvents(events);
+          // Events are already sorted by the backend
+          setFeaturedEvents(response.data.data);
+        } else {
+          setError('No featured events found');
         }
       } catch (error) {
         console.error('Error fetching featured events:', error);
-        setError('Failed to load featured events');
+        setError(error.response?.data?.message || 'Failed to load featured events');
       } finally {
         setIsLoading(false);
       }
