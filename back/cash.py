@@ -625,7 +625,6 @@ def send_ticket_qr_email( ticket):
 def generate_qr_attachment(ticket):
     """Generate QR code file and return attachment data"""
     try:
-        verification_url = f"{Config2.BASE_URL}/verify/{ticket.qr_code}"
         
         qr = qrcode.QRCode(
             version=5,
@@ -633,7 +632,7 @@ def generate_qr_attachment(ticket):
             box_size=12,
             border=6,
         )
-        qr.add_data(verification_url)
+        qr.add_data(ticket.qr_code)
         qr.make(fit=True)
         
         img = qr.make_image(fill_color="#000000", back_color="#FFFFFF")
