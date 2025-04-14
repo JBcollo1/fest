@@ -24,6 +24,7 @@ from flask import g
 import threading
 from sqlalchemy.exc import SQLAlchemyError
 from contextlib import contextmanager
+from app2 import app
 
 from config import (
     MPESA_BASE_URL, 
@@ -220,51 +221,52 @@ def verify_mpesa_payment(checkout_request_id):
 def delayed_verification(checkout_request_id, attempt=1):
     """Handle delayed payment verification with retries"""
     try:
-        with transaction_lock(checkout_request_id):
-            payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
-            if not payment or payment.payment_status != 'Pending':
-                return
-
-            result = verify_mpesa_payment(checkout_request_id)
-            
-            if 'error' in result:
-                logger.error(f"Payment verification error: {result['error']}")
-                if attempt <= 3:
-                    delay = 5 * (2 ** (attempt - 1))
-                    threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
-                    return
-                else:
-                    payment.payment_status = 'Failed'
-                    payment.failure_reason = result.get('error', 'Payment verification failed after retries')
-                    db.session.commit()
+        with app.app_context():
+            with transaction_lock(checkout_request_id):
+                payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
+                if not payment or payment.payment_status != 'Pending':
                     return
 
-            result_code = result.get('ResultCode')
-            if result_code == '1032' or result_code == '1':
-                payment.payment_status = 'Canceled'
-                payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
-                ticket = payment.ticket
-                if ticket:
-                    ticket.satus = 'canceled'
-                db.session.commit()
-                return
-            
-            elif result_code == '0':
-                get_verification_status(result, payment)
-            
-            elif result_code == '2001' or result.get('status') == 'pending':
-                if attempt <= 3:
-                    delay = 5 * (2 ** (attempt - 1))
-                    threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
+                result = verify_mpesa_payment(checkout_request_id)
+                
+                if 'error' in result:
+                    logger.error(f"Payment verification error: {result['error']}")
+                    if attempt <= 3:
+                        delay = 5 * (2 ** (attempt - 1))
+                        threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
+                        return
+                    else:
+                        payment.payment_status = 'Failed'
+                        payment.failure_reason = result.get('error', 'Payment verification failed after retries')
+                        db.session.commit()
+                        return
+
+                result_code = result.get('ResultCode')
+                if result_code == '1032' or result_code == '1':
+                    payment.payment_status = 'Canceled'
+                    payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
+                    ticket = payment.ticket
+                    if ticket:
+                        ticket.satus = 'canceled'
+                    db.session.commit()
+                    return
+                
+                elif result_code == '0':
+                    get_verification_status(result, payment)
+                
+                elif result_code == '2001' or result.get('status') == 'pending':
+                    if attempt <= 3:
+                        delay = 5 * (2 ** (attempt - 1))
+                        threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
+                    else:
+                        payment.payment_status = 'Failed'
+                        payment.failure_reason = 'Payment pending but max retries reached'
+                        db.session.commit()
+                
                 else:
                     payment.payment_status = 'Failed'
-                    payment.failure_reason = 'Payment pending but max retries reached'
+                    payment.failure_reason = result.get('ResultDesc', 'Payment failed')
                     db.session.commit()
-            
-            else:
-                payment.payment_status = 'Failed'
-                payment.failure_reason = result.get('ResultDesc', 'Payment failed')
-                db.session.commit()
 
     except SQLAlchemyError as e:
         logger.error(f"Database error: {str(e)}")
