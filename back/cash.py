@@ -23,6 +23,7 @@ from json.decoder import JSONDecodeError
 from flask import g
 import threading
 from sqlalchemy.exc import SQLAlchemyError
+from contextlib import contextmanager
 
 from config import (
     MPESA_BASE_URL, 
@@ -140,7 +141,7 @@ def verify_mpesa_payment(checkout_request_id):
         # Generate a fresh access token for each verification
         access_token = generate_access_token()
         
-        # Your timestamp and password generation
+        
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         password = generate_password(
             MPESA_BUSINESS_SHORT_CODE, 
@@ -148,7 +149,7 @@ def verify_mpesa_payment(checkout_request_id):
             timestamp
         )
         
-        # Payload remains the same
+       
         payload = {
             "BusinessShortCode": MPESA_BUSINESS_SHORT_CODE,
             "Password": password,
@@ -156,46 +157,37 @@ def verify_mpesa_payment(checkout_request_id):
             "CheckoutRequestID": checkout_request_id
         }
         
-        # Ensure headers use the fresh token
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {access_token}"
         }
         
-        # Log authentication details for debugging
-        logger.debug(f"Verifying payment with checkout ID: {checkout_request_id}")
-        logger.debug(f"Using access token: {access_token[:10]}...")
+        # Use session for connection pooling
+        session = requests.Session()
+        session.mount('https://', requests.adapters.HTTPAdapter(
+            pool_connections=100,
+            pool_maxsize=100,
+            max_retries=3
+        ))
         
-        response = requests.post(
+        response = session.post(
             f"{MPESA_BASE_URL}/mpesa/stkpushquery/v1/query",
             json=payload,
             headers=headers,
             timeout=10
         )
 
-        # Log response status for debugging
-        logger.debug(f"M-Pesa API response status: {response.status_code}")
-        
-        # Handle HTTP errors first
         response.raise_for_status()
-
-        # Parse JSON response safely
-        try:
-            result = response.json()
-            logger.debug(f"M-Pesa API response: {result}")
-        except JSONDecodeError:
-            return {"error": "Invalid JSON response"}
-
-        # Handle authentication error specifically
+        result = response.json()
+        
+    
         if result.get('errorCode') == '404.001.04':
             logger.error("Authentication error with M-Pesa API. Token may be invalid.")
-            # Try to regenerate token and try once more
+          
             access_token = generate_access_token(force_refresh=True)
             headers["Authorization"] = f"Bearer {access_token}"
             
-            # Try request again with new token
-            logger.debug(f"Retrying with fresh token: {access_token[:10]}...")
-            response = requests.post(
+            response = session.post(
                 f"{MPESA_BASE_URL}/mpesa/stkpushquery/v1/query",
                 json=payload,
                 headers=headers,
@@ -204,9 +196,7 @@ def verify_mpesa_payment(checkout_request_id):
             
             response.raise_for_status()
             result = response.json()
-            logger.debug(f"M-Pesa API retry response: {result}")
 
-        # Safely extract result_code after any retries
         result_code = result.get('ResultCode')
 
         if result_code == '0':
@@ -224,17 +214,98 @@ def verify_mpesa_payment(checkout_request_id):
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         return {"error": str(e)}
+    finally:
+        session.close()
 
-# Create a lock for each transaction
-def get_transaction_lock(checkout_id):
-    """Get a thread lock for a specific transaction"""
-    if not hasattr(g, 'transaction_locks'):
-        g.transaction_locks = {}
-    
-    if checkout_id not in g.transaction_locks:
-        g.transaction_locks[checkout_id] = threading.Lock()
-    
-    return g.transaction_locks[checkout_id]
+def delayed_verification(checkout_request_id, attempt=1):
+    """Handle delayed payment verification with retries"""
+    try:
+        with transaction_lock(checkout_request_id):
+            payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
+            if not payment or payment.payment_status != 'Pending':
+                return
+
+            result = verify_mpesa_payment(checkout_request_id)
+            
+            if 'error' in result:
+                logger.error(f"Payment verification error: {result['error']}")
+                if attempt <= 3:
+                    delay = 5 * (2 ** (attempt - 1))
+                    threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
+                    return
+                else:
+                    payment.payment_status = 'Failed'
+                    payment.failure_reason = result.get('error', 'Payment verification failed after retries')
+                    db.session.commit()
+                    return
+
+            result_code = result.get('ResultCode')
+            if result_code == '1032' or result_code == '1':
+                payment.payment_status = 'Canceled'
+                payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
+                ticket = payment.ticket
+                if ticket:
+                    ticket.satus = 'canceled'
+                db.session.commit()
+                return
+            
+            elif result_code == '0':
+                get_verification_status(result, payment)
+            
+            elif result_code == '2001' or result.get('status') == 'pending':
+                if attempt <= 3:
+                    delay = 5 * (2 ** (attempt - 1))
+                    threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
+                else:
+                    payment.payment_status = 'Failed'
+                    payment.failure_reason = 'Payment pending but max retries reached'
+                    db.session.commit()
+            
+            else:
+                payment.payment_status = 'Failed'
+                payment.failure_reason = result.get('ResultDesc', 'Payment failed')
+                db.session.commit()
+
+    except SQLAlchemyError as e:
+        logger.error(f"Database error: {str(e)}")
+        db.session.rollback()
+    except Exception as e:
+        logger.error(f"Thread error: {str(e)}")
+    finally:
+        db.session.remove()
+
+class LockManager:
+    def __init__(self):
+        self._locks = {}
+        self._lock = threading.Lock()  
+
+    def get_lock(self, key):
+        with self._lock:
+            if key not in self._locks:
+                self._locks[key] = threading.Lock()
+            return self._locks[key]
+
+    def cleanup(self, key):
+        with self._lock:
+            if key in self._locks:
+                del self._locks[key]
+
+lock_manager = LockManager()
+
+@contextmanager
+def transaction_lock(checkout_id):
+    """Thread-safe transaction lock with timeout"""
+    lock = lock_manager.get_lock(checkout_id)
+    try:
+        # Try to acquire lock with timeout
+        if not lock.acquire(timeout=30):  # 30 second timeout
+            raise TimeoutError("Could not acquire lock for transaction")
+        yield
+    finally:
+        lock.release()
+        # Clean up lock after successful transaction
+        lock_manager.cleanup(checkout_id)
+
 class MpesaCallbackResource(Resource):
     """Handler for M-Pesa callback notifications"""
     
@@ -266,77 +337,79 @@ class MpesaCallbackResource(Resource):
                 
             logger.info(f"Processing callback for CheckoutRequestID: {checkout_request_id}")
             
-           
-            lock = get_transaction_lock(checkout_request_id)
-            with lock:
-                    payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
-                    
-                    if not payment:
-                        logger.error(f"Payment not found for CheckoutRequestID: {checkout_request_id}")
-                        return {"ResultCode": 1, "ResultDesc": "Payment not found"}, 404
-                        
+            with transaction_lock(checkout_request_id):
+                payment = Payment.query.filter_by(transaction_id=checkout_request_id).first()
                 
-                    if result_code == 0:  
-                        
-                        callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
-                        payment_details = {}
-                        for item in callback_metadata:
-                            if 'Name' in item and 'Value' in item:
-                                payment_details[item['Name']] = item['Value']
-                            else:
-                                logger.warning(f"Malformed metadata item: {item}")
-                                
-                        logger.debug(f"Extracted payment details: {payment_details}")
-                        
-                        
-                        
-                        payment.payment_status = 'Completed'
-                        payment.transaction_id = payment_details.get('MpesaReceiptNumber')
-                        payment.payment_date = datetime.now()
-                        
+                if not payment:
+                    logger.error(f"Payment not found for CheckoutRequestID: {checkout_request_id}")
+                    return {"ResultCode": 1, "ResultDesc": "Payment not found"}, 404
+                    
                 
-                        ticket = Ticket.query.get(payment.ticket_id)
-                        if ticket:
-                            ticket.satus = 'purchased'
-                            
-                            
-                            ticket_type = TicketType.query.get(ticket.ticket_type_id)
-                            if ticket_type:
-                                ticket_type.tickets_sold += ticket.quantity
-                        
+                if result_code == 0:  
                     
-                        db.session.commit()
-                        
-                        logger.info(f"Payment completed for CheckoutRequestID: {checkout_request_id}")
-                        
-                    
-                        try:
+                    callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
+                    payment_details = {}
+                    for item in callback_metadata:
+                        if 'Name' in item and 'Value' in item:
+                            payment_details[item['Name']] = item['Value']
+                        else:
+                            logger.warning(f"Malformed metadata item: {item}")
                             
-                            send_ticket_qr_email(ticket)
-                        except Exception as email_error:
-                            logger.error(f"Error sending ticket email: {str(email_error)}")
-                        
-                        return {"ResultCode": 0, "ResultDesc": "Success"}, 200
-                        
-                    else:  
+                    logger.debug(f"Extracted payment details: {payment_details}")
                     
-                        payment.payment_status = 'Failed'
-                        payment.failure_reason = stk_callback.get('ResultDesc', 'Payment failed')
-                        
-                        # Update ticket status
-                        ticket = Ticket.query.get(payment.ticket_id)
-                        if ticket:
-                            ticket.satus = 'payment_failed'
-                        
-                        # Commit changes
-                        db.session.commit()
-                        
-                        logger.info(f"Payment failed for CheckoutRequestID: {checkout_request_id}")
-                        return {"ResultCode": 0, "ResultDesc": "Payment failure recorded"}, 200
+                    
+                    
+                    payment.payment_status = 'Completed'
+                    payment.transaction_id = payment_details.get('MpesaReceiptNumber')
+                    payment.payment_date = datetime.now()
+                    
                 
+                    ticket = Ticket.query.get(payment.ticket_id)
+                    if ticket:
+                        ticket.satus = 'purchased'
+                        
+                        
+                        ticket_type = TicketType.query.get(ticket.ticket_type_id)
+                        if ticket_type:
+                            ticket_type.tickets_sold += ticket.quantity
+                    
+                
+                    db.session.commit()
+                    
+                    logger.info(f"Payment completed for CheckoutRequestID: {checkout_request_id}")
+                    
+                
+                    try:
+                        
+                        send_ticket_qr_email(ticket)
+                    except Exception as email_error:
+                        logger.error(f"Error sending ticket email: {str(email_error)}")
+                    
+                    return {"ResultCode": 0, "ResultDesc": "Success"}, 200
+                    
+                else:  
+                
+                    payment.payment_status = 'Failed'
+                    payment.failure_reason = stk_callback.get('ResultDesc', 'Payment failed')
+                    
+                    # Update ticket status
+                    ticket = Ticket.query.get(payment.ticket_id)
+                    if ticket:
+                        ticket.satus = 'payment_failed'
+                    
+                    # Commit changes
+                    db.session.commit()
+                    
+                    logger.info(f"Payment failed for CheckoutRequestID: {checkout_request_id}")
+                    return {"ResultCode": 0, "ResultDesc": "Payment failure recorded"}, 200
+                
+        except TimeoutError as e:
+            logger.error(f"Transaction lock timeout: {str(e)}")
+            return {"ResultCode": 1, "ResultDesc": "Transaction processing timeout"}, 503
         except Exception as e:
             logger.error(f"Error processing callback: {str(e)}")
             return {"ResultCode": 1, "ResultDesc": f"Error: {str(e)}"}, 500
+
 class TicketPurchaseResource(Resource):
     """Resource for initiating ticket purchases"""
     
@@ -344,219 +417,117 @@ class TicketPurchaseResource(Resource):
     def post(self, event_id):
         """Initiate ticket purchase for an event"""
         try:
-            # Get current user
             current_user_id = get_jwt_identity()
             user = User.query.get(current_user_id)
             
             if not user:
                 return error_response("User not found", 404)
                 
-            # Get event
             event = Event.query.get(event_id)
             
             if not event:
                 return error_response("Event not found", 404)
                 
-            # Get ticket details from request
             data = request.get_json()
             ticket_details = data.get('ticket_details', [])
             total_amount = data.get('total_amount', 0)
             
             if not ticket_details:
                 return error_response("No ticket details provided", 400)
-                
-            # Validate ticket details
-            for detail in ticket_details:
-                ticket_type_id = detail.get('ticket_type_id')
-                quantity = detail.get('quantity', 1)
-                
-                # Get ticket type
-                ticket_type = TicketType.query.get(ticket_type_id)
-                
-                if not ticket_type or ticket_type.event_id != event_id:
-                    return error_response("Invalid ticket type", 400)
+            
+            # Validate ticket availability and create purchase transaction
+            with transaction_lock(f"event_{event_id}"):
+                # Validate all tickets first
+                for detail in ticket_details:
+                    ticket_type_id = detail.get('ticket_type_id')
+                    quantity = detail.get('quantity', 1)
                     
-                # Check availability
-                available = ticket_type.quantity - ticket_type.tickets_sold
-                if available < quantity:
-                    return error_response(f"Only {available} tickets available for {ticket_type.name}", 400)
+                    ticket_type = TicketType.query.get(ticket_type_id)
+                    if not ticket_type or ticket_type.event_id != event_id:
+                        return error_response("Invalid ticket type", 400)
+                        
+                    available = ticket_type.quantity - ticket_type.tickets_sold
+                    if available < quantity:
+                        return error_response(f"Only {available} tickets available for {ticket_type.name}", 400)
+                        
+                    if ticket_type.per_person_limit and quantity > ticket_type.per_person_limit:
+                        return error_response(f"Cannot purchase more than {ticket_type.per_person_limit} tickets per person", 400)
+                
+                # Get or create attendee
+                attendee = Attendee.query.filter_by(user_id=user.id).first()
+                if not attendee:
+                    attendee = Attendee(user_id=user.id)
+                    db.session.add(attendee)
+                    db.session.flush()
+                
+                # Initialize M-Pesa payment
+                payment_result = initiate_mpesa_payment(total_amount, user.phone)
+                
+                if "error" in payment_result:
+                    return error_response(f"Payment initiation failed: {payment_result.get('error')}", 400)
                     
-                # Check per-person limit
-                if ticket_type.per_person_limit and quantity > ticket_type.per_person_limit:
-                    return error_response(f"Cannot purchase more than {ticket_type.per_person_limit} tickets per person", 400)
-            
-            # Get or create attendee
-            attendee = Attendee.query.filter_by(user_id=user.id).first()
-            if not attendee:
-                attendee = Attendee(user_id=user.id)
-                db.session.add(attendee)
-                db.session.flush()
-            
-            # Initialize M-Pesa payment
-            payment_result = initiate_mpesa_payment(total_amount, user.phone)
-            
-            if "error" in payment_result:
-                return error_response(f"Payment initiation failed: {payment_result.get('error')}", 400)
+                if payment_result.get('ResponseCode') != '0':
+                    return error_response(f"Payment gateway error: {payment_result.get('ResponseDescription')}", 400)
+                    
+                checkout_request_id = payment_result.get('CheckoutRequestID')
+                if not checkout_request_id:
+                    return error_response("Missing checkout request ID in payment response", 400)
                 
-            # Check for valid response
-            if payment_result.get('ResponseCode') != '0':
-                return error_response(f"Payment gateway error: {payment_result.get('ResponseDescription')}", 400)
+                # Create ticket records
+                tickets = []
+                for detail in ticket_details:
+                    ticket_type_id = detail.get('ticket_type_id')
+                    quantity = detail.get('quantity', 1)
+                    ticket_type = TicketType.query.get(ticket_type_id)
+                    
+                    ticket = Ticket(
+                        event_id=event.id,
+                        attendee_id=attendee.id,
+                        ticket_type_id=ticket_type.id,
+                        price=ticket_type.price * quantity,
+                        quantity=quantity,
+                        currency=ticket_type.currency,
+                        satus='pending'
+                    )
+                    
+                    db.session.add(ticket)
+                    db.session.flush()
+                    tickets.append(ticket)
                 
-            # Get checkout request ID
-            checkout_request_id = payment_result.get('CheckoutRequestID')
-            
-            if not checkout_request_id:
-                return error_response("Missing checkout request ID in payment response", 400)
-            
-            # Create ticket records for each ticket type
-            tickets = []
-            for detail in ticket_details:
-                ticket_type_id = detail.get('ticket_type_id')
-                quantity = detail.get('quantity', 1)
-                
-                ticket_type = TicketType.query.get(ticket_type_id)
-                
-                # Create ticket
-                ticket = Ticket(
-                    event_id=event.id,
-                    attendee_id=attendee.id,
-                    ticket_type_id=ticket_type.id,
-                    price=ticket_type.price * quantity,
-                    quantity=quantity,
-                    currency=ticket_type.currency,
-                    satus='pending'  # Initially pending
+                # Create payment record
+                payment = Payment(
+                    ticket_id=tickets[0].id,
+                    payment_method='Mpesa',
+                    payment_status='Pending',
+                    transaction_id=checkout_request_id,
+                    amount=total_amount,
+                    currency=tickets[0].currency
                 )
                 
-                db.session.add(ticket)
-                db.session.flush()  # Get ticket ID
-                tickets.append(ticket)
+                db.session.add(payment)
+                db.session.commit()
+
+                # Schedule verification
+                threading.Timer(
+                    5,  # Initial delay
+                    delayed_verification,
+                    args=(checkout_request_id,)
+                ).start()
+
+                return success_response(
+                    message="Payment initiated successfully. Please complete on your phone.",
+                    data={"CheckoutRequestID": checkout_request_id},
+                    status_code=200
+                )
             
-            # Create payment record
-            payment = Payment(
-                ticket_id=tickets[0].id,  # Link to first ticket
-                payment_method='Mpesa',
-                payment_status='Pending',
-                transaction_id=checkout_request_id,
-                amount=total_amount,
-                currency=tickets[0].currency
-            )
-            
-            db.session.add(payment)
-            db.session.commit()
-
-            # Schedule verification after a delay using threading
-            from threading import Timer
-            from flask import current_app
-
-            # Capture required variables and application context
-            flask_app = current_app._get_current_object()
-
-            # Create a closure for delayed verification
-            def delayed_verification(checkout_request_id, attempt=1):
-                try:
-                    # Use the captured flask_app context
-                    with flask_app.app_context():
-                        from database import db
-                        lock = get_transaction_lock(checkout_request_id)
-                        with lock:
-                            try:
-                                payment = Payment.query.filter_by(
-                                    transaction_id=checkout_request_id
-                                ).first()
-
-                                if not payment or payment.payment_status != 'Pending':
-                                    return
-
-                                result = verify_mpesa_payment(checkout_request_id)
-                                
-                                # Handle errors (e.g., network issues)
-                                if 'error' in result:
-                                    logger.error(f"Payment verification error: {result['error']}")
-                                    if attempt <= 3:
-                                        delay = 5 * (2 ** (attempt - 1))
-                                        logger.info(f"Scheduling retry {attempt + 1} in {delay}s")
-                                        Timer(
-                                            delay,
-                                            delayed_verification,
-                                            args=(checkout_request_id, attempt + 1)
-                                        ).start()
-                                        return
-                                    else:
-                                        payment.payment_status = 'Failed'
-                                        payment.failure_reason = result.get('error', 'Payment verification failed after retries')
-                                        db.session.commit()
-                                        return
-
-                                # Handle M-Pesa response codes
-                                result_code = result.get('ResultCode')
-                                if result_code == '1032' or result_code == '1':
-                                    # Transaction canceled by user
-                                    payment.payment_status = 'Canceled'
-                                    payment.failure_reason = result.get('ResultDesc', 'Payment canceled by user')
-                                    
-                                    # Update associated tickets
-                                    ticket = payment.ticket  # Single ticket since one payment belongs to one ticket
-                                    ticket.satus = 'canceled'
-                                   
-                                    
-                                    db.session.commit()
-                                    logger.info(f"Payment canceled: {checkout_request_id}")
-                                    return
-                                
-                                elif result_code == '0':
-                                    # Successful payment
-                                    get_verification_status(result, payment)
-                                
-                                elif result_code == '2001' or result.get('status') == 'pending':
-                                    # Transaction pending, retry if attempts remain
-                                    if attempt <= 3:
-                                        delay = 5 * (2 ** (attempt - 1))
-                                        logger.info(f"Scheduling retry {attempt + 1} in {delay}s for pending transaction")
-                                        Timer(
-                                            delay,
-                                            delayed_verification,
-                                            args=(checkout_request_id, attempt + 1)
-                                        ).start()
-                                    else:
-                                        payment.payment_status = 'Failed'
-                                        payment.failure_reason = 'Payment pending but max retries reached'
-                                        db.session.commit()
-                                
-                                else:
-                                    # Other failure reasons
-                                    payment.payment_status = 'Failed'
-                                    payment.failure_reason = result.get('ResultDesc', 'Payment failed')
-                                    db.session.commit()
-
-                            except SQLAlchemyError as e:
-                                logger.error(f"Database error: {str(e)}")
-                                db.session.rollback()
-                            finally:
-                                db.session.remove()
-
-                except Exception as e:
-                    logger.error(f"Thread error: {str(e)}")
-
-            # Schedule initial verification
-            Timer(
-                5,  # Initial delay
-                delayed_verification,
-                args=(checkout_request_id,),
-                kwargs={'attempt': 1}
-            ).start()
-
-            return success_response(
-                message="Payment initiated successfully. Please complete on your phone.",
-                data={"CheckoutRequestID": checkout_request_id},
-                status_code=200
-            )
-            
+        except TimeoutError as e:
+            logger.error(f"Transaction lock timeout: {str(e)}")
+            return error_response("Transaction processing timeout", 503)
         except Exception as e:
             logger.error(f"Error processing ticket purchase: {str(e)}")
             db.session.rollback()
             return error_response(f"Error: {str(e)}", 500)
-        
-            
+
 # class PaymentStatusResource(Resource):
 #     """Resource for checking payment status"""
     

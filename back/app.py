@@ -1,4 +1,3 @@
-
 from flask_restful import Api
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -29,20 +28,18 @@ DATABASE_URL = os.getenv("EXTERNAL_DATABASE_URL") or os.getenv("INTERNAL_DATABAS
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize Database
-# db = SQLAlchemy(app)
+
 db.init_app(app)
 
-# Initialize Flask-Migrate)
+
 migrate = Migrate(app, db)
 
 # JWT Configuration
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'fallback-secret-key')  # Use env variable or fallback
-app.config['JWT_TOKEN_LOCATION'] = ['cookies']  # Allow both headers and cookies
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'fallback-secret-key')  
+app.config['JWT_TOKEN_LOCATION'] = ['cookies']  
 app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
-app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # For development, enable in production
 app.config['JWT_COOKIE_SECURE'] = True  # Ensure cookies are only sent over HTTPS
 app.config['JWT_COOKIE_SAMESITE'] = "None"  # Allow cross-site cookies
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
@@ -77,24 +74,19 @@ CORS(
 )
 api = Api(app)
 
-# Add this new function above create_app()
-# def is_migration_command():
-#     import sys
-#     return db in sys.argv or 'migrate' in sys.argv or 'upgrade' in sys.argv
-# if not is_migration_command():
-#     from redis_client import redis_client
-#     try:
-#         redis_client.ping()
-#         app.redis_available = True
-#     except Exception as e:
-#         app.redis_available = False
-#         print(f"Redis connection warning: {str(e)}")
-# else:
-#     app.redis_available = False
+# Initialize Redis connection
+from redis_client import redis_client
+try:
+    redis_client.ping()
+    app.redis_available = True
+    print("Redis connection established successfully")
+except Exception as e:
+    app.redis_available = False
+    print(f"Redis connection warning: {str(e)}")
 
 # from models import User, Role, UserRole, Organizer, Attendee, Event, Category, EventCategory, Ticket, DiscountCode, EventDiscountCode, Payment
 
-from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource, CurrentUserResource, LogoutResource, DevAdminResource
+from users import UserResource, UserListResource, UserLoginResource, UserRolesResource , RoleListResource, CurrentUserResource, LogoutResource, DevAdminResource, TokenRefresh
 from events import EventResource, EventListResource, EventCategoriesResource, FeaturedEventsResource
 from tickets import (
    
@@ -123,6 +115,8 @@ api.add_resource(UserResource, '/api/users/<string:user_id>')
 api.add_resource(UserLoginResource, '/api/login')
 api.add_resource(UserRolesResource, '/api/users/<string:user_id>/roles')
 api.add_resource(RoleListResource, '/api/role')
+api.add_resource(TokenRefresh, '/api/refresh')
+
 
 
 

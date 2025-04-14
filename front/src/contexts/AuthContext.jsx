@@ -31,6 +31,27 @@ export const AuthProvider = ({ children }) => {
   const [eventCache, setEventCache] = useState({});
   const navigate = useNavigate();
 
+  // Add refresh token interval
+  useEffect(() => {
+    const refreshInterval = setInterval(async () => {
+      if (user) {
+        try {
+          await axios.post(
+            `${import.meta.env.VITE_API_URL}/api/refresh`,
+            {},
+            { withCredentials: true }
+          );
+        } catch (error) {
+          console.error("Error refreshing token:", error);
+          // If refresh fails, log out the user
+          logout();
+        }
+      }
+    }, 14 * 60 * 1000); // Refresh every 14 minutes (token expires in 15)
+
+    return () => clearInterval(refreshInterval);
+  }, [user]);
+
   // Fetch user data when the component mounts
   useEffect(() => {
     // Only try to fetch user data if we're not already loading
@@ -173,7 +194,13 @@ export const AuthProvider = ({ children }) => {
         // admins can see all events
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/api/events`,
-          { withCredentials: true }
+          { 
+            withCredentials: true,
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          }
         );
         return response.data;
       } else {
@@ -185,7 +212,13 @@ export const AuthProvider = ({ children }) => {
 
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/api/events?organizer_id=${organizer.id}`,
-          { withCredentials: true }
+          { 
+            withCredentials: true,
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          }
         );
         return response.data;
       }
@@ -199,20 +232,32 @@ export const AuthProvider = ({ children }) => {
   const fetchEventById = async (eventId) => {
     // Check cache first
     if (eventCache[eventId]) {
-      return eventCache[eventId];
+      const cacheAge = Date.now() - (eventCache[eventId].timestamp || 0);
+      if (cacheAge < 300000) { // 5 minutes cache
+        return eventCache[eventId].data;
+      }
     }
 
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/events/${eventId}`,
-        { withCredentials: true }
+        { 
+          withCredentials: true,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        }
       );
       const eventData = response.data.data;
       
-      // Update cache
+      // Update cache with timestamp
       setEventCache(prev => ({
         ...prev,
-        [eventId]: eventData
+        [eventId]: {
+          data: eventData,
+          timestamp: Date.now()
+        }
       }));
       
       return eventData;

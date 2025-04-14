@@ -142,129 +142,47 @@ const Events = () => {
     return null; // No suitable cache found
   }, [activeFilter, searchQuery, selectedLocation, getCacheKey]);
   
-  const fetchEvents = useCallback(async (signal) => {
-    const cachedEvents = getCachedEvents();
-    const key = getCacheKey();
-    
-    if (cachedEvents && cachedEvents.length > 0) {
-      setEvents(cachedEvents);
-      setIsLoading(false);
-      
-      if (Date.now() - (eventsCache.current.lastFetchTime || 0) > 30000) { // 30 seconds cache
-        try {
-          let url = '/api/events';
-          const params = new URLSearchParams();
-          
-          if (activeFilter !== 'all') {
-            params.append('category', activeFilter);
-          }
-          
-          if (searchQuery && typeof searchQuery === 'string' && searchQuery !== '') {
-            params.append('search', searchQuery);
-          }
-          
-          if (selectedLocation) {
-            params.append('location', selectedLocation);
-          }
-          
-          if (params.toString()) {
-            url += `?${params.toString()}`;
-          }
-          
-          const response = await axios.get(`${import.meta.env.VITE_API_URL}${url}`, { signal });
-          
-          if (response.data?.data?.items) {
-            const newEvents = response.data.data.items;
-            
-            const hasNewEvents = newEvents.some(newEvent => 
-              !cachedEvents.some(cachedEvent => cachedEvent.id === newEvent.id)
-            );
-            
-            if (hasNewEvents || newEvents.length !== cachedEvents.length) {
-              setEvents(newEvents);
-              eventsCache.current[key] = newEvents;
-              eventsCache.current.lastFetchTime = Date.now();
-              
-              if (activeFilter === 'all' && !searchQuery && !selectedLocation) {
-                eventsCache.current.all = newEvents;
-              }
-            }
-          }
-        } catch (error) {
-          if (!axios.isCancel(error)) {
-            console.error('Error fetching latest events:', error);
-            setError('Unable to refresh events. Please try again later.');
-          }
-        }
-      }
-      return;
-    }
-    
-    setError(null);
-    setIsLoading(true);
-    
+  const fetchEvents = async (filters = {}) => {
     try {
-      let url = '/api/events';
-      const params = new URLSearchParams();
+      const cacheKey = JSON.stringify(filters);
+      const now = Date.now();
       
-      if (activeFilter !== 'all') {
-        params.append('category', activeFilter);
-      }
-      
-      if (searchQuery && typeof searchQuery === 'string' && searchQuery !== '') {
-        params.append('search', searchQuery);
-      }
-      
-      if (selectedLocation) {
-        params.append('location', selectedLocation);
-      }
-      
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-      
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}${url}`, { signal });
-      
-      if (response.data?.data?.items) {
-        const newEvents = response.data.data.items;
-        setEvents(newEvents);
-        
-        // Update cache
-        eventsCache.current[key] = newEvents;
-        eventsCache.current.lastFetchTime = Date.now();
-        
-        // Update main cache if applicable
-        if (activeFilter === 'all' && !searchQuery && !selectedLocation) {
-          eventsCache.current.all = newEvents;
-        } else if (activeFilter !== 'all' && !searchQuery && !selectedLocation) {
-          const categoryKey = `category:${activeFilter}`;
-          eventsCache.current[categoryKey] = newEvents;
-        }
-        
-        setRetryCount(0);
-      } else {
-        setEvents([]);
-      }
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        console.log('Request cancelled');
+      // Check if we have a valid cache entry
+      if (eventsCache.current[cacheKey] && 
+          now - eventsCache.current[cacheKey].timestamp < 300000) { // 5 minutes cache
+        setEvents(eventsCache.current[cacheKey].data);
         return;
       }
+
+      const queryParams = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value);
+      });
+
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/events?${queryParams.toString()}`,
+        { 
+          withCredentials: true,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        }
+      );
+
+      const eventsData = response.data.data;
+      setEvents(eventsData);
       
+      // Update cache with timestamp
+      eventsCache.current[cacheKey] = {
+        data: eventsData,
+        timestamp: now
+      };
+    } catch (error) {
       console.error('Error fetching events:', error);
-      setError('Unable to load events. Please try again later.');
-      setEvents([]);
-      
-      if (retryCount < 3) {
-        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-        }, delay);
-      }
-    } finally {
-      setIsLoading(false);
+      setError('Failed to load events. Please try again later.');
     }
-  }, [activeFilter, searchQuery, retryCount, selectedLocation, getCachedEvents, getCacheKey]);
+  };
 
   useEffect(() => {
     // Cancel any pending requests when filter or search changes
@@ -274,7 +192,7 @@ const Events = () => {
     abortControllerRef.current = new AbortController();
     
     const timeoutId = setTimeout(() => {
-      fetchEvents(abortControllerRef.current.signal);
+      fetchEvents(filters);
     }, searchQuery ? 300 : 0); // 300ms delay for search, no delay for other filters
     
     return () => {
@@ -303,7 +221,7 @@ const Events = () => {
 
   const handleRetry = () => {
     setRetryCount(0);
-    fetchEvents(abortControllerRef.current.signal);
+    fetchEvents(filters);
   };
 
   const handleFilterClick = (filter) => {

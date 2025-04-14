@@ -1,7 +1,10 @@
 from flask import request, jsonify, make_response
 from flask_restful import Resource
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, verify_jwt_in_request
+from flask_jwt_extended import (
+    jwt_required, get_jwt_identity, create_access_token, 
+    create_refresh_token, verify_jwt_in_request
+)
 from database import db
 from models import User, Role, UserRole
 from utils.response import success_response, error_response
@@ -278,14 +281,21 @@ class UserLoginResource(Resource):
             user = User.query.filter_by(email=email).first()
             if user and user.check_password(password):
                 # Create the JWT token
-                access_token = create_access_token(identity=user.id)
-                
+                access_token = create_access_token(
+                    identity=user.id,
+                    expires_delta=timedelta(minutes=15)  
+                )
+                refresh_token = create_refresh_token(
+                    identity=user.id,
+                    expires_delta=timedelta(days=30)  
+                )
                 # Create response
                 response = make_response(
                     success_response(
                         data={
                             'user': user.to_dict(),
-                            'access_token': access_token
+                            'access_token': access_token,
+                            'refresh_token': refresh_token	
                         },
                         message="Login successful"
                     )
@@ -296,9 +306,19 @@ class UserLoginResource(Resource):
                     'access_token_cookie',
                     access_token,
                     httponly=True,
-                    secure=True,  # Ensure cookies are only sent over HTTPS
-                    samesite='None',  # Allow cross-site cookies
-                    path='/'
+                    secure=True,
+                    samesite='None',  
+                    path='/',
+                    max_age=900  
+                )
+                response.set_cookie(
+                    'refresh_token_cookie',
+                    refresh_token,
+                    httponly=True,
+                    secure=True,
+                    samesite='None',
+                    path='/refresh',  
+                    max_age=2592000  
                 )
 
                 print("Login attempt for:", email)
@@ -306,13 +326,53 @@ class UserLoginResource(Resource):
                 print("Access token generated:", access_token)
                 print("Setting cookie with value:", access_token)
                 print("Cookies received:", request.cookies.get('access_token_cookie'))
+                print("refresh token:", refresh_token)
+               
                 return response
             
             return error_response("Invalid email or password", 401)
             
         except Exception as e:
             return error_response(str(e))
-
+class TokenRefresh(Resource):
+    @jwt_required(refresh=True)
+    def post(self):
+        try:
+            
+            current_user_id = get_jwt_identity()
+            
+           
+            new_access_token = create_access_token(
+                identity=current_user_id,
+                expires_delta=timedelta(minutes=15)
+            )
+            
+            
+            response = make_response(
+                success_response(
+                    data={
+                        'access_token': new_access_token
+                    },
+                    message="Access token refreshed"
+                )
+            )
+            
+    
+            response.set_cookie(
+                'access_token_cookie',
+                new_access_token,
+                httponly=True,
+                secure=True,
+                samesite='None',
+                path='/',
+                max_age=900  
+            )
+            
+            return response
+            
+        except Exception as e:
+            return error_response(str(e))
+        
 class UserRolesResource(Resource):
     """
     Resource for managing user roles

@@ -50,6 +50,7 @@ const SignIn = () => {
       const result = await login(email, password);
       
       if (result.success) {
+        
         toast({
           title: "Welcome back!",
           description: "You have successfully signed in.",

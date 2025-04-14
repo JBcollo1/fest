@@ -8,14 +8,24 @@ from utils.auth import organizer_required, admin_required
 from datetime import datetime
 import cloudinary.uploader
 import json
+from redis_client import redis_client
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 class EventListResource(Resource):
     def get(self):
+        # Generate cache key based on query parameters
+        cache_key = f"events:all:{request.query_string.decode()}"
+        
+        # Try to get cached data
+        cached_data = redis_client.get_cached_events(cache_key)
+        if cached_data:
+            return cached_data
+            
         category = request.args.get('category')
         search = request.args.get('search')
         start_date = request.args.get('start_date')
@@ -64,8 +74,13 @@ class EventListResource(Resource):
         # Sort by start date
         query = query.order_by(Event.start_datetime)
         
-        # Return paginated results
-        return paginate_response(query)
+        # Get paginated results
+        result = paginate_response(query)
+        
+        # Cache the results
+        redis_client.set_cached_events(cache_key, result)
+        
+        return result
     
     @jwt_required()
     def post(self):
@@ -186,12 +201,23 @@ class EventListResource(Resource):
 
 class EventResource(Resource):
     def get(self, event_id):
+        # Try to get cached event
+        cache_key = f"event:{event_id}"
+        cached_data = redis_client.get_cached_events(cache_key)
+        if cached_data:
+            return cached_data
+            
         event = Event.query.get(event_id)
         
         if not event:
             return error_response("Event not found", 404)
             
-        return success_response(data=event.to_dict(include_organizer=True))
+        result = success_response(data=event.to_dict(include_organizer=True))
+        
+        # Cache the result
+        redis_client.set_cached_events(cache_key, result)
+        
+        return result
     
     @jwt_required()
     def put(self, event_id):
@@ -272,6 +298,8 @@ class EventResource(Resource):
         
         try:
             db.session.commit()
+            # Invalidate cache for this event and all events
+            redis_client.invalidate_event_cache(event_id)
             return success_response(
                 data=event.to_dict(include_organizer=True),
                 message="Event updated successfully"
@@ -298,6 +326,8 @@ class EventResource(Resource):
         try:
             db.session.delete(event)
             db.session.commit()
+            # Invalidate cache for this event and all events
+            redis_client.invalidate_event_cache(event_id)
             return success_response(message="Event deleted successfully")
         except Exception as e:
             db.session.rollback()
@@ -360,6 +390,16 @@ class FeaturedEventsResource(Resource):
     """
     def get(self):
         """Get featured events"""
+        # cache featured events
+        cache_key = "events:featured"
+        cached_data = redis_client.get_cached_events(cache_key)
+        if cached_data:
+            return cached_data
+            
         featured_events = Event.query.filter_by(featured=True).order_by(Event.start_datetime).all()
+        result = success_response(data=[event.to_dict() for event in featured_events])
         
-        return success_response(data=[event.to_dict() for event in featured_events])
+        
+        redis_client.set_cached_events(cache_key, result)
+        
+        return result
