@@ -233,7 +233,7 @@ def verify_mpesa_payment(checkout_request_id):
 
 def delayed_verification(checkout_request_id, attempt=1):
     """Handle delayed payment verification with retries"""
-    from database import app  # Import app here to avoid circular imports
+    from app2 import app  # Import app here to avoid circular imports
     
     with app.app_context():  # Create application context for the thread
         try:
