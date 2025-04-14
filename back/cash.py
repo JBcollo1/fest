@@ -270,11 +270,13 @@ def delayed_verification(checkout_request_id, attempt=1):
 
     except SQLAlchemyError as e:
         logger.error(f"Database error: {str(e)}")
-        db.session.rollback()
+        with app.app_context():
+            db.session.rollback()
     except Exception as e:
         logger.error(f"Thread error: {str(e)}")
     finally:
-        db.session.remove()
+        with app.app_context():
+            db.session.remove()
 
 class LockManager:
     def __init__(self):

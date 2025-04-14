@@ -16,7 +16,8 @@ import {
   Twitter,
   Linkedin,
   Mail,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import AnimatedSection from '@/components/AnimatedSection';
@@ -46,6 +47,8 @@ const EventDetail = () => {
   const [selectedTickets, setSelectedTickets] = useState({});
   const [copySuccess, setCopySuccess] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [refreshAttempts, setRefreshAttempts] = useState(0);
+  const maxRefreshAttempts = 3; // Maximum number of automatic refresh attempts
   
   const scrollToTickets = () => {
     const ticketsSection = document.getElementById('tickets-section');
@@ -59,82 +62,107 @@ const EventDetail = () => {
     }
   };
 
-  useEffect(() => {
-    const loadEvent = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  const loadEvent = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-        // Check for cached event data
-        const cachedEvent = localStorage.getItem(`event_${id}`);
-        if (cachedEvent) {
-          const parsedEvent = JSON.parse(cachedEvent);
-          const cacheTime = parsedEvent.timestamp;
-          const now = new Date().getTime();
-          const cacheDuration = 5 * 60 * 1000; // 5 minutes cache duration
+      // Check for cached event data
+      const cachedEvent = localStorage.getItem(`event_${id}`);
+      if (cachedEvent) {
+        const parsedEvent = JSON.parse(cachedEvent);
+        const cacheTime = parsedEvent.timestamp;
+        const now = new Date().getTime();
+        const cacheDuration = 5 * 60 * 1000; // 5 minutes cache duration
 
-          if (now - cacheTime < cacheDuration && parsedEvent.data) {
-            // Verify we have all required data
-            if (parsedEvent.data.ticket_types && parsedEvent.data.organizer) {
-              setEvent(parsedEvent.data);
-              // Initialize selected tickets state
-              const initialSelectedTickets = {};
-              parsedEvent.data.ticket_types.forEach(type => {
-                initialSelectedTickets[type.id] = 0;
-              });
-              setSelectedTickets(initialSelectedTickets);
-              setIsLoading(false);
-              return;
-            }
-          }
-        }
-
-        // If no cache or cache expired or incomplete, fetch from API
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/${id}`, {
-          withCredentials: true,
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-
-        if (response.data && response.data[0] && response.data[0].data) {
-          const eventData = response.data[0].data;
-          
-          // Verify we have all required data before caching
-          if (eventData.ticket_types && eventData.organizer) {
-            setEvent(eventData);
-
-            // Cache the event data with timestamp
-            localStorage.setItem(`event_${id}`, JSON.stringify({
-              data: eventData,
-              timestamp: new Date().getTime()
-            }));
-
+        if (now - cacheTime < cacheDuration && parsedEvent.data) {
+          // Verify we have all required data
+          if (parsedEvent.data.ticket_types && parsedEvent.data.organizer) {
+            setEvent(parsedEvent.data);
             // Initialize selected tickets state
             const initialSelectedTickets = {};
-            eventData.ticket_types.forEach(type => {
+            parsedEvent.data.ticket_types.forEach(type => {
               initialSelectedTickets[type.id] = 0;
             });
             setSelectedTickets(initialSelectedTickets);
-          } else {
-            throw new Error('Incomplete event data received');
+            setIsLoading(false);
+            return;
           }
-        } else {
-          throw new Error('Event not found');
         }
-      } catch (err) {
-        console.error('Error loading event:', err);
-        setError(err.response?.data?.message || 'Failed to load event details');
-        // Clear invalid cache
-        localStorage.removeItem(`event_${id}`);
-      } finally {
-        setIsLoading(false);
       }
-    };
 
+      // If no cache or cache expired or incomplete, fetch from API
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/${id}`, {
+        withCredentials: true,
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (response.data && response.data[0] && response.data[0].data) {
+        const eventData = response.data[0].data;
+        
+        // Verify we have all required data before caching
+        if (eventData.ticket_types && eventData.organizer) {
+          setEvent(eventData);
+
+          // Cache the event data with timestamp
+          localStorage.setItem(`event_${id}`, JSON.stringify({
+            data: eventData,
+            timestamp: new Date().getTime()
+          }));
+
+          // Initialize selected tickets state
+          const initialSelectedTickets = {};
+          eventData.ticket_types.forEach(type => {
+            initialSelectedTickets[type.id] = 0;
+          });
+          setSelectedTickets(initialSelectedTickets);
+        } else {
+          throw new Error('Incomplete event data received');
+        }
+      } else {
+        throw new Error('Event not found');
+      }
+
+      // Reset refresh attempts on successful load
+      setRefreshAttempts(0);
+
+    } catch (err) {
+      console.error('Error loading event:', err);
+      setError(err.response?.data?.message || 'Failed to load event details');
+      // Clear invalid cache
+      localStorage.removeItem(`event_${id}`);
+
+      // Increment refresh attempts
+      setRefreshAttempts(prev => prev + 1);
+
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadEvent();
   }, [id]);
+
+  // Handle automatic refresh on error
+  useEffect(() => {
+    if (error && refreshAttempts < maxRefreshAttempts) {
+      const refreshTimer = setTimeout(() => {
+        console.log(`Auto-refreshing after error (attempt ${refreshAttempts + 1}/${maxRefreshAttempts})...`);
+        toast({
+          title: "Refreshing page",
+          description: `Trying to reload data (Attempt ${refreshAttempts + 1}/${maxRefreshAttempts})`,
+          duration: 3000,
+        });
+        loadEvent();
+      }, 3000); // Wait 3 seconds before refreshing
+
+      return () => clearTimeout(refreshTimer);
+    }
+  }, [error, refreshAttempts]);
   
   const increaseTickets = (ticketTypeId) => {
     if (!event || !event.ticket_types) return;
@@ -338,13 +366,53 @@ const EventDetail = () => {
         <Navbar />
         <div className="flex-1 flex flex-col items-center justify-center p-4">
           <h1 className="text-2xl font-semibold mb-4">Error Loading Event</h1>
-          <p className="text-muted-foreground mb-6">{error}</p>
-          <Button asChild>
-            <Link to="/">
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Link>
-          </Button>
+          <p className="text-muted-foreground mb-2">{error}</p>
+
+          {refreshAttempts >= maxRefreshAttempts ? (
+            <div className="text-center mb-6">
+              <p className="text-amber-500 dark:text-amber-400 mb-4">
+                Automatic refresh attempts failed. Please try manually refreshing the page.
+              </p>
+              <Button onClick={() => {
+                setRefreshAttempts(0);
+                loadEvent();
+              }}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry Manually
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center mb-6">
+              <p className="text-muted-foreground">
+                Attempting to reload automatically... ({refreshAttempts}/{maxRefreshAttempts})
+              </p>
+              <div className="mt-2 flex items-center space-x-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                </span>
+                <span className="text-sm text-muted-foreground">Refreshing</span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex space-x-4">
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+              disabled={refreshAttempts < maxRefreshAttempts}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Force Refresh
+            </Button>
+
+            <Button asChild variant="outline">
+              <Link to="/">
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Back to Home
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     );
