@@ -35,6 +35,10 @@ const Events = () => {
   });
   const [showPastEvents, setShowPastEvents] = useState(false);
   const mountedRef = useRef(true);
+  const autoRetryTimeoutRef = useRef(null);
+  const maxAutoRetries = 3;
+  const [emptyResultsRetryCount, setEmptyResultsRetryCount] = useState(0);
+  const [isAutoRetrying, setIsAutoRetrying] = useState(false);
   
   // Cache for events data
   const eventsCache = useRef({});
@@ -100,6 +104,31 @@ const Events = () => {
     });
   };
 
+  // Function to handle auto-retry for empty results
+  const handleEmptyResultsRetry = useCallback(() => {
+    if (!mountedRef.current || emptyResultsRetryCount >= maxAutoRetries) return;
+    
+    setIsAutoRetrying(true);
+    // Keep loading state active to make it look like it's still loading
+    setIsLoading(true);
+    
+    // Clear any existing timeout
+    if (autoRetryTimeoutRef.current) {
+      clearTimeout(autoRetryTimeoutRef.current);
+    }
+    
+    // Exponential backoff for retries (500ms, 1000ms, 2000ms)
+    const retryDelay = Math.min(500 * Math.pow(2, emptyResultsRetryCount), 2000);
+    
+    console.log(`Auto-retrying fetch for empty results (attempt ${emptyResultsRetryCount + 1}/${maxAutoRetries}) in ${retryDelay}ms`);
+    
+    autoRetryTimeoutRef.current = setTimeout(() => {
+      setEmptyResultsRetryCount(prev => prev + 1);
+      fetchEvents(filters, true); // Force refresh to bypass cache
+    }, retryDelay);
+    
+  }, [emptyResultsRetryCount, filters]);
+
   const fetchEvents = async (filters = {}, forceRefresh = false) => {
     if (!mountedRef.current) return;
 
@@ -116,11 +145,12 @@ const Events = () => {
     if (!forceRefresh && eventsCache.current[cacheKey]) {
       setEvents(eventsCache.current[cacheKey]);
       setIsLoading(false);
+      setIsAutoRetrying(false);
       return;
     }
     
     // If we're refreshing current data, show refreshing state instead of loading
-    if (events.length > 0 && !forceRefresh) {
+    if (events.length > 0 && !forceRefresh && !isAutoRetrying) {
       setIsRefreshing(true);
     } else {
       setIsLoading(true);
@@ -172,9 +202,27 @@ const Events = () => {
         // Only update state if this is still the most recent request
         if (lastFetchParams.current === cacheKey) {
           setEvents(fetchedEvents);
+          
+          // Handle empty results - auto-retry logic
+          if (fetchedEvents.length === 0 && emptyResultsRetryCount < maxAutoRetries) {
+            handleEmptyResultsRetry();
+            return; // Keep loading state active by returning early
+          } else {
+            // Reset retry count when we get results or exceed max retries
+            setEmptyResultsRetryCount(0);
+            setIsAutoRetrying(false);
+          }
         }
       } else {
-        setError('No events found matching your criteria');
+        // Handle empty results
+        if (emptyResultsRetryCount < maxAutoRetries) {
+          handleEmptyResultsRetry();
+          return; // Keep loading state active
+        } else {
+          setError('No events found matching your criteria');
+          setEmptyResultsRetryCount(0);
+          setIsAutoRetrying(false);
+        }
       }
     } catch (error) {
       if (!mountedRef.current) return;
@@ -186,8 +234,9 @@ const Events = () => {
       
       console.error('Error fetching events:', error);
       setError(error.response?.data?.message || 'Failed to load events. Please try again later.');
+      setIsAutoRetrying(false);
     } finally {
-      if (mountedRef.current) {
+      if (mountedRef.current && !isAutoRetrying) {
         setIsLoading(false);
         setIsRefreshing(false);
       }
@@ -201,12 +250,17 @@ const Events = () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      if (autoRetryTimeoutRef.current) {
+        clearTimeout(autoRetryTimeoutRef.current);
+      }
     };
   }, []);
 
   // Initial load
   useEffect(() => {
     console.log('Initial fetch triggered');
+    // Reset auto-retry count on filter changes
+    setEmptyResultsRetryCount(0);
     fetchEvents(filters);
   }, [filters]);
 
@@ -219,6 +273,15 @@ const Events = () => {
     }
     abortControllerRef.current = new AbortController();
     
+    // Clear any auto-retry timeout
+    if (autoRetryTimeoutRef.current) {
+      clearTimeout(autoRetryTimeoutRef.current);
+    }
+    
+    // Reset auto-retry count on filter changes
+    setEmptyResultsRetryCount(0);
+    setIsAutoRetrying(false);
+    
     // Debounce search to prevent too many API calls
     const timeoutId = setTimeout(() => {
       console.log('Fetching events with filters:', filters);
@@ -230,6 +293,9 @@ const Events = () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      if (autoRetryTimeoutRef.current) {
+        clearTimeout(autoRetryTimeoutRef.current);
+      }
     };
   }, [activeFilter, searchQuery, selectedLocation, filters, showPastEvents]);
 
@@ -239,11 +305,19 @@ const Events = () => {
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
+    
+    // Reset auto-retry count on manual refresh
+    setEmptyResultsRetryCount(0);
+    setIsAutoRetrying(false);
+    
     fetchEvents(filters, true); // Force refresh
   }, [filters]);
 
   // Add a retry mechanism
   const handleRetry = () => {
+    // Reset retry count on manual retry
+    setEmptyResultsRetryCount(0);
+    setIsAutoRetrying(false);
     refreshEvents();
   };
 
@@ -345,9 +419,9 @@ const Events = () => {
               size="sm"
               onClick={refreshEvents}
               className={`flex items-center gap-2 ml-auto ${isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
-              disabled={isRefreshing}
+              disabled={isRefreshing || isAutoRetrying}
             >
-              {isRefreshing ? (
+              {isRefreshing || isAutoRetrying ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Refreshing...
@@ -410,6 +484,11 @@ const Events = () => {
             {isRefreshing && events.length > 0 && (
               <div className="text-center mt-4">
                 <p className="text-sm text-muted-foreground">Refreshing results...</p>
+              </div>
+            )}
+            {isAutoRetrying && (
+              <div className="text-center mt-4">
+                <p className="text-sm text-muted-foreground">Looking for events...</p>
               </div>
             )}
           </AnimatedSection>

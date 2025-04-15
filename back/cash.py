@@ -231,7 +231,7 @@ def delayed_verification(checkout_request_id, attempt=1):
                 
                 if 'error' in result:
                     logger.error(f"Payment verification error: {result['error']}")
-                    if attempt <= 3:
+                    if attempt <= 4:
                         delay = 5 * (2 ** (attempt - 1))
                         threading.Timer(delay, delayed_verification, args=(checkout_request_id, attempt + 1)).start()
                         return
@@ -383,13 +383,7 @@ class MpesaCallbackResource(Resource):
                     logger.info(f"Payment completed for CheckoutRequestID: {checkout_request_id}")
                     
                 
-                    try:
-                        
-                        send_ticket_qr_email(ticket)
-                    except Exception as email_error:
-                        logger.error(f"Error sending ticket email: {str(email_error)}")
-                    
-                    return {"ResultCode": 0, "ResultDesc": "Success"}, 200
+             
                     
                 else:  
                 
@@ -549,7 +543,7 @@ def get_verification_status(result, payment):
         
         # Update payment status for successful transaction
         payment.payment_status = 'Completed'
-        payment.mpesa_receipt_no = result.get('MpesaReceiptNumber')
+        payment.transaction_id = result.get('MpesaReceiptNumber')
         payment.payment_date = datetime.now()
 
         # Update ticket status

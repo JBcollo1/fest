@@ -102,7 +102,7 @@ const Index = () => {
               <div className="mt-4 md:mt-0">
                 <Button variant="outline" asChild>
                   <Link to="/events">
-                    View All <ChevronRight className="h-4 w-4 ml-1" />
+                    View All <ChevronRight className="text-muted-foreground h-4 w-4 ml-1" />
                   </Link>
                 </Button>
               </div>

@@ -49,19 +49,13 @@ const EventDetail = () => {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [refreshAttempts, setRefreshAttempts] = useState(0);
   const maxRefreshAttempts = 3; // Maximum number of automatic refresh attempts
-  
-  const scrollToTickets = () => {
-    const ticketsSection = document.getElementById('tickets-section');
-    if (ticketsSection) {
-      const yOffset = -100; // Offset to account for fixed header
-      const y = ticketsSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({
-        top: y,
-        behavior: 'smooth'
-      });
-    }
-  };
+  const [isDataReady, setIsDataReady] = useState(false);
 
+  useEffect(() => {
+    if (event && Object.keys(selectedTickets).length > 0) {
+      setIsDataReady(true);
+    }
+  }, [event, selectedTickets]);
   const loadEvent = async () => {
     try {
       setIsLoading(true);
@@ -75,18 +69,30 @@ const EventDetail = () => {
         const now = new Date().getTime();
         const cacheDuration = 5 * 60 * 1000; // 5 minutes cache duration
 
+              
         if (now - cacheTime < cacheDuration && parsedEvent.data) {
-          // Verify we have all required data
-          if (parsedEvent.data.ticket_types && parsedEvent.data.organizer) {
-            setEvent(parsedEvent.data);
-            // Initialize selected tickets state
-            const initialSelectedTickets = {};
-            parsedEvent.data.ticket_types.forEach(type => {
-              initialSelectedTickets[type.id] = 0;
-            });
-            setSelectedTickets(initialSelectedTickets);
-            setIsLoading(false);
-            return;
+          try {
+            // More lenient check - make sure data structure exists
+            if (parsedEvent.data && typeof parsedEvent.data === 'object') {
+              console.log("Using cached event data:", parsedEvent.data);
+              setEvent(parsedEvent.data);
+              
+              // Initialize selected tickets safely
+              const initialSelectedTickets = {};
+              if (Array.isArray(parsedEvent.data.ticket_types)) {
+                parsedEvent.data.ticket_types.forEach(type => {
+                  if (type && type.id) {
+                    initialSelectedTickets[type.id] = 0;
+                  }
+                });
+              }
+              setSelectedTickets(initialSelectedTickets);
+              setIsLoading(false);
+              return;
+            }
+          } catch (e) {
+            console.error("Error parsing cached data:", e);
+            localStorage.removeItem(`event_${id}`); // Clear invalid cache
           }
         }
       }
@@ -147,19 +153,25 @@ const EventDetail = () => {
     loadEvent();
   }, [id]);
 
-  // Handle automatic refresh on error
+  
   useEffect(() => {
     if (error && refreshAttempts < maxRefreshAttempts) {
       const refreshTimer = setTimeout(() => {
         console.log(`Auto-refreshing after error (attempt ${refreshAttempts + 1}/${maxRefreshAttempts})...`);
+        
+    
+        setIsLoading(true);
+        
+        
         toast({
-          title: "Refreshing page",
-          description: `Trying to reload data (Attempt ${refreshAttempts + 1}/${maxRefreshAttempts})`,
+          title: "Loading event data",
+          description: `Please wait while we retrieve the event information`,
           duration: 3000,
         });
+        
         loadEvent();
-      }, 3000); // Wait 3 seconds before refreshing
-
+      }, 3000);
+  
       return () => clearTimeout(refreshTimer);
     }
   }, [error, refreshAttempts]);
@@ -361,51 +373,40 @@ const EventDetail = () => {
   }
 
   if (error) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex flex-col items-center justify-center p-4">
-          <h1 className="text-2xl font-semibold mb-4">Error Loading Event</h1>
-          <p className="text-muted-foreground mb-2">{error}</p>
-
-          {refreshAttempts >= maxRefreshAttempts ? (
+    if (refreshAttempts < maxRefreshAttempts) {
+      // During automatic refresh attempts, show the loading UI
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="animate-pulse text-center">
+            <div className={`w-32 h-32 mx-auto rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-muted'}`}></div>
+            <div className={`h-6 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-48 mx-auto mt-4`}></div>
+            <div className={`h-4 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-64 mx-auto mt-2`}></div>
+          </div>
+        </div>
+      );
+    } else {
+      // Only show error UI after all auto-refresh attempts have failed
+      return (
+        <div className="min-h-screen bg-background flex flex-col">
+          <Navbar />
+          <div className="flex-1 flex flex-col items-center justify-center p-4">
+            <h1 className="text-2xl font-semibold mb-4">Error Loading Event</h1>
+            <p className="text-muted-foreground mb-2">{error}</p>
+            
             <div className="text-center mb-6">
               <p className="text-amber-500 dark:text-amber-400 mb-4">
-                Automatic refresh attempts failed. Please try manually refreshing the page.
+                Unable to load event details. Please try refreshing the page.
               </p>
               <Button onClick={() => {
                 setRefreshAttempts(0);
+                setIsLoading(true);
                 loadEvent();
               }}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Retry Manually
+                Retry Loading
               </Button>
             </div>
-          ) : (
-            <div className="text-center mb-6">
-              <p className="text-muted-foreground">
-                Attempting to reload automatically... ({refreshAttempts}/{maxRefreshAttempts})
-              </p>
-              <div className="mt-2 flex items-center space-x-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                </span>
-                <span className="text-sm text-muted-foreground">Refreshing</span>
-              </div>
-            </div>
-          )}
-
-          <div className="flex space-x-4">
-            <Button 
-              variant="outline" 
-              onClick={() => window.location.reload()}
-              disabled={refreshAttempts < maxRefreshAttempts}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Force Refresh
-            </Button>
-
+  
             <Button asChild variant="outline">
               <Link to="/">
                 <ChevronLeft className="h-4 w-4 mr-2" />
@@ -414,10 +415,9 @@ const EventDetail = () => {
             </Button>
           </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
-
   if (!event) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
