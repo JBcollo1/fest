@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { AlertCircle, Loader2, Calendar, MapPin, Tag, Image, Users, Search } from "lucide-react";
+import { AlertCircle, Loader2, Calendar, MapPin, Tag, Image, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,9 +62,6 @@ const CreateEventDialog = ({
   const [previewUrl, setPreviewUrl] = useState(null);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const { isDarkMode } = useTheme();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filteredOrganizers, setFilteredOrganizers] = useState([]);
-
   // Reset form when dialog opens or closes
   useEffect(() => {
     if (!open) {
@@ -79,25 +76,6 @@ const CreateEventDialog = ({
       formRef.current.scrollTop = 0;
     }
   }, [open]);
-
-  // Filter organizers based on search query
-  useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredOrganizers(organizers);
-    } else {
-      const filtered = organizers.filter(organizer => {
-        const searchLower = searchQuery.toLowerCase();
-        const name = organizer.user?.first_name?.toLowerCase() || '';
-        const email = organizer.user?.email?.toLowerCase() || '';
-        const companyName = organizer.company_name?.toLowerCase() || '';
-        
-        return name.includes(searchLower) || 
-               email.includes(searchLower) || 
-               companyName.includes(searchLower);
-      });
-      setFilteredOrganizers(filtered);
-    }
-  }, [searchQuery, organizers]);
 
   const resetForm = () => {
     setTitle("");
@@ -154,106 +132,38 @@ const CreateEventDialog = ({
   };
 
   const validateForm = () => {
-    const newErrors = {};
-    
-    // Validate title
     if (!title) {
-      newErrors.title = "Title is required";
-    } else if (title.length < 3 || title.length > 100) {
-      newErrors.title = "Title must be between 3 and 100 characters";
-    } else if (!/^[a-zA-Z0-9\s\-_.,!?()]+$/.test(title)) {
-      newErrors.title = "Title contains invalid characters";
+      setFormError("Title is required");
+      return false;
     }
-    
-    // Validate description
-    if (description && description.length > 2000) {
-      newErrors.description = "Description must be less than 2000 characters";
-    }
-    
-    // Validate dates
     if (!startDateTime) {
-      newErrors.startDateTime = "Start date and time are required";
-    } else {
-      const startDate = new Date(startDateTime);
-      const now = new Date();
-      if (startDate < now) {
-        newErrors.startDateTime = "Start date cannot be in the past";
-      }
+      setFormError("Start date and time are required");
+      return false;
     }
-    
-    if (endDateTime) {
-      const endDate = new Date(endDateTime);
-      const startDate = new Date(startDateTime);
-      if (endDate <= startDate) {
-        newErrors.endDateTime = "End date must be after start date";
-      }
-    }
-    
-    // Validate location
     if (!location) {
-      newErrors.location = "Location is required";
-    } else if (location.length < 3 || location.length > 200) {
-      newErrors.location = "Location must be between 3 and 200 characters";
+      setFormError("Location is required");
+      return false;
     }
-    
-    // Validate image
-    if (selectedFile) {
-      if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
-        newErrors.image = "Image size must be less than 5MB";
-      }
-      if (!['image/jpeg', 'image/png', 'image/gif'].includes(selectedFile.type)) {
-        newErrors.image = "Only JPEG, PNG, and GIF images are allowed";
-      }
-    }
-    
-    // Validate ticket types
-    if (ticketTypes.length === 0) {
-      newErrors.ticketTypes = "At least one ticket type is required";
-    } else {
-      ticketTypes.forEach((ticketType, index) => {
-        if (!ticketType.name) {
-          newErrors[`ticketType_${index}_name`] = "Ticket type name is required";
-        } else if (ticketType.name.length < 3 || ticketType.name.length > 50) {
-          newErrors[`ticketType_${index}_name`] = "Ticket type name must be between 3 and 50 characters";
-        }
-        
-        if (!ticketType.price || isNaN(parseFloat(ticketType.price)) || parseFloat(ticketType.price) < 0) {
-          newErrors[`ticketType_${index}_price`] = "Valid price is required";
-        }
-        
-        if (!ticketType.quantity || isNaN(parseInt(ticketType.quantity)) || parseInt(ticketType.quantity) <= 0) {
-          newErrors[`ticketType_${index}_quantity`] = "Valid quantity is required";
-        }
-        
-        if (ticketType.per_person_limit && (isNaN(parseInt(ticketType.per_person_limit)) || parseInt(ticketType.per_person_limit) <= 0)) {
-          newErrors[`ticketType_${index}_per_person_limit`] = "Valid per person limit is required";
-        }
-        
-        if (ticketType.valid_from) {
-          const validFrom = new Date(ticketType.valid_from);
-          const startDate = new Date(startDateTime);
-          if (validFrom > startDate) {
-            newErrors[`ticketType_${index}_valid_from`] = "Valid from date cannot be after event start date";
-          }
-        }
-        
-        if (ticketType.valid_to) {
-          const validTo = new Date(ticketType.valid_to);
-          const startDate = new Date(startDateTime);
-          if (validTo < startDate) {
-            newErrors[`ticketType_${index}_valid_to`] = "Valid to date cannot be before event start date";
-          }
-        }
-      });
-    }
-    
+    // if (!totalTickets || isNaN(parseInt(totalTickets)) || parseInt(totalTickets) <= 0) {
+    //   setFormError("Valid number of tickets is required");
+    //   return false;
+    // }
     // For admins, require organizer selection
     if (isadmin && !organizerId) {
-      newErrors.organizer = "Please select an organizer";
+      setFormError("Please select an organizer");
+      return false;
     }
-    
-    setFormError(Object.values(newErrors).join("\n"));
-    return Object.keys(newErrors).length === 0;
+    for (const ticketType of ticketTypes) {
+      if (!ticketType.name) {
+        setFormError("Ticket type name is required");
+        return false;
+      }
+      if (!ticketType.quantity || isNaN(parseInt(ticketType.quantity)) || parseInt(ticketType.quantity) <= 0) {
+        setFormError("Valid ticket type quantity is required");
+        return false;
+      }
+    }
+    return true;
   };
 
   const handleFileSelect = (e) => {
@@ -331,10 +241,10 @@ const CreateEventDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`max-w-2xl max-h-[90vh] overflow-hidden flex flex-col ${isDarkMode ? 'bg-slate-900 text-white' : ''}`}>
-        <DialogHeader className={`pb-4 sticky top-0 ${isDarkMode ? 'bg-slate-900' : 'bg-white'} z-10`}>
-          <DialogTitle className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-primary'}`}>Create New Event</DialogTitle>
-          <DialogDescription className={isDarkMode ? 'text-slate-300' : ''}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="pb-4 sticky top-0 bg-white dark:bg-slate-950 z-10">
+          <DialogTitle className="text-2xl font-bold text-primary">Create New Event</DialogTitle>
+          <DialogDescription className="text-base">
             Fill in the details to create your new event.
           </DialogDescription>
         </DialogHeader>
@@ -346,9 +256,7 @@ const CreateEventDialog = ({
         >
           <form onSubmit={handleSubmit} className="space-y-6">
             {formError && (
-              <div className={`p-4 rounded-md text-sm border flex items-start ${
-                isDarkMode ? 'bg-red-900/50 text-red-200 border-red-800' : 'bg-red-50 text-red-800 border-red-200'
-              }`}>
+              <div className="bg-red-50 text-red-800 p-4 rounded-md text-sm border border-red-200 flex items-start">
                 <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
                 <span>{formError}</span>
               </div>
@@ -356,64 +264,40 @@ const CreateEventDialog = ({
             
             {/* Organizer Selection (admin only) */}
             {isadmin && (
-              <Card className={`shadow-sm ${isDarkMode ? 'border-slate-800 bg-slate-800' : 'border-slate-200'}`}>
+              <Card className="shadow-sm border-slate-200 dark:border-slate-800">
                 <CardContent className="pt-6">
                   <div className="space-y-3">
-                    <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : ''}`}>Organizer Information</h3>
+                    <h3 className="text-lg font-medium">Organizer Information</h3>
                     <div className="space-y-2">
-                      <Label htmlFor="organizerId" className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Select Organizer *</Label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Search className={`h-4 w-4 ${isDarkMode ? 'text-slate-400' : 'text-gray-400'}`} />
-                        </div>
-                        <Input
-                          type="text"
-                          placeholder="Search organizers..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className={`pl-10 w-full mb-2 ${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''}`}
-                        />
-                      </div>
+                      <Label htmlFor="organizerId" className="text-sm font-medium">Select Organizer *</Label>
                       <Select value={organizerId || "none"} onValueChange={handleOrganizerChange}>
-                        <SelectTrigger className={`w-full ${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''}`}>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select an organizer" />
                         </SelectTrigger>
-                        <SelectContent className={isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''}>
-                          <SelectItem value="none" disabled className={isDarkMode ? 'text-slate-400' : ''}>
+                        <SelectContent>
+                          <SelectItem value="none" disabled>
                             -- Select Organizer --
                           </SelectItem>
-                          {filteredOrganizers.length > 0 ? (
-                            filteredOrganizers.map((organizer) => (
-                              <SelectItem 
-                                key={organizer.id} 
-                                value={organizer.id.toString()}
-                                className={isDarkMode ? 'hover:bg-slate-700 focus:bg-slate-700' : ''}
-                              >
-                                <div className="flex flex-col">
-                                  <span>{organizer.user?.first_name || organizer.name || `ID: ${organizer.id}`}</span>
-                                  <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-                                    {organizer.company_name || organizer.user?.email}
-                                  </span>
-                                </div>
+                          {organizers.length > 0 ? (
+                            organizers.map((organizer) => (
+                              <SelectItem key={organizer.id} value={organizer.id.toString()}>
+                                {organizer.user?.first_name || organizer.name || `ID: ${organizer.id}`}
                               </SelectItem>
                             ))
                           ) : (
-                            <div className={`p-2 text-sm ${isDarkMode ? 'text-slate-400' : 'text-muted-foreground'}`}>No organizers found</div>
+                            <div className="p-2 text-sm text-muted-foreground">No organizers available</div>
                           )}
                         </SelectContent>
                       </Select>
 
                       {/* Show selected organizer details if available */}
                       {selectedOrganizerDetails && (
-                        <div className={`mt-2 p-3 rounded-md text-sm border ${
-                          isDarkMode ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-800 border-slate-200'
-                        }`}>
-                          <p className={`font-medium mb-2 ${isDarkMode ? 'text-primary' : 'text-primary'}`}>Selected Organizer Details:</p>
+                        <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md text-sm border border-slate-200 dark:border-slate-700">
+                          <p className="font-medium mb-2 text-primary">Selected Organizer Details:</p>
                           <div className="space-y-1">
                             <p>ID: {selectedOrganizerDetails.id}</p>
                             {selectedOrganizerDetails.user?.first_name && <p>Name: {selectedOrganizerDetails.user.first_name}</p>}
                             {selectedOrganizerDetails.user?.email && <p>Email: {selectedOrganizerDetails.user.email}</p>}
-                            {selectedOrganizerDetails.company_name && <p>Company: {selectedOrganizerDetails.company_name}</p>}
                           </div>
                         </div>
                       )}
@@ -424,39 +308,39 @@ const CreateEventDialog = ({
             )}
             
             {/* Basic Event Info */}
-            <Card className={`shadow-sm ${isDarkMode ? 'border-slate-800 bg-slate-800' : 'border-slate-200'}`}>
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
               <CardContent className="pt-6">
                 <div className="space-y-4">
-                  <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : ''}`}>Event Details</h3>
+                  <h3 className="text-lg font-medium">Event Details</h3>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="title" className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Event Title *</Label>
+                    <Label htmlFor="title" className="text-sm font-medium">Event Title *</Label>
                     <Input
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Tech Conference 2024"
                       required
-                      className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                      className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="description" className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Description</Label>
+                    <Label htmlFor="description" className="text-sm font-medium">Description</Label>
                     <Textarea
                       id="description"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Describe your event..."
                       rows={4}
-                      className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary resize-none`}
+                      className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary resize-none`}
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="start-date" className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''} flex items-center`}>
-                        <Calendar className={`h-4 w-4 mr-2 ${isDarkMode ? 'text-slate-400' : 'text-gray-400'}`} /> Start Date & Time *
+                      <Label htmlFor="start-date" className="text-sm font-medium flex items-center">
+                        <Calendar className="h-4 w-4 mr-2" /> Start Date & Time *
                       </Label>
                       <Input
                         id="start-date"
@@ -464,26 +348,26 @@ const CreateEventDialog = ({
                         value={startDateTime}
                         onChange={(e) => setStartDateTime(e.target.value)}
                         required
-                        className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       />
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="end-date" className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''} flex items-center`}>
-                        <Calendar className={`h-4 w-4 mr-2 ${isDarkMode ? 'text-slate-400' : 'text-gray-400'}`} /> End Date & Time
+                      <Label htmlFor="end-date" className="text-sm font-medium flex items-center">
+                        <Calendar className="h-4 w-4 mr-2" /> End Date & Time
                       </Label>
                       <Input
                         id="end-date"
                         type="datetime-local"
                         value={endDateTime}
                         onChange={(e) => setEndDateTime(e.target.value)}
-                        className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="location" className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''} flex items-center`}>
-                        <MapPin className={`h-4 w-4 mr-2 ${isDarkMode ? 'text-slate-400' : 'text-gray-400'}`} /> Location *
+                      <Label htmlFor="location" className="text-sm font-medium flex items-center">
+                        <MapPin className="h-4 w-4 mr-2" /> Location *
                       </Label>
                       <Input
                         id="location"
@@ -491,19 +375,19 @@ const CreateEventDialog = ({
                         onChange={(e) => setLocation(e.target.value)}
                         placeholder="Conference Center, New York"
                         required
-                        className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       />
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="image-upload" className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Event Image</Label>
+                      <Label htmlFor="image-upload" className="text-sm font-medium">Event Image</Label>
                       <Input
                         id="image-upload"
                         type="file"
                         accept="image/*"
                         onChange={handleFileSelect}
                         disabled={isUploading}
-                        className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       />
                       {previewUrl && (
                         <div className="relative w-32 h-32 rounded-full overflow-hidden mt-2">
@@ -518,13 +402,13 @@ const CreateEventDialog = ({
 
                     {/* Category Selection */}
                     <div className="space-y-2">
-                      <Label htmlFor="categories" className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Categories</Label>
+                      <Label htmlFor="categories" className="text-sm font-medium">Categories</Label>
                       <Select
                         value={selectedCategories}
                         onValueChange={handleCategoryChange}
                         isMulti
                         placeholder="Select categories"
-                        className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                        className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select categories" />
@@ -544,10 +428,10 @@ const CreateEventDialog = ({
             </Card>
 
             {/* Ticket Info */}
-            <Card className={`shadow-sm ${isDarkMode ? 'border-slate-800 bg-slate-800' : 'border-slate-200'}`}>
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
               <CardContent className="pt-6">
                 <div className="space-y-4">
-                  <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : ''}`}>Ticket Information</h3>
+                  <h3 className="text-lg font-medium">Ticket Information</h3>
                   
                   {/* Remove total tickets input */}
                 </div>
@@ -555,25 +439,25 @@ const CreateEventDialog = ({
             </Card>
 
             {/* Ticket Types */}
-            <Card className={`shadow-sm ${isDarkMode ? 'border-slate-800 bg-slate-800' : 'border-slate-200'}`}>
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
               <CardContent className="pt-6">
                 <div className="space-y-4">
-                  <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : ''}`}>Ticket Types</h3>
+                  <h3 className="text-lg font-medium">Ticket Types</h3>
                   {ticketTypes.map((ticketType, index) => (
                     <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor={`ticket-type-name-${index}`} className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Name *</Label>
+                        <Label htmlFor={`ticket-type-name-${index}`} className="text-sm font-medium">Name *</Label>
                         <Input
                           id={`ticket-type-name-${index}`}
                           value={ticketType.name}
                           onChange={(e) => handleTicketTypeChange(index, 'name', e.target.value)}
                           placeholder="Regular"
                           required
-                          className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`ticket-type-price-${index}`} className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Price (KES) *</Label>
+                        <Label htmlFor={`ticket-type-price-${index}`} className="text-sm font-medium">Price (KES) *</Label>
                         <Input
                           id={`ticket-type-price-${index}`}
                           type="number"
@@ -583,11 +467,11 @@ const CreateEventDialog = ({
                           onChange={(e) => handleTicketTypeChange(index, 'price', e.target.value)}
                           placeholder="999.99"
                           required
-                          className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`ticket-type-quantity-${index}`} className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Quantity *</Label>
+                        <Label htmlFor={`ticket-type-quantity-${index}`} className="text-sm font-medium">Quantity *</Label>
                         <Input
                           id={`ticket-type-quantity-${index}`}
                           type="number"
@@ -596,11 +480,11 @@ const CreateEventDialog = ({
                           onChange={(e) => handleTicketTypeChange(index, 'quantity', e.target.value)}
                           placeholder="100"
                           required
-                          className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`ticket-type-per-person-limit-${index}`} className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Per Person Limit</Label>
+                        <Label htmlFor={`ticket-type-per-person-limit-${index}`} className="text-sm font-medium">Per Person Limit</Label>
                         <Input
                           id={`ticket-type-per-person-limit-${index}`}
                           type="number"
@@ -608,27 +492,27 @@ const CreateEventDialog = ({
                           value={ticketType.per_person_limit}
                           onChange={(e) => handleTicketTypeChange(index, 'per_person_limit', e.target.value)}
                           placeholder="5"
-                          className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`ticket-type-valid-from-${index}`} className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Valid From</Label>
+                        <Label htmlFor={`ticket-type-valid-from-${index}`} className="text-sm font-medium">Valid From</Label>
                         <Input
                           id={`ticket-type-valid-from-${index}`}
                           type="datetime-local"
                           value={ticketType.valid_from}
                           onChange={(e) => handleTicketTypeChange(index, 'valid_from', e.target.value)}
-                          className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`ticket-type-valid-to-${index}`} className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : ''}`}>Valid To</Label>
+                        <Label htmlFor={`ticket-type-valid-to-${index}`} className="text-sm font-medium">Valid To</Label>
                         <Input
                           id={`ticket-type-valid-to-${index}`}
                           type="datetime-local"
                           value={ticketType.valid_to}
                           onChange={(e) => handleTicketTypeChange(index, 'valid_to', e.target.value)}
-                          className={`${isDarkMode ? 'bg-slate-800 text-white border-slate-700' : ''} focus-visible:ring-primary`}
+                          className={`${isDarkMode ? 'bg-muted text-white' : ''} focus-visible:ring-primary`}
                         />
                       </div>
                       <Button
@@ -650,7 +534,7 @@ const CreateEventDialog = ({
             </Card>
 
             {/* Featured Toggle */}
-            <Card className={`shadow-sm ${isDarkMode ? 'border-slate-800 bg-slate-800' : 'border-slate-200'}`}>
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
               <CardContent className="pt-6">
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center space-x-2">
@@ -676,13 +560,13 @@ const CreateEventDialog = ({
           </form>
         </div>
         
-        <DialogFooter className={`mt-4 pt-4 border-t sticky bottom-0 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} z-10`}>
+        <DialogFooter className="mt-4 pt-4 border-t sticky bottom-0 bg-white dark:bg-slate-950 z-10">
           <Button 
             type="button" 
             variant="outline" 
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
-            className={isDarkMode ? 'border-slate-700 text-white hover:bg-slate-800' : 'border-slate-200'}
+            className="border-slate-200"
           >
             Cancel
           </Button>

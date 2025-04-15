@@ -16,8 +16,7 @@ import {
   Twitter,
   Linkedin,
   Mail,
-  Loader2,
-  RefreshCw
+  Loader2
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import AnimatedSection from '@/components/AnimatedSection';
@@ -33,12 +32,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
-import axios from 'axios';
 
 const EventDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { fetchEventById, isAuthenticated, user } = useAuth();
+  const { fetchEventById, isAuthenticated } = useAuth();
   const { isDarkMode } = useTheme();
   const { toast } = useToast();
   const [event, setEvent] = useState(null);
@@ -47,160 +45,81 @@ const EventDetail = () => {
   const [selectedTickets, setSelectedTickets] = useState({});
   const [copySuccess, setCopySuccess] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
-  const [refreshAttempts, setRefreshAttempts] = useState(0);
-  const maxRefreshAttempts = 3; // Maximum number of automatic refresh attempts
-  const [isDataReady, setIsDataReady] = useState(false);
-
-  useEffect(() => {
-    if (event && Object.keys(selectedTickets).length > 0) {
-      setIsDataReady(true);
-    }
-  }, [event, selectedTickets]);
-  const loadEvent = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Check for cached event data
-      const cachedEvent = localStorage.getItem(`event_${id}`);
-      if (cachedEvent) {
-        const parsedEvent = JSON.parse(cachedEvent);
-        const cacheTime = parsedEvent.timestamp;
-        const now = new Date().getTime();
-        const cacheDuration = 5 * 60 * 1000; // 5 minutes cache duration
-
-              
-        if (now - cacheTime < cacheDuration && parsedEvent.data) {
-          try {
-            // More lenient check - make sure data structure exists
-            if (parsedEvent.data && typeof parsedEvent.data === 'object') {
-              console.log("Using cached event data:", parsedEvent.data);
-              setEvent(parsedEvent.data);
-              
-              // Initialize selected tickets safely
-              const initialSelectedTickets = {};
-              if (Array.isArray(parsedEvent.data.ticket_types)) {
-                parsedEvent.data.ticket_types.forEach(type => {
-                  if (type && type.id) {
-                    initialSelectedTickets[type.id] = 0;
-                  }
-                });
-              }
-              setSelectedTickets(initialSelectedTickets);
-              setIsLoading(false);
-              return;
-            }
-          } catch (e) {
-            console.error("Error parsing cached data:", e);
-            localStorage.removeItem(`event_${id}`); // Clear invalid cache
-          }
-        }
-      }
-
-      // If no cache or cache expired or incomplete, fetch from API
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/${id}`, {
-        withCredentials: true,
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
+  
+  const scrollToTickets = () => {
+    const ticketsSection = document.getElementById('tickets-section');
+    if (ticketsSection) {
+      const yOffset = -100; // Offset to account for fixed header
+      const y = ticketsSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({
+        top: y,
+        behavior: 'smooth'
       });
-
-      if (response.data && response.data[0] && response.data[0].data) {
-        const eventData = response.data[0].data;
-        
-        // Verify we have all required data before caching
-        if (eventData.ticket_types && eventData.organizer) {
-          setEvent(eventData);
-
-          // Cache the event data with timestamp
-          localStorage.setItem(`event_${id}`, JSON.stringify({
-            data: eventData,
-            timestamp: new Date().getTime()
-          }));
-
-          // Initialize selected tickets state
-          const initialSelectedTickets = {};
-          eventData.ticket_types.forEach(type => {
-            initialSelectedTickets[type.id] = 0;
-          });
-          setSelectedTickets(initialSelectedTickets);
-        } else {
-          throw new Error('Incomplete event data received');
-        }
-      } else {
-        throw new Error('Event not found');
-      }
-
-      // Reset refresh attempts on successful load
-      setRefreshAttempts(0);
-
-    } catch (err) {
-      console.error('Error loading event:', err);
-      setError(err.response?.data?.message || 'Failed to load event details');
-      // Clear invalid cache
-      localStorage.removeItem(`event_${id}`);
-
-      // Increment refresh attempts
-      setRefreshAttempts(prev => prev + 1);
-
-    } finally {
-      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadEvent();
-  }, [id]);
-
-  
-  useEffect(() => {
-    if (error && refreshAttempts < maxRefreshAttempts) {
-      const refreshTimer = setTimeout(() => {
-        console.log(`Auto-refreshing after error (attempt ${refreshAttempts + 1}/${maxRefreshAttempts})...`);
-        
-    
+    const loadEvent = async () => {
+      try {
         setIsLoading(true);
+        setError(null);
+        const eventData = await fetchEventById(id);
+        setEvent(eventData);
+
+        // Initialize selected tickets state
+        const initialSelectedTickets = {};
+        if (eventData && eventData.ticket_types) {
+          eventData.ticket_types.forEach(type => {
+            initialSelectedTickets[type.id] = 0;
+          });
+        }
         
-        
-        toast({
-          title: "Loading event data",
-          description: `Please wait while we retrieve the event information`,
-          duration: 3000,
-        });
-        
-        loadEvent();
-      }, 3000);
-  
-      return () => clearTimeout(refreshTimer);
-    }
-  }, [error, refreshAttempts]);
+        // Check if we have saved tickets for this event
+        const savedTickets = localStorage.getItem(`event_${id}_tickets`);
+        if (savedTickets) {
+          try {
+            const parsedTickets = JSON.parse(savedTickets);
+            if (parsedTickets.eventId === id) {
+              setSelectedTickets(parsedTickets.tickets);
+              localStorage.removeItem(`event_${id}_tickets`);
+            } else {
+              setSelectedTickets(initialSelectedTickets);
+            }
+          } catch (e) {
+            console.error("Error parsing saved tickets:", e);
+            setSelectedTickets(initialSelectedTickets);
+          }
+        } else {
+          setSelectedTickets(initialSelectedTickets);
+        }
+      } catch (err) {
+        console.error('Error loading event:', err);
+        setError('Failed to load event details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEvent();
+  }, [id, fetchEventById]);
   
   const increaseTickets = (ticketTypeId) => {
-    if (!event || !event.ticket_types) return;
-    
-    const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
-    if (!ticketType) return;
-
-    const currentQuantity = selectedTickets[ticketTypeId] || 0;
-    const availableTickets = ticketType.quantity - ticketType.tickets_sold;
-    
-    if (currentQuantity < availableTickets) {
-      setSelectedTickets(prev => ({
-        ...prev,
-        [ticketTypeId]: currentQuantity + 1
-      }));
+    if (event) {
+      const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
+      if (selectedTickets[ticketTypeId] < ticketType.quantity - ticketType.tickets_sold) {
+        setSelectedTickets(prev => ({
+          ...prev,
+          [ticketTypeId]: prev[ticketTypeId] + 1
+        }));
+      }
     }
   };
   
   const decreaseTickets = (ticketTypeId) => {
-    if (!event || !event.ticket_types) return;
-    
-    const currentQuantity = selectedTickets[ticketTypeId] || 0;
-    if (currentQuantity > 0) {
+    if (selectedTickets[ticketTypeId] > 0) {
       setSelectedTickets(prev => ({
         ...prev,
-        [ticketTypeId]: currentQuantity - 1
+        [ticketTypeId]: prev[ticketTypeId] - 1
       }));
     }
   };
@@ -256,101 +175,80 @@ const EventDetail = () => {
   };
 
   const handlePurchase = async () => {
+    // Check if user is authenticated
     if (!isAuthenticated) {
       const returnUrl = encodeURIComponent(`/event/${id}`);
-      navigate(`/signin?returnUrl=${returnUrl}`);
-      return;
-    }
-
-    // Check if user has a phone number
-    if (!user?.phone) {
+      
+      localStorage.setItem(`event_${id}_tickets`, JSON.stringify({
+        eventId: id,
+        tickets: selectedTickets
+      }));
+      
       toast({
-        title: "Phone Number Required",
-        description: "Please add a phone number to your account before purchasing tickets.",
-        variant: "destructive",
+        title: "Authentication required",
+        description: "Please sign in to purchase tickets",
+        variant: "default",
       });
+      navigate(`/signin?returnUrl=${returnUrl}`);
       return;
     }
 
     try {
       setIsPurchasing(true);
-      
-      // Prepare ticket details
-      const ticketDetails = Object.entries(selectedTickets)
-        .filter(([_, quantity]) => quantity > 0)
-        .map(([ticketTypeId, quantity]) => ({
-          ticket_type_id: ticketTypeId,
-          quantity: quantity
-        }));
+      const ticketDetails = Object.keys(selectedTickets).map(ticketTypeId => ({
+        ticket_type_id: ticketTypeId,
+        quantity: selectedTickets[ticketTypeId]
+      }));
 
-      if (ticketDetails.length === 0) {
-        toast({
-          title: "No tickets selected",
-          description: "Please select at least one ticket to purchase",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Calculate total amount
-      const totalAmount = ticketDetails.reduce((total, detail) => {
-        const ticketType = event.ticket_types.find(type => type.id === detail.ticket_type_id);
-        return total + (ticketType.price * detail.quantity);
+      const totalAmount = Object.keys(selectedTickets).reduce((total, ticketTypeId) => {
+        const ticketType = event.ticket_types.find(type => type.id === ticketTypeId);
+        return total + (ticketType.price * selectedTickets[ticketTypeId]);
       }, 0);
 
-      // Format phone number to ensure it's in the correct format for the payment service
-      // Remove any non-digit characters and ensure it starts with 254
-      const phoneNumber = user.phone
-        .replace(/\D/g, '') // Remove all non-digit characters
-        .replace(/^0+/, '') // Remove leading zeros
-        .replace(/^254/, '') // Remove existing 254 if present
-        .padStart(9, '0'); // Ensure we have 9 digits after 254
-
-      // Send purchase request
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/events/${id}/purchase`,
-        {
-          ticket_details: ticketDetails,
-          total_amount: totalAmount,
-          phone_number: `254${phoneNumber}` // Ensure phone number is properly formatted
+      // Send the purchase request to the backend
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/events/${event.id}/purchase`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         },
-        {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+        credentials: 'include', // Include cookies with the request
+        body: JSON.stringify({
+          ticket_details: ticketDetails,
+          total_amount: totalAmount
+        })
+      });
 
-      if (response.data?.message?.includes("Payment initiated successfully")) {
+      if (!response.ok) {
+        throw new Error('Failed to purchase tickets');
+      }
+
+      const responseData = await response.json();
+      
+      if (responseData.message && responseData.message.includes("Payment initiated successfully")) {
         toast({
           title: "Payment Initiated",
           description: "Please complete the payment on your phone. You'll be notified via email when your payment is confirmed.",
           duration: 7000,
         });
         
-        // Clear selected tickets after successful purchase
-        const initialSelectedTickets = {};
-        event.ticket_types.forEach(type => {
-          initialSelectedTickets[type.id] = 0;
+        localStorage.removeItem(`event_${id}_tickets`);
+        
+      } else {
+        toast({
+          title: "Unexpected Response",
+          description: "There was an issue with the payment process. Please try again.",
+          variant: "destructive",
         });
-        setSelectedTickets(initialSelectedTickets);
       }
     } catch (error) {
       console.error("Error purchasing tickets:", error);
-      let errorMessage = "Failed to purchase tickets. Please try again.";
-      
-      if (error.response?.data?.errorMessage?.includes("Invalid RecieverIdentifierType")) {
-        errorMessage = "Invalid phone number format. Please ensure your phone number is correct and try again.";
-      }
-      
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "Failed to purchase tickets. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsPurchasing(false);
+      setTimeout(() => setIsPurchasing(false), 40000);
     }
   };
 
@@ -373,51 +271,23 @@ const EventDetail = () => {
   }
 
   if (error) {
-    if (refreshAttempts < maxRefreshAttempts) {
-      // During automatic refresh attempts, show the loading UI
-      return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="animate-pulse text-center">
-            <div className={`w-32 h-32 mx-auto rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-muted'}`}></div>
-            <div className={`h-6 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-48 mx-auto mt-4`}></div>
-            <div className={`h-4 ${isDarkMode ? 'bg-slate-700' : 'bg-muted'} rounded w-64 mx-auto mt-2`}></div>
-          </div>
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex flex-col items-center justify-center p-4">
+          <h1 className="text-2xl font-semibold mb-4">Error Loading Event</h1>
+          <p className="text-muted-foreground mb-6">{error}</p>
+          <Button asChild>
+            <Link to="/">
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back to Home
+            </Link>
+          </Button>
         </div>
-      );
-    } else {
-      // Only show error UI after all auto-refresh attempts have failed
-      return (
-        <div className="min-h-screen bg-background flex flex-col">
-          <Navbar />
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <h1 className="text-2xl font-semibold mb-4">Error Loading Event</h1>
-            <p className="text-muted-foreground mb-2">{error}</p>
-            
-            <div className="text-center mb-6">
-              <p className="text-amber-500 dark:text-amber-400 mb-4">
-                Unable to load event details. Please try refreshing the page.
-              </p>
-              <Button onClick={() => {
-                setRefreshAttempts(0);
-                setIsLoading(true);
-                loadEvent();
-              }}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Retry Loading
-              </Button>
-            </div>
-  
-            <Button asChild variant="outline">
-              <Link to="/">
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Back to Home
-              </Link>
-            </Button>
-          </div>
-        </div>
-      );
-    }
+      </div>
+    );
   }
+
   if (!event) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -490,12 +360,12 @@ const EventDetail = () => {
                 
                 <div className="flex items-center mb-6">
                   <img 
-                    src={event.organizer?.image || '/default-organizer-image.jpg'} 
-                    alt={event.organizer?.name}
+                    src={event.organizer?.company_image || '/default-organizer-image.jpg'} 
+                    alt={event.organizer?.company_name}
                     className="w-10 h-10 rounded-full mr-3"
                   />
                   <div>
-                    <p className="font-medium">{event.organizer?.name}</p>
+                    <p className="font-medium">{event.organizer?.company_name}</p>
                     <p className="text-sm text-muted-foreground">Event Organizer</p>
                   </div>
                 </div>
@@ -629,7 +499,7 @@ const EventDetail = () => {
                       </div>
                     ))}
                     
-                    <div className={`border-t ${isDarkMode ? 'border-slate-700' : 'border-border'} pt-4 mb-6`}>
+                    <div className={`pt-4 mb-6`}>
                       <div className={`flex justify-between font-semibold text-lg mt-4 pt-4 border-t ${isDarkMode ? 'border-slate-700' : 'border-border'}`}>
                         <span>Total</span>
                         <span>{event.currency} {totalPrice.toLocaleString()}</span>

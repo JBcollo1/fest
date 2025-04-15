@@ -91,58 +91,25 @@ const SignUp = () => {
     const newErrors = {};
     
     if (!formData.first_name) newErrors.first_name = "First name is required";
-    else if (!/^[a-zA-Z\s-']{2,50}$/.test(formData.first_name)) 
-      newErrors.first_name = "First name must contain only letters, spaces, hyphens, and apostrophes";
-    
-    // Sanitize and validate last name
     if (!formData.last_name) newErrors.last_name = "Last name is required";
-    else if (!/^[a-zA-Z\s-']{2,50}$/.test(formData.last_name))
-      newErrors.last_name = "Last name must contain only letters, spaces, hyphens, and apostrophes";
     
     if (!formData.username) newErrors.username = "Username is required";
-    else if (!/^[a-zA-Z0-9_]{3,30}$/.test(formData.username))
-      newErrors.username = "Username must be 3-30 characters and contain only letters, numbers, and underscores";
+    else if (formData.username.length < 3) newErrors.username = "Username must be at least 3 characters";
     
     if (!formData.email) newErrors.email = "Email is required";
-    else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email))
-      newErrors.email = "Please enter a valid email address";
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email is invalid";
     
     if (!formData.password) newErrors.password = "Password is required";
-    else if (formData.password.length < 8) 
-      newErrors.password = "Password must be at least 8 characters";
-    else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(formData.password))
-      newErrors.password = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character";
+    else if (formData.password.length < 8) newErrors.password = "Password must be at least 8 characters";
     
     if (formData.password !== formData.confirm_password) {
       newErrors.confirm_password = "Passwords do not match";
     }
     
-    // Sanitize and validate phone number
-    if (!formData.phone) newErrors.phone = "Phone number is required";
-    else if (!/^\+?[1-9]\d{1,14}$/.test(formData.phone))
-      newErrors.phone = "Please enter a valid phone number";
-    
-    // Sanitize and validate national ID
     if (!formData.national_id) newErrors.national_id = "National ID is required";
-    else if (!/^[A-Za-z0-9-]{5,20}$/.test(formData.national_id))
-      newErrors.national_id = "Please enter a valid national ID";
-    
-  
     if (!selectedFile) newErrors.photo_img = "Photo image is required";
-    else if (selectedFile.size > 5 * 1024 * 1024) // 5MB limit
-      newErrors.photo_img = "Image size must be less than 5MB";
-    else if (!['image/jpeg', 'image/png', 'image/gif'].includes(selectedFile.type))
-      newErrors.photo_img = "Only JPEG, PNG, and GIF images are allowed";
-    
-    // Sanitize and validate next of kin name
     if (!formData.next_of_kin_name) newErrors.next_of_kin_name = "Next of kin name is required";
-    else if (!/^[a-zA-Z\s-']{2,50}$/.test(formData.next_of_kin_name))
-      newErrors.next_of_kin_name = "Next of kin name must contain only letters, spaces, hyphens, and apostrophes";
-    
- 
     if (!formData.next_of_kin_contact) newErrors.next_of_kin_contact = "Next of kin contact is required";
-    else if (!/^\+?[1-9]\d{1,14}$/.test(formData.next_of_kin_contact))
-      newErrors.next_of_kin_contact = "Please enter a valid phone number";
     
     if (!termsAgreed) newErrors.terms = "You must agree to the Terms of Service and Privacy Policy";
     
@@ -461,15 +428,12 @@ const SignUp = () => {
           </form>
         </Card>
         
-        <div className="text-center mt-6">
+        <div className="text-center">
           <p className={`text-sm ${
             isDarkMode ? 'text-white/70' : 'text-muted-foreground'
           }`}>
             Already have an account?{" "}
-            <Link 
-              to={returnUrl ? `/signin?returnUrl=${returnUrl}` : '/signin'} 
-              className="text-primary hover:underline"
-            >
+            <Link to={returnUrl ? `/signin?returnUrl=${returnUrl}` : "/signin"} className="font-medium text-primary hover:underline">
               Sign in
             </Link>
           </p>

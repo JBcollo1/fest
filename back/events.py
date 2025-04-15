@@ -8,31 +8,20 @@ from utils.auth import organizer_required, admin_required
 from datetime import datetime
 import cloudinary.uploader
 import json
-from redis_client import redis_client
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 class EventListResource(Resource):
     def get(self):
-        # Generate cache key based on query parameters
-        cache_key = f"events:all:{request.query_string.decode()}"
-        
-        # Try to get cached data
-        cached_data = redis_client.get_cached_events(cache_key)
-        if cached_data:
-            return cached_data
-            
         category = request.args.get('category')
         search = request.args.get('search')
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         organizer_id = request.args.get('organizer_id')
         location = request.args.get('location')
-        show_past = request.args.get('show_past', 'false').lower() == 'true'
         
         query = Event.query
         
@@ -41,6 +30,7 @@ class EventListResource(Resource):
             
         if search:
             search_term = f"%{search}%"
+            # Enhanced search across multiple fields with case-insensitive matching
             query = query.filter(
                 db.or_(
                     Event.title.ilike(search_term),
@@ -60,31 +50,22 @@ class EventListResource(Resource):
                 end_date = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
                 query = query.filter(Event.end_datetime <= end_date)
             except ValueError:
-                return error_response("Invalid end_datetime format")
+                return error_response("Invalid end_date format")
                 
         if organizer_id:
             query = query.filter(Event.organizer_id == organizer_id)
             
         if location:
+            print(f"Filtering events by location: {location}")  # Debug log
             location_term = f"%{location}%"
             query = query.filter(Event.location.ilike(location_term))
+            print(f"SQL Query: {str(query)}")  # Debug log
             
-        # Get current time for sorting
-        current_time = datetime.utcnow()
+        # Sort by start date
+        query = query.order_by(Event.start_datetime)
         
-        # Split events into upcoming and past
-        upcoming_events = query.filter(Event.start_datetime >= current_time).order_by(Event.start_datetime).all()
-        past_events = query.filter(Event.start_datetime < current_time).order_by(Event.start_datetime.desc()).all() if show_past else []
-        
-        # Combine events with upcoming first
-        all_events = upcoming_events + past_events
-        
-        result = success_response(data=[event.to_dict() for event in all_events])
-        
-        # Cache the results
-        redis_client.set_cached_events(cache_key, result)
-        
-        return result
+        # Return paginated results
+        return paginate_response(query)
     
     @jwt_required()
     def post(self):
@@ -205,23 +186,12 @@ class EventListResource(Resource):
 
 class EventResource(Resource):
     def get(self, event_id):
-        # Try to get cached event
-        cache_key = f"event:{event_id}"
-        cached_data = redis_client.get_cached_events(cache_key)
-        if cached_data:
-            return cached_data
-            
         event = Event.query.get(event_id)
         
         if not event:
             return error_response("Event not found", 404)
             
-        result = success_response(data=event.to_dict(include_organizer=True))
-        
-        # Cache the result
-        redis_client.set_cached_events(cache_key, result)
-        
-        return result
+        return success_response(data=event.to_dict(include_organizer=True))
     
     @jwt_required()
     def put(self, event_id):
@@ -302,8 +272,6 @@ class EventResource(Resource):
         
         try:
             db.session.commit()
-            # Invalidate cache for this event and all events
-            redis_client.invalidate_event_cache(event_id)
             return success_response(
                 data=event.to_dict(include_organizer=True),
                 message="Event updated successfully"
@@ -330,8 +298,6 @@ class EventResource(Resource):
         try:
             db.session.delete(event)
             db.session.commit()
-            # Invalidate cache for this event and all events
-            redis_client.invalidate_event_cache(event_id)
             return success_response(message="Event deleted successfully")
         except Exception as e:
             db.session.rollback()
@@ -394,31 +360,6 @@ class FeaturedEventsResource(Resource):
     """
     def get(self):
         """Get featured events"""
-        # Get start_date from query params
-        start_date = request.args.get('start_date')
+        featured_events = Event.query.filter_by(featured=True).order_by(Event.start_datetime).all()
         
-        # Generate cache key based on start_date
-        cache_key = f"events:featured:{start_date if start_date else 'all'}"
-        cached_data = redis_client.get_cached_events(cache_key)
-        if cached_data:
-            return cached_data
-            
-        # Build query
-        query = Event.query.filter_by(featured=True)
-        
-        # Apply start_date filter if provided
-        if start_date:
-            try:
-                start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-                query = query.filter(Event.start_datetime >= start_date)
-            except ValueError:
-                return error_response("Invalid start_date format")
-        
-        # Get and sort events
-        featured_events = query.order_by(Event.start_datetime).all()
-        result = success_response(data=[event.to_dict() for event in featured_events])
-        
-        # Cache the result
-        redis_client.set_cached_events(cache_key, result)
-        
-        return result
+        return success_response(data=[event.to_dict() for event in featured_events])

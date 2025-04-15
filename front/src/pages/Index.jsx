@@ -25,21 +25,39 @@ const Index = () => {
   useEffect(() => {
     const fetchFeaturedEvents = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-        
+        // First fetch upcoming events
         const currentDate = new Date().toISOString();
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured?start_date=${currentDate}`);
+        const upcomingResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured?start_date=${currentDate}`);
         
-        if (response.data?.data) {
-          // Events are already sorted by the backend
-          setFeaturedEvents(response.data.data);
-        } else {
-          setError('No featured events found');
+        let events = [];
+        if (upcomingResponse.data?.data) {
+          // Sort upcoming events (featured first, then by date)
+          events = upcomingResponse.data.data.sort((a, b) => {
+            if (a.is_featured && !b.is_featured) return -1;
+            if (!a.is_featured && b.is_featured) return 1;
+            return new Date(a.start_datetime) - new Date(b.start_datetime);
+          });
+          
+          // If we have less than 3 upcoming events, fetch previous events
+          if (events.length < 3) {
+            const endDate = new Date().toISOString();
+            const previousResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/events/featured?end_date=${endDate}`);
+            
+            if (previousResponse.data?.data) {
+              // Sort previous events by date (most recent first)
+              const previousEvents = previousResponse.data.data
+                .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime))
+                .slice(0, 3 - events.length);
+              
+              events = [...events, ...previousEvents];
+            }
+          }
         }
+        
+        setFeaturedEvents(events);
       } catch (error) {
         console.error('Error fetching featured events:', error);
-        setError(error.response?.data?.message || 'Failed to load featured events');
+        setError('Failed to load featured events');
       } finally {
         setIsLoading(false);
       }
@@ -102,7 +120,7 @@ const Index = () => {
               <div className="mt-4 md:mt-0">
                 <Button variant="outline" asChild>
                   <Link to="/events">
-                    View All <ChevronRight className="text-muted-foreground h-4 w-4 ml-1" />
+                    View All <ChevronRight className="h-4 w-4 ml-1" />
                   </Link>
                 </Button>
               </div>

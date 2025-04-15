@@ -594,8 +594,6 @@ def send_ticket_qr_email( ticket):
 def generate_qr_attachment(ticket):
     """Generate QR code file with enhanced security and visual appeal"""
     try:
-        # Create verification URL using ticket ID as the primary identifier
-        verification_url = f"{Config2.BASE_URL}/verify/ticket/{ticket.id}"
         
         # Create QR code with enhanced settings
         qr = qrcode.QRCode(
@@ -604,8 +602,7 @@ def generate_qr_attachment(ticket):
             box_size=10, 
             border=4,  
         )
-        
-        qr.add_data(verification_url)
+        qr.add_data(ticket.qr_code)
         qr.make(fit=True)
         
         img = qr.make_image(

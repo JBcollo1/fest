@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Clock, Ticket } from 'lucide-react';
@@ -14,7 +15,7 @@ const FeaturedEvent = ({ event }) => {
 
   useEffect(() => {
     const calculateTimeLeft = () => {
-      const difference = +new Date(event.start_datetime) - +new Date();
+      const difference = +new Date(event.date) - +new Date();
       
       if (difference > 0) {
         setTimeLeft({
@@ -32,19 +33,13 @@ const FeaturedEvent = ({ event }) => {
     const timer = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(timer);
-  }, [event.start_datetime]);
+  }, [event.date]);
 
-  const formattedDate = new Date(event.start_datetime).toLocaleDateString('en-US', {
+  const formattedDate = new Date(event.date).toLocaleDateString('en-US', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric'
-  });
-
-  const formattedTime = new Date(event.start_datetime).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
   });
 
   return (
@@ -62,11 +57,7 @@ const FeaturedEvent = ({ event }) => {
       <div className="relative z-10 flex flex-col md:flex-row h-full min-h-[500px]">
         <div className="flex-1 flex flex-col justify-end p-6 md:p-10">
           <div className="w-full max-w-3xl animate-fade-in">
-            {event.categories && event.categories.length > 0 && (
-              <Badge className="mb-3 bg-primary" variant="default">
-                {event.categories[0].name}
-              </Badge>
-            )}
+            <Badge className="mb-3 bg-primary" variant="default">{event.category}</Badge>
             <h1 className="text-3xl md:text-5xl font-display font-bold text-white mb-4">
               {event.title}
             </h1>
@@ -82,7 +73,7 @@ const FeaturedEvent = ({ event }) => {
               </div>
               <div className="flex items-center">
                 <Clock className="h-5 w-5 mr-2 text-primary" />
-                <span className="text-white">{formattedTime}</span>
+                <span className="text-white">{event.time}</span>
               </div>
               <div className="flex items-center">
                 <MapPin className="h-5 w-5 mr-2 text-primary" />
@@ -90,11 +81,17 @@ const FeaturedEvent = ({ event }) => {
               </div>
             </div>
             
-            <Button asChild className="w-fit">
-              <Link to={`/event/${event.id}`}>
-                Get Tickets
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-4">
+              <Button size="lg" asChild>
+                <Link to={`/event/${event.id}`}>
+                  <Ticket className="h-5 w-5 mr-2" />
+                  Buy Tickets
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
+                Learn More
+              </Button>
+            </div>
           </div>
         </div>
         
