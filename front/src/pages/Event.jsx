@@ -13,104 +13,123 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Loader2 } from "lucide-react";
 
 const Events = () => {
-  const [events, setEvents] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false); // New state for refreshing vs initial load
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
-  const [categories, setCategories] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState('');
+  // Refs
+  const mountedRef = useRef(true);
   const abortControllerRef = useRef(null);
+  const autoRetryTimeoutRef = useRef(null);
+  const eventsCache = useRef({});
+  const lastFetchParams = useRef(null);
+  const lastPastEventsState = useRef(false);
+  const initialRenderComplete = useRef(false);
+  
+  // Config
+  const maxAutoRetries = 3;
+  
+  // Router
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const { isDarkMode } = useTheme();
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    category: '',
-    date: '',
-    price: ''
+  
+  // State
+  const [filterState, setFilterState] = useState({
+    activeFilter: 'all',
+    searchQuery: '',
+    selectedLocation: '',
+    showPastEvents: false,
+    additionalFilters: {
+      category: '',
+      date: '',
+      price: ''
+    }
   });
-  const [showPastEvents, setShowPastEvents] = useState(false);
-  const mountedRef = useRef(true);
-  const autoRetryTimeoutRef = useRef(null);
-  const maxAutoRetries = 3;
-  const [emptyResultsRetryCount, setEmptyResultsRetryCount] = useState(0);
-  const [isAutoRetrying, setIsAutoRetrying] = useState(false);
   
-  // Cache for events data
-  const eventsCache = useRef({});
-  const lastFetchParams = useRef(null);
+  const [uiState, setUiState] = useState({
+    isLoading: true,
+    isRefreshing: false,
+    isAutoRetrying: false,
+    showFilters: false,
+    error: null,
+    retryCount: 0,
+    emptyResultsRetryCount: 0
+  });
   
-  // Get search parameters from URL or state
-  const searchFromUrl = searchParams.get('query');
-  const categoryFromUrl = searchParams.get('category');
-  const locationFromState = location.state?.location;
-  const searchFromState = location.state?.searchParams;
+  const [events, setEvents] = useState([]);
+  const [categories, setCategories] = useState([]);
   
+  // Extract from state for easier reference
+  const { activeFilter, searchQuery, selectedLocation, showPastEvents, additionalFilters } = filterState;
+  const { isLoading, isRefreshing, isAutoRetrying, error, emptyResultsRetryCount } = uiState;
+  
+  // Process URL parameters and location state
   useEffect(() => {
+    const searchFromUrl = searchParams.get('query');
+    const categoryFromUrl = searchParams.get('category');
+    const locationFromUrl = searchParams.get('location');
+    const locationFromState = location.state?.location;
+    const searchFromState = location.state?.searchParams;
+    
+    // Collect all parameters that should update state
+    const stateUpdates = {};
+    
+    // Handle search parameters from state (highest priority)
     if (searchFromState) {
-      setSearchQuery(searchFromState.query || '');
-      if (searchFromState.category) {
-        setActiveFilter(searchFromState.category);
-      }
-      if (searchFromState.location) {
-        setSelectedLocation(searchFromState.location);
-      }
-    } else if (searchFromUrl || categoryFromUrl || locationFromState) {
-      setSearchQuery(searchFromUrl || '');
-      if (categoryFromUrl) {
-        setActiveFilter(categoryFromUrl);
-      }
-      if (locationFromState) {
-        setSelectedLocation(locationFromState);
-      }
+      if (searchFromState.query) stateUpdates.searchQuery = searchFromState.query;
+      if (searchFromState.category) stateUpdates.activeFilter = searchFromState.category;
+      if (searchFromState.location) stateUpdates.selectedLocation = searchFromState.location;
+    } 
+    // Handle URL parameters
+    else {
+      if (searchFromUrl) stateUpdates.searchQuery = searchFromUrl;
+      if (categoryFromUrl) stateUpdates.activeFilter = categoryFromUrl;
+      if (locationFromUrl) stateUpdates.selectedLocation = locationFromUrl;
+      else if (locationFromState) stateUpdates.selectedLocation = locationFromState;
     }
-  }, [searchFromState, searchFromUrl, categoryFromUrl, locationFromState]);
+    
+    // Only update state if we have changes
+    if (Object.keys(stateUpdates).length > 0) {
+      setFilterState(prev => ({
+        ...prev,
+        ...stateUpdates
+      }));
+    }
+  }, [searchParams, location.state]);
   
-  // Get location from URL params or state
-  const locationFromUrl = searchParams.get('location');
+  // Fetch categories once
   useEffect(() => {
-    if (locationFromUrl) {
-      setSelectedLocation(locationFromUrl);
-    }
-  }, [locationFromUrl]);
-  
-  const fetchCategories = async () => {
-    try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/categories`);
-      if (response.data?.data) {
-        setCategories(response.data.data);
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/categories`);
+        if (response.data?.data) {
+          setCategories(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
       }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  useEffect(() => {
+    };
+    
     fetchCategories();
   }, []);
   
   // Create a cache key from filters
-  const createCacheKey = (activeFilter, searchQuery, selectedLocation, filters, showPastEvents) => {
+  const createCacheKey = useCallback(() => {
     return JSON.stringify({
       activeFilter,
       searchQuery,
       selectedLocation,
-      filters,
+      additionalFilters,
       showPastEvents
     });
-  };
+  }, [activeFilter, searchQuery, selectedLocation, additionalFilters, showPastEvents]);
 
-  // Function to handle auto-retry for empty results
+  // Handle auto-retry for empty results
   const handleEmptyResultsRetry = useCallback(() => {
-    if (!mountedRef.current || emptyResultsRetryCount >= maxAutoRetries) return;
+    if (!mountedRef.current || uiState.emptyResultsRetryCount >= maxAutoRetries) return;
     
-    setIsAutoRetrying(true);
-    // Keep loading state active to make it look like it's still loading
-    setIsLoading(true);
+    setUiState(prev => ({
+      ...prev,
+      isAutoRetrying: true,
+      isLoading: true
+    }));
     
     // Clear any existing timeout
     if (autoRetryTimeoutRef.current) {
@@ -118,45 +137,63 @@ const Events = () => {
     }
     
     // Exponential backoff for retries (500ms, 1000ms, 2000ms)
-    const retryDelay = Math.min(500 * Math.pow(2, emptyResultsRetryCount), 2000);
+    const retryDelay = Math.min(500 * Math.pow(2, uiState.emptyResultsRetryCount), 2000);
     
-    console.log(`Auto-retrying fetch for empty results (attempt ${emptyResultsRetryCount + 1}/${maxAutoRetries}) in ${retryDelay}ms`);
+    console.log(`Auto-retrying fetch for empty results (attempt ${uiState.emptyResultsRetryCount + 1}/${maxAutoRetries}) in ${retryDelay}ms`);
     
     autoRetryTimeoutRef.current = setTimeout(() => {
-      setEmptyResultsRetryCount(prev => prev + 1);
-      fetchEvents(filters, true); // Force refresh to bypass cache
+      setUiState(prev => ({
+        ...prev,
+        emptyResultsRetryCount: prev.emptyResultsRetryCount + 1
+      }));
+      fetchEvents(true); // Force refresh to bypass cache
     }, retryDelay);
     
-  }, [emptyResultsRetryCount, filters]);
+  }, [uiState.emptyResultsRetryCount]);
 
-  const fetchEvents = async (filters = {}, forceRefresh = false) => {
+  const fetchEvents = useCallback(async (forceRefresh = false) => {
     if (!mountedRef.current) return;
 
+    console.log('fetchEvents called with filters:', filterState);
+
     // Build query params for cache key
-    const cacheKey = createCacheKey(
-      activeFilter,
-      searchQuery,
-      selectedLocation,
-      filters,
-      showPastEvents
-    );
+    const cacheKey = createCacheKey();
+    
+    // Special handling for showPastEvents toggle to prevent cache issues
+    // Don't use cache when toggling showPastEvents to ensure fresh data
+    const isPastEventsToggle = lastPastEventsState.current !== showPastEvents;
+    const shouldUseCache = !forceRefresh && !isPastEventsToggle && eventsCache.current[cacheKey];
+    
+    // Update the last state after checking
+    lastPastEventsState.current = showPastEvents;
     
     // Check if we have cached data and aren't forcing a refresh
-    if (!forceRefresh && eventsCache.current[cacheKey]) {
+    if (shouldUseCache) {
       setEvents(eventsCache.current[cacheKey]);
-      setIsLoading(false);
-      setIsAutoRetrying(false);
+      setUiState(prev => ({
+        ...prev,
+        isLoading: false,
+        isRefreshing: false,
+        isAutoRetrying: false
+      }));
       return;
     }
     
     // If we're refreshing current data, show refreshing state instead of loading
-    if (events.length > 0 && !forceRefresh && !isAutoRetrying) {
-      setIsRefreshing(true);
+    if (events.length > 0 && !forceRefresh && !uiState.isAutoRetrying) {
+      setUiState(prev => ({
+        ...prev,
+        isRefreshing: true,
+        error: null
+      }));
     } else {
-      setIsLoading(true);
+      setUiState(prev => ({
+        ...prev,
+        isLoading: true,
+        error: null
+      }));
     }
     
-    setError(null);
     lastFetchParams.current = cacheKey;
 
     try {
@@ -174,54 +211,76 @@ const Events = () => {
         queryParams.append('location', selectedLocation);
       }
       
-      // Add show_past parameter
-      queryParams.append('show_past', showPastEvents.toString());
+      // Add show_past parameter (use explicit true/false string)
+      queryParams.append('show_past', showPastEvents === true ? 'true' : 'false');
       
       // Add additional filters
-      Object.entries(filters).forEach(([key, value]) => {
+      Object.entries(additionalFilters).forEach(([key, value]) => {
         if (value) queryParams.append(key, value);
       });
+
+      console.log(`Fetching events from: ${import.meta.env.VITE_API_URL}/api/events?${queryParams.toString()}`);
 
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/events?${queryParams.toString()}`,
         { 
           withCredentials: true,
           headers: {
-            // Remove cache-control headers to allow browser caching
+            // Add Cache-Control header to prevent browser caching for showPastEvents toggle
+            ...(isPastEventsToggle ? { 'Cache-Control': 'no-cache' } : {})
           }
         }
       );
 
       if (!mountedRef.current) return;
 
-      // Handle the response structure correctly
-      if (response.data && response.data[0] && response.data[0].data) {
-        const fetchedEvents = response.data[0].data;
-        // Update cache with new data
-        eventsCache.current[cacheKey] = fetchedEvents;
-        // Only update state if this is still the most recent request
-        if (lastFetchParams.current === cacheKey) {
-          setEvents(fetchedEvents);
-          
-          // Handle empty results - auto-retry logic
-          if (fetchedEvents.length === 0 && emptyResultsRetryCount < maxAutoRetries) {
-            handleEmptyResultsRetry();
-            return; // Keep loading state active by returning early
-          } else {
-            // Reset retry count when we get results or exceed max retries
-            setEmptyResultsRetryCount(0);
-            setIsAutoRetrying(false);
-          }
-        }
-      } else {
-        // Handle empty results
-        if (emptyResultsRetryCount < maxAutoRetries) {
+      console.log('API Response:', response.data);
+
+      // Handle different potential response structures
+      let fetchedEvents = [];
+      
+      if (Array.isArray(response.data)) {
+        // If response.data is an array, use it directly
+        fetchedEvents = response.data;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        // If response.data.data is an array
+        fetchedEvents = response.data.data;
+      } else if (response.data && response.data[0] && response.data[0].data) {
+        // Original structure expected
+        fetchedEvents = response.data[0].data;
+      } else if (response.data && typeof response.data === 'object') {
+        // If data is an object with direct event properties
+        fetchedEvents = [response.data];
+      }
+      
+      // Ensure fetchedEvents is always an array
+      if (!Array.isArray(fetchedEvents)) {
+        console.error('Unexpected API response format:', response.data);
+        fetchedEvents = [];
+      }
+      
+      // Update cache with new data
+      eventsCache.current[cacheKey] = fetchedEvents;
+      
+      // Only update state if this is still the most recent request
+      if (lastFetchParams.current === cacheKey) {
+        setEvents(fetchedEvents);
+        
+        // Only retry for empty results if we're not specifically looking for past events
+        // (since it's normal to have no past events in some locations)
+        if (fetchedEvents.length === 0 && uiState.emptyResultsRetryCount < maxAutoRetries && 
+            !(showPastEvents && selectedLocation)) {
           handleEmptyResultsRetry();
-          return; // Keep loading state active
+          return; // Keep loading state active by returning early
         } else {
-          setError('No events found matching your criteria');
-          setEmptyResultsRetryCount(0);
-          setIsAutoRetrying(false);
+          // Reset retry count when we get results or exceed max retries
+          setUiState(prev => ({
+            ...prev,
+            emptyResultsRetryCount: 0,
+            isAutoRetrying: false,
+            isLoading: false,
+            isRefreshing: false
+          }));
         }
       }
     } catch (error) {
@@ -233,15 +292,16 @@ const Events = () => {
       }
       
       console.error('Error fetching events:', error);
-      setError(error.response?.data?.message || 'Failed to load events. Please try again later.');
-      setIsAutoRetrying(false);
-    } finally {
-      if (mountedRef.current && !isAutoRetrying) {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
+      
+      setUiState(prev => ({
+        ...prev,
+        error: error.response?.data?.message || 'Failed to load events. Please try again later.',
+        isAutoRetrying: false,
+        isLoading: false,
+        isRefreshing: false
+      }));
     }
-  };
+  }, [activeFilter, searchQuery, selectedLocation, additionalFilters, showPastEvents, events.length, uiState.emptyResultsRetryCount, uiState.isAutoRetrying, createCacheKey, handleEmptyResultsRetry]);
 
   // Cleanup function
   useEffect(() => {
@@ -256,17 +316,24 @@ const Events = () => {
     };
   }, []);
 
-  // Initial load
+  // Initial data fetch - trigger once after first render
   useEffect(() => {
-    console.log('Initial fetch triggered');
-    // Reset auto-retry count on filter changes
-    setEmptyResultsRetryCount(0);
-    fetchEvents(filters);
-  }, [filters]);
+    // Initial data fetch
+    fetchEvents();
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);  // Empty dependency array means this runs once on mount
 
-  // Handle filter changes with debounce
+  // Effect for filter changes
   useEffect(() => {
-    console.log('Filter change detected:', { activeFilter, searchQuery, selectedLocation, filters, showPastEvents });
+    // Skip the very first render since we have a dedicated effect for initial fetch
+    if (!initialRenderComplete.current) {
+      initialRenderComplete.current = true;
+      return;
+    }
+    
+    console.log('Filter change detected, preparing to fetch events');
+    
     // Cancel any pending requests when filter or search changes
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -279,14 +346,16 @@ const Events = () => {
     }
     
     // Reset auto-retry count on filter changes
-    setEmptyResultsRetryCount(0);
-    setIsAutoRetrying(false);
+    setUiState(prev => ({
+      ...prev,
+      emptyResultsRetryCount: 0,
+      isAutoRetrying: false
+    }));
     
-    // Debounce search to prevent too many API calls
+    // Debounce all searches to prevent too many API calls
     const timeoutId = setTimeout(() => {
-      console.log('Fetching events with filters:', filters);
-      fetchEvents(filters);
-    }, searchQuery ? 500 : 0);
+      fetchEvents();
+    }, searchQuery ? 500 : 200); // Add a small delay even without search query
     
     return () => {
       clearTimeout(timeoutId);
@@ -297,7 +366,7 @@ const Events = () => {
         clearTimeout(autoRetryTimeoutRef.current);
       }
     };
-  }, [activeFilter, searchQuery, selectedLocation, filters, showPastEvents]);
+  }, [activeFilter, searchQuery, selectedLocation, additionalFilters, showPastEvents, fetchEvents]);
 
   // Add a refresh function that forces bypass of cache
   const refreshEvents = useCallback(() => {
@@ -307,51 +376,55 @@ const Events = () => {
     abortControllerRef.current = new AbortController();
     
     // Reset auto-retry count on manual refresh
-    setEmptyResultsRetryCount(0);
-    setIsAutoRetrying(false);
+    setUiState(prev => ({
+      ...prev,
+      emptyResultsRetryCount: 0,
+      isAutoRetrying: false
+    }));
     
-    fetchEvents(filters, true); // Force refresh
-  }, [filters]);
+    fetchEvents(true); // Force refresh
+  }, [fetchEvents]);
 
   // Add a retry mechanism
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     // Reset retry count on manual retry
-    setEmptyResultsRetryCount(0);
-    setIsAutoRetrying(false);
+    setUiState(prev => ({
+      ...prev,
+      emptyResultsRetryCount: 0,
+      isAutoRetrying: false,
+      retryCount: prev.retryCount + 1
+    }));
+    
     refreshEvents();
-  };
+  }, [refreshEvents]);
 
-  const handleSearch = (searchParams) => {
-    setSearchQuery(searchParams.query || '');
-    
-    if (searchParams.category) {
-      setActiveFilter(searchParams.category);
-    }
-    
-    if (searchParams.location) {
-      setSelectedLocation(searchParams.location);
-      // When location is selected, set active filter to "all" to show all events in that location
-      setActiveFilter('all');
-    } else {
-      setSelectedLocation('');
-    }
-  };
+  const handleSearch = useCallback((searchParams) => {
+    setFilterState(prev => ({
+      ...prev,
+      searchQuery: searchParams.query || '',
+      activeFilter: searchParams.category || prev.activeFilter,
+      selectedLocation: searchParams.location || ''
+    }));
+  }, []);
 
-  const handleFilterClick = (filter) => {
-    setActiveFilter(filter);
-    setSearchQuery(''); // Clear search when changing filters
-    
-    // When selecting "all", clear all filters
-    if (filter === 'all') {
-      setSelectedCategory('');
-      setSelectedLocation('');
-    }
-  };
+  const handleFilterClick = useCallback((filter) => {
+    setFilterState(prev => ({
+      ...prev,
+      activeFilter: filter,
+      searchQuery: '', 
+
+      ...(filter === 'all' ? { selectedLocation: '' } : {})
+    }));
+  }, []);
 
   // Add toggle for past events
-  const togglePastEvents = () => {
-    setShowPastEvents(!showPastEvents);
-  };
+  const togglePastEvents = useCallback(() => {
+    setFilterState(prev => ({
+      ...prev,
+      showPastEvents: !prev.showPastEvents
+    }));
+    
+  }, []);
 
   return (
     <div className={`pt-20 min-h-screen ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-background'}`}>
@@ -408,6 +481,7 @@ const Events = () => {
               size="sm"
               onClick={togglePastEvents}
               className={`flex items-center gap-2 ${isDarkMode && !showPastEvents ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : ''}`}
+              disabled={isLoading || isRefreshing || isAutoRetrying}
             >
               <Calendar className="w-4 h-4" />
               {showPastEvents ? 'Hide Past Events' : 'Show Past Events'}
@@ -458,9 +532,9 @@ const Events = () => {
               <AlertCircle className="h-8 w-8 text-destructive mr-2" />
               <p className="text-destructive">{error}</p>
             </div>
-            {retryCount < 3 ? (
+            {uiState.retryCount < 3 ? (
               <p className="text-muted-foreground mb-4">
-                Retrying in {Math.min(1000 * Math.pow(2, retryCount), 10000) / 1000} seconds...
+                Retrying in {Math.min(1000 * Math.pow(2, uiState.retryCount), 10000) / 1000} seconds...
               </p>
             ) : (
               <Button onClick={handleRetry} className="mt-4">Try Again</Button>
@@ -469,14 +543,18 @@ const Events = () => {
         ) : (
           <AnimatedSection delay={100}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-              {events.length > 0 ? (
+              {events && events.length > 0 ? (
                 events.map((event) => (
-                  <EventCard key={event.id} event={event} />
+                  <EventCard key={event.id || `event-${event.title}`} event={event} />
                 ))
               ) : (
                 <div className="col-span-3 text-center py-10">
                   <h3 className="text-xl font-medium mb-2">No events found</h3>
-                  <p className="text-muted-foreground mb-6">Try changing your filter or search criteria</p>
+                  <p className="text-muted-foreground mb-6">
+                    {showPastEvents ? 
+                      "No past events found for this selection. Try changing your filter or location." :
+                      "Try changing your filter or search criteria"}
+                  </p>
                   <Button onClick={() => handleFilterClick('all')}>View All Events</Button>
                 </div>
               )}
