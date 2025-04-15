@@ -1,6 +1,6 @@
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import Event, User, Ticket, Payment, TicketType
+from models import Event, User, Ticket, Payment, TicketType, Category, Organizer
 from utils.response import success_response, error_response
 from utils.auth import organizer_required, admin_required
 from datetime import datetime, timedelta
@@ -303,14 +303,14 @@ class StatsResource(Resource):
             # Get event categories with counts
             try:
                 event_categories = db.session.query(
-                    Event.categories.any().c.name.label('category'),
+                    Category.name.label('category'),
                     func.count(Event.id).label('count')
                 ).join(
                     Event.categories
                 ).filter(
                     Event.created_at >= time_filter
                 ).group_by(
-                    'category'
+                    Category.name
                 ).all()
                 
                 category_data = [{'name': cat_name, 'value': count} for cat_name, count in event_categories]
@@ -355,7 +355,7 @@ class StatsResource(Resource):
             top_organizers = db.session.query(
                 User.id.label('user_id'),
                 User.username.label('username'),
-                User.organizer.company_name.label('company_name'),
+                Organizer.company_name.label('company_name'),
                 func.sum(Ticket.price).label('total_revenue'),
                 func.count(Ticket.id).label('ticket_count'),
                 func.count(func.distinct(Event.id)).label('event_count')
@@ -368,7 +368,7 @@ class StatsResource(Resource):
             ).filter(
                 Ticket.purchase_date >= time_filter
             ).group_by(
-                User.id, User.username, User.organizer.company_name
+                User.id, User.username, Organizer.company_name
             ).order_by(
                 func.sum(Ticket.price).desc()
             ).limit(5).all()
