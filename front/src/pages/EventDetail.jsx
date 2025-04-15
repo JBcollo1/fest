@@ -360,12 +360,12 @@ const EventDetail = () => {
                 
                 <div className="flex items-center mb-6">
                   <img 
-                    src={event.organizer?.image || '/default-organizer-image.jpg'} 
-                    alt={event.organizer?.name}
+                    src={event.organizer?.company_image || '/default-organizer-image.jpg'} 
+                    alt={event.organizer?.company_name}
                     className="w-10 h-10 rounded-full mr-3"
                   />
                   <div>
-                    <p className="font-medium">{event.organizer?.name}</p>
+                    <p className="font-medium">{event.organizer?.company_name}</p>
                     <p className="text-sm text-muted-foreground">Event Organizer</p>
                   </div>
                 </div>
@@ -499,7 +499,7 @@ const EventDetail = () => {
                       </div>
                     ))}
                     
-                    <div className={`border-t ${isDarkMode ? 'border-slate-700' : 'border-border'} pt-4 mb-6`}>
+                    <div className={`pt-4 mb-6`}>
                       <div className={`flex justify-between font-semibold text-lg mt-4 pt-4 border-t ${isDarkMode ? 'border-slate-700' : 'border-border'}`}>
                         <span>Total</span>
                         <span>{event.currency} {totalPrice.toLocaleString()}</span>
