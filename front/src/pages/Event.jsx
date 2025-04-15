@@ -411,8 +411,8 @@ const Events = () => {
     setFilterState(prev => ({
       ...prev,
       activeFilter: filter,
-      searchQuery: '', // Clear search when changing filters
-      // When selecting "all", clear location
+      searchQuery: '', 
+
       ...(filter === 'all' ? { selectedLocation: '' } : {})
     }));
   }, []);
@@ -423,7 +423,7 @@ const Events = () => {
       ...prev,
       showPastEvents: !prev.showPastEvents
     }));
-    // No need to immediately call fetchEvents here, the useEffect will handle it
+    
   }, []);
 
   return (
