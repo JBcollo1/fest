@@ -50,9 +50,11 @@ const UserProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [saveStatus, setSaveStatus] = useState(null); // 'success', 'error', or null
+  const [saveStatus, setSaveStatus] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [activeTab, setActiveTab] = useState("personal");
   const { isDarkMode } = useTheme();
   const [formData, setFormData] = useState({
@@ -120,11 +122,38 @@ const UserProfile = () => {
     }
   };
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Preview the selected image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setSelectedFile(file);
+    }
+  };
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     try {
       setSaveStatus(null);
-      await updateUserData(formData);
+      setIsUploading(true);
+
+      const formDataToSend = new FormData();
+      
+      Object.keys(formData).forEach(key => {
+        if (formData[key]) {
+          formDataToSend.append(key, formData[key]);
+        }
+      });
+
+      if (selectedFile) {
+        formDataToSend.append('file', selectedFile);
+      }
+
+      await updateUserData(formDataToSend);
       setSaveStatus('success');
       setIsEditing(false);
       await fetchUserData();
@@ -146,33 +175,6 @@ const UserProfile = () => {
       toast({
         title: "Error",
         description: err.message || "Failed to update profile. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      setIsUploading(true);
-      const result = await uploadImage(file, {
-        isPrivate: true, 
-        target: 'user'
-      });
-      setFormData(prev => ({
-        ...prev,
-        photo_img: result.url
-      }));
-      toast({
-        title: "Success",
-        description: "Profile image uploaded successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload image",
         variant: "destructive",
       });
     } finally {
@@ -285,26 +287,29 @@ const UserProfile = () => {
               <div className="flex justify-center">
                 <div className="relative">
                   <Avatar className={`h-28 w-28 ${isDarkMode ? 'border-slate-800' : 'border-white'} border-4 rounded-full -mt-14 shadow-lg`}>
-                    <AvatarImage src={formData.photo_img} alt="Profile" className="object-cover" />
+                    <AvatarImage src={previewUrl || formData.photo_img} alt="Profile" className="object-cover" />
                     <AvatarFallback className="text-3xl font-bold bg-primary text-white">
                       {getInitials()}
                     </AvatarFallback>
                   </Avatar>
                   {isEditing && (
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      className={`absolute bottom-0 right-0 rounded-full ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 border-slate-700' : 'bg-white hover:bg-gray-100'} shadow-md`}
-                      onClick={() => fileInputRef.current.click()}
-                    >
-                      <Camera className="w-4 h-4" />
-                      <input 
+                    <div className="absolute bottom-0 right-0">
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        className={`rounded-full ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 border-slate-700' : 'bg-white hover:bg-gray-100'} shadow-md`}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Camera className="w-4 h-4" />
+                      </Button>
+                      <Input 
                         type="file" 
                         ref={fileInputRef} 
                         className="hidden" 
-                        onChange={handleImageUpload}
+                        accept="image/*"
+                        onChange={handleFileSelect}
                       />
-                    </Button>
+                    </div>
                   )}
                 </div>
               </div>

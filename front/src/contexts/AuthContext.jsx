@@ -75,7 +75,12 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/users/${user.id}`,
         userData,
-        { withCredentials: true }
+        {
+          withCredentials: true,
+          headers: {            
+            'Content-Type': userData instanceof FormData ? 'multipart/form-data' : 'application/json'
+          }
+        }
       );
       setUser(response.data.data); // Update the user state with the new data
       return response.data;
