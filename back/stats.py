@@ -351,36 +351,38 @@ class StatsResource(Resource):
                     'status': status
                 })
             
-            # Top organizers by revenue
+                # Top organizers by revenue
             top_organizers = db.session.query(
-                User.id.label('user_id'),
-                User.username.label('username'),
-                Organizer.company_name.label('company_name'),
-                func.sum(Ticket.price).label('total_revenue'),
-                func.count(Ticket.id).label('ticket_count'),
-                func.count(func.distinct(Event.id)).label('event_count')
-            ).join(
-                User.organizer
-            ).join(
-                Event, Event.organizer_id == User.organizer.id
-            ).join(
-                Ticket, Ticket.event_id == Event.id
-            ).filter(
-                Ticket.purchase_date >= time_filter
-            ).group_by(
-                User.id, User.username, Organizer.company_name
-            ).order_by(
-                func.sum(Ticket.price).desc()
-            ).limit(5).all()
-            
+                    Organizer.id.label('organizer_id'),
+                    User.id.label('user_id'), 
+                    User.username.label('username'),
+                    Organizer.company_name.label('company_name'),
+                    func.sum(Ticket.price).label('total_revenue'),
+                    func.count(Ticket.id).label('ticket_count'),
+                    func.count(func.distinct(Event.id)).label('event_count')
+                ).select_from(Ticket).join(
+                    Event, Ticket.event_id == Event.id
+                ).join(
+                    Organizer, Event.organizer_id == Organizer.id
+                ).join(
+                    User, Organizer.user_id == User.id
+                ).filter(
+                    Ticket.purchase_date >= time_filter
+                ).group_by(
+                    Organizer.id, User.id, User.username, Organizer.company_name
+                ).order_by(
+                    func.sum(Ticket.price).desc()
+                ).limit(5).all()
+
             top_organizers_data = [{
-                'user_id': user_id,
-                'username': username,
-                'company_name': company_name,
-                'revenue': float(revenue or 0),
-                'tickets_sold': int(tickets or 0),
-                'events': int(events or 0)
-            } for user_id, username, company_name, revenue, tickets, events in top_organizers]
+                    'organizer_id': organizer_id,
+                    'user_id': user_id,
+                    'username': username,
+                    'company_name': company_name,
+                    'revenue': float(revenue or 0),
+                    'tickets_sold': int(tickets or 0),
+                    'events': int(events or 0)
+                } for organizer_id, user_id, username, company_name, revenue, tickets, events in top_organizers]
             
             # System growth - new users and events per month
             new_users_monthly = db.session.query(
