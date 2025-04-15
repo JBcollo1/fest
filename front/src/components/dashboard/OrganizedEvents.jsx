@@ -52,9 +52,12 @@ const OrganizedEvents = () => {
         response = await fetchOrganizerEvents();
       }
   
-      if (response?.data?.items && Array.isArray(response.data.items)) {
+      // Handle the array response format
+      if (Array.isArray(response) && response[0]?.data) {
+        const eventsData = response[0].data;
+        
         const eventsWithOrganizerNames = await Promise.all(
-          response.data.items.map(async (event) => {
+          eventsData.map(async (event) => {
             if (event.organizer_id) {
               try {
                 const userResponse = await fetchOrganizerById(event.organizer_id);
@@ -71,6 +74,7 @@ const OrganizedEvents = () => {
             return event;
           })
         );
+        
         setEvents(eventsWithOrganizerNames);
         if (eventsWithOrganizerNames.length > 0) {
           setSelectedEventId(eventsWithOrganizerNames[0].id);
@@ -89,7 +93,6 @@ const OrganizedEvents = () => {
       setLoading(false);
     }
   };
-  
   const loadOrganizers = async () => {
     try {
       const response = await fetchAllOrganizers();
@@ -250,7 +253,7 @@ const OrganizedEvents = () => {
       {/* Render the EventStatsPage component with lazy loading */}
       {selectedEventId && (
         <Suspense fallback={<div>Loading stats...</div>}>
-          <EventStatsPage eventId={selectedEventId} />
+          <EventStatsPage  />
         </Suspense>
       )}
 
