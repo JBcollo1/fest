@@ -401,7 +401,7 @@ class StatsResource(Resource):
                 extract('month', Event.created_at)
             ).all()
             
-            # Format growth data
+            
             growth_data = []
             for month_num in range(1, 13):
                 month_name = datetime(datetime.now().year, month_num, 1).strftime('%B')
