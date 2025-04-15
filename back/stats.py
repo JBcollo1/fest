@@ -413,7 +413,7 @@ class StatsResource(Resource):
                     'new_events': event_count
                 })
             
-            # Payment methods distribution
+            
             payment_methods = db.session.query(
                 Payment.payment_method.label('method'),
                 func.count(Payment.id).label('count')
