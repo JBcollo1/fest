@@ -6,7 +6,7 @@
 # import logging
 # from redis_client import RedisManager
 
-# # Configure logging
+# # Configu
 # logger = logging.getLogger(__name__)
 
 # # Payment status constants
