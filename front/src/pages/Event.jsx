@@ -110,114 +110,6 @@ const Events = () => {
     fetchCategories();
   }, []);
   
-  const getCacheKey = useCallback(() => {
-    let key = 'all';
-    if (activeFilter !== 'all') key = `category:${activeFilter}`;
-    if (searchQuery) key += `:search:${searchQuery}`;
-    if (selectedLocation) key += `:location:${selectedLocation}`;
-    return key;
-  }, [activeFilter, searchQuery, selectedLocation]);
-  
-  // Function to check if we have cached data for current filters
-  const getCachedEvents = useCallback(() => {
-    console.log("fetched from cache")
-    const key = getCacheKey();
-    
-    if (eventsCache.current[key]) {
-      // cache of all or category or search or location
-      return eventsCache.current[key];
-    }
-    
-    // If searching with a category filter, we can use "all events" of that category as initial data
-    if (searchQuery && activeFilter !== 'all') {
-      const categoryKey = `category:${activeFilter}`;
-      if (eventsCache.current[categoryKey]) {
-        return eventsCache.current[categoryKey].filter(event => 
-          event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.description?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      }
-    }
-    
-    // For location-based searches
-    if (selectedLocation && eventsCache.current.all.length > 0) {
-      return eventsCache.current.all.filter(event => 
-        event.location?.toLowerCase().includes(selectedLocation.toLowerCase())
-      );
-    }
-    
-    // filter client-side if we have all the events fetched before
-    if (eventsCache.current.all.length > 0 && (activeFilter !== 'all' || searchQuery || selectedLocation)) {
-      return eventsCache.current.all.filter(event => {
-        let matchesCategory = activeFilter === 'all' || event.category === activeFilter;
-        let matchesSearch = !searchQuery || 
-          event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.description?.toLowerCase().includes(searchQuery.toLowerCase());
-        let matchesLocation = !selectedLocation || 
-          event.location?.toLowerCase().includes(selectedLocation.toLowerCase());
-        
-        return matchesCategory && matchesSearch && matchesLocation;
-      });
-    }
-    
-    return null; // No suitable cache found
-  }, [activeFilter, searchQuery, selectedLocation, getCacheKey]);
-  
-  const fetchEvents = useCallback(async (signal) => {
-    const cachedEvents = getCachedEvents();
-    const key = getCacheKey();
-    
-    if (cachedEvents && cachedEvents.length > 0) {
-      setEvents(cachedEvents);
-      setIsLoading(false);
-      
-      if (Date.now() - (eventsCache.current.lastFetchTime || 0) > 30000) { // 30 seconds cache
-        try {
-          let url = '/api/events';
-          const params = new URLSearchParams();
-          
-          if (activeFilter !== 'all') {
-            params.append('category', activeFilter);
-          }
-          
-          if (searchQuery && typeof searchQuery === 'string' && searchQuery !== '') {
-            params.append('search', searchQuery);
-          }
-          
-          if (selectedLocation) {
-            params.append('location', selectedLocation);
-          }
-          
-          if (params.toString()) {
-            url += `?${params.toString()}`;
-          }
-          
-          const response = await axios.get(`${import.meta.env.VITE_API_URL}${url}`, { signal });
-          
-          if (response.data?.data?.items) {
-            const newEvents = response.data.data.items;
-            
-            const hasNewEvents = newEvents.some(newEvent => 
-              !cachedEvents.some(cachedEvent => cachedEvent.id === newEvent.id)
-            );
-            
-            if (hasNewEvents || newEvents.length !== cachedEvents.length) {
-              setEvents(newEvents);
-              eventsCache.current[key] = newEvents;
-              eventsCache.current.lastFetchTime = Date.now();
-              
-              if (activeFilter === 'all' && !searchQuery && !selectedLocation) {
-                eventsCache.current.all = newEvents;
-              }
-            }
-          }
-        } catch (error) {
-          if (!axios.isCancel(error)) {
-            console.error('Error fetching latest events:', error);
-            setError('Unable to refresh events. Please try again later.');
-          }
-        }
-      }
   // Create a cache key from filters
   const createCacheKey = useCallback(() => {
     return JSON.stringify({
@@ -302,23 +194,19 @@ const Events = () => {
       }));
     }
     
-    setError(null);
-    setIsLoading(true);
-    
     lastFetchParams.current = cacheKey;
 
     try {
-      let url = '/api/events';
-      const params = new URLSearchParams();
+      // Build query params
+      const queryParams = new URLSearchParams();
       
+      // Add base filters
       if (activeFilter !== 'all') {
-        params.append('category', activeFilter);
+        queryParams.append('category', activeFilter);
       }
-      
-      if (searchQuery && typeof searchQuery === 'string' && searchQuery !== '') {
-        params.append('search', searchQuery);
+      if (searchQuery) {
+        queryParams.append('search', searchQuery);
       }
-      
       if (selectedLocation) {
         queryParams.append('location', selectedLocation);
       }
@@ -396,26 +284,14 @@ const Events = () => {
         }
       }
     } catch (error) {
-      if (axios.isCancel(error)) {
-        console.log('Request cancelled');
+      if (!mountedRef.current) return;
+      
+      if (error.name === 'AbortError') {
+        console.log('Request was aborted');
         return;
       }
       
       console.error('Error fetching events:', error);
-      setError('Unable to load events. Please try again later.');
-      setEvents([]);
-      
-      if (retryCount < 3) {
-        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-        }, delay);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeFilter, searchQuery, retryCount, selectedLocation, getCachedEvents, getCacheKey]);
-
       
       setUiState(prev => ({
         ...prev,
@@ -478,8 +354,6 @@ const Events = () => {
     
     // Debounce all searches to prevent too many API calls
     const timeoutId = setTimeout(() => {
-      fetchEvents(abortControllerRef.current.signal);
-    }, searchQuery ? 300 : 0); // 300ms delay for search, no delay for other filters
       fetchEvents();
     }, searchQuery ? 500 : 200); // Add a small delay even without search query
     
@@ -487,6 +361,9 @@ const Events = () => {
       clearTimeout(timeoutId);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+      }
+      if (autoRetryTimeoutRef.current) {
+        clearTimeout(autoRetryTimeoutRef.current);
       }
     };
   }, [activeFilter, searchQuery, selectedLocation, additionalFilters, showPastEvents, fetchEvents]);
@@ -530,16 +407,6 @@ const Events = () => {
     }));
   }, []);
 
-  const handleFilterClick = (filter) => {
-    setActiveFilter(filter);
-    setSearchQuery(''); // Clear search when changing filters
-    
-    // When selecting "all", clear all filters
-    if (filter === 'all') {
-      setSelectedCategory('');
-      setSelectedLocation('');
-    }
-  };
   const handleFilterClick = useCallback((filter) => {
     setFilterState(prev => ({
       ...prev,
@@ -692,9 +559,14 @@ const Events = () => {
                 </div>
               )}
             </div>
-            {isLoading && events.length > 0 && (
+            {isRefreshing && events.length > 0 && (
               <div className="text-center mt-4">
                 <p className="text-sm text-muted-foreground">Refreshing results...</p>
+              </div>
+            )}
+            {isAutoRetrying && (
+              <div className="text-center mt-4">
+                <p className="text-sm text-muted-foreground">Looking for events...</p>
               </div>
             )}
           </AnimatedSection>
