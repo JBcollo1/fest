@@ -543,7 +543,7 @@ def get_verification_status(result, payment):
         
         # Update payment status for successful transaction
         payment.payment_status = 'Completed'
-        payment.transaction_id = result.get('MpesaReceiptNumber')
+        # payment.transaction_id = result.get('MpesaReceiptNumber')
         payment.payment_date = datetime.now()
 
         # Update ticket status
