@@ -317,7 +317,7 @@ class UserLoginResource(Resource):
                     httponly=True,
                     secure=True,
                     samesite='None',
-                    path='/refresh',  
+                    path='/',  
                     max_age=2592000  
                 )
 

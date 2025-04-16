@@ -147,7 +147,8 @@ class EventListResource(Resource):
             location=data['location'],
             currency=data.get('currency', 'KES'),
             image=data.get('image'),
-            featured=featured
+            featured=featured,
+            per_person_limit=data.get('per_person_limit')
         )
         
         # Add ticket types if provided
